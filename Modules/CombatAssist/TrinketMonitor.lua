@@ -262,7 +262,6 @@ end
 
 local function ApplySecureButtonVisibility(button, visible)
     button._layoutVisible = visible and true or false
-    button:EnableMouse(visible and true or false)
 
     if InCombatLockdown() then
         SetButtonVisualVisible(button, visible)
@@ -536,6 +535,15 @@ function TrinketMonitor:CreateFrames()
             config.offsetY = RoundOffset(offsetY)
         end)
         self._mainFrame = mainFrame
+
+        local blocker = CreateFrame("Frame", nil, mainFrame)
+        blocker:SetAllPoints(mainFrame)
+        blocker:SetFrameLevel(mainFrame:GetFrameLevel() + 100)
+        blocker:EnableMouse(true)
+        blocker:Hide()
+        blocker:SetScript("OnMouseDown", function() end)
+        blocker:SetScript("OnMouseUp", function() end)
+        self._interactionBlocker = blocker
     end
 
     self._buttons = self._buttons or {}
@@ -630,7 +638,12 @@ function TrinketMonitor:RefreshLayout()
 
     local unlocked = config.unlocked == true
     self._mainFrame:EnableMouse(unlocked)
+    self._mainFrame:SetAlpha(1)
+    self._mainFrame:Show()
     self._alertFrame:EnableMouse(unlocked)
+    if self._interactionBlocker then
+        self._interactionBlocker:Hide()
+    end
 
     if unlocked and not self._alertExpiresAt then
         self._alertText:SetText(config.readyText or READY_TEXT_DEFAULT)
@@ -860,12 +873,31 @@ function TrinketMonitor:UpdateDisplay()
     if suppressOutOfCombat then
         for _, button in ipairs(self._buttons or {}) do
             StopReadyHighlight(button)
+            SetButtonVisualVisible(button, false)
         end
-        self._mainFrame:Hide()
+        self._mainFrame:Show()
+        self._mainFrame:SetAlpha(0)
+        self._mainFrame:EnableMouse(false)
+        if self._interactionBlocker then
+            self._interactionBlocker:Show()
+        end
     elseif anyVisible then
         self._mainFrame:Show()
+        self._mainFrame:SetAlpha(1)
+        self._mainFrame:EnableMouse(config.unlocked == true)
+        if self._interactionBlocker then
+            self._interactionBlocker:Hide()
+        end
     else
-        self._mainFrame:Hide()
+        for _, button in ipairs(self._buttons or {}) do
+            SetButtonVisualVisible(button, false)
+        end
+        self._mainFrame:Show()
+        self._mainFrame:SetAlpha(0)
+        self._mainFrame:EnableMouse(false)
+        if self._interactionBlocker then
+            self._interactionBlocker:Show()
+        end
     end
 
     if suppressOutOfCombat then

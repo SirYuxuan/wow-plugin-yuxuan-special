@@ -73,7 +73,7 @@ function NS.BuildCombatAssistOptions()
                             type = "toggle",
                             order = 11,
                             width = 1.0,
-                            name = "战斗状态下开启",
+                            name = "非战斗状态隐藏",
                             disabled = IsDisabled,
                             get = function()
                                 return GetConfig().combatOnly
