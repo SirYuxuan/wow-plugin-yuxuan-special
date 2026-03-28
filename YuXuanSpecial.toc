@@ -2,17 +2,19 @@
 ## Title: 雨轩专用插件
 ## Notes: 轻量地图辅助与职业辅助插件
 ## Author: Codex
-## Version: 0.2.1
+## Version: 0.3.0
 ## SavedVariables: YuXuanSpecialDB
-## OptionalDeps: Ace3
+## OptionalDeps: Ace3, ClickableRaidBuffs
 
 Core\Init.lua
 Core\Database.lua
 Core\Commands.lua
 
 Modules\MapAssist\QuickWaypoint.lua
+Modules\CombatAssist\TrinketMonitor.lua
 Modules\ClassAssist\Mage\ShatterIndicator.lua
 
+Options\CombatAssist.lua
 Options\ClassAssist.lua
 Options\Mage.lua
 Options\MapAssist.lua

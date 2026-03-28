@@ -9,6 +9,9 @@ YuXuanSpecialDB = {
     mapAssist = {
         quickWaypoint = { ... }
     },
+    combatAssist = {
+        trinketMonitor = { ... }
+    },
     classAssist = {
         mage = {
             shatterIndicator = { ... }
@@ -26,6 +29,47 @@ NS.DEFAULTS = {
             offsetY = 0,
             fontSize = 12,
             bgAlpha = 35,
+        },
+    },
+    combatAssist = {
+        trinketMonitor = {
+            enabled = false,
+            unlocked = false,
+            combatOnly = false,
+            iconSize = 44,
+            spacing = 8,
+            offsetX = 0,
+            offsetY = -220,
+            showText = true,
+            textSize = 14,
+            textPosition = "BOTTOM",
+            textColor = {
+                r = 1.00,
+                g = 1.00,
+                b = 1.00,
+                a = 1.00,
+            },
+            highlightReady = true,
+            highlightColor = {
+                r = 1.00,
+                g = 0.82,
+                b = 0.20,
+                a = 1.00,
+            },
+            showReadyAlert = true,
+            readyText = "饰品好了！",
+            readyTextSize = 28,
+            readyTextColor = {
+                r = 1.00,
+                g = 0.82,
+                b = 0.20,
+                a = 1.00,
+            },
+            playReadySound = true,
+            readySoundPath = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Audio\\SP.mp3",
+            readyOffsetX = 0,
+            readyOffsetY = 180,
+            alertDuration = 1.5,
         },
     },
     classAssist = {
@@ -109,6 +153,12 @@ function Core:ResetQuickWaypointConfig()
     self.db.mapAssist = self.db.mapAssist or {}
     self.db.mapAssist.quickWaypoint = CloneTable(NS.DEFAULTS.mapAssist.quickWaypoint)
     return self.db.mapAssist.quickWaypoint
+end
+
+function Core:ResetTrinketMonitorConfig()
+    self.db.combatAssist = self.db.combatAssist or {}
+    self.db.combatAssist.trinketMonitor = CloneTable(NS.DEFAULTS.combatAssist.trinketMonitor)
+    return self.db.combatAssist.trinketMonitor
 end
 
 function Core:ResetMageShatterIndicatorConfig()

@@ -51,7 +51,7 @@ local function BuildAboutOptions()
                 type = "description",
                 order = 4,
                 fontSize = "medium",
-                name = "当前版本包含地图辅助与职业辅助 并使用独立弹窗进行配置",
+                name = "当前版本包含地图辅助 战斗辅助 与职业辅助 并使用独立弹窗进行配置",
             },
             commandHeader = {
                 type = "header",
@@ -80,11 +80,23 @@ local function BuildAboutOptions()
                 type = "description",
                 order = 14,
                 fontSize = "medium",
-                name = "|cFFFFFF00/yxs mage|r - 打开法师辅助",
+                name = "|cFFFFFF00/yxs combat|r - 打开战斗辅助",
             },
             cmd5 = {
                 type = "description",
                 order = 15,
+                fontSize = "medium",
+                name = "|cFFFFFF00/yxs trinket|r - 打开饰品监控",
+            },
+            cmd6 = {
+                type = "description",
+                order = 16,
+                fontSize = "medium",
+                name = "|cFFFFFF00/yxs mage|r - 打开法师辅助",
+            },
+            cmd7 = {
+                type = "description",
+                order = 17,
                 fontSize = "medium",
                 name = "|cFFFFFF00/yxs frost|r - 打开冰霜专精页",
             },
@@ -99,6 +111,7 @@ local function GetOptionsTable()
         childGroups = "tree",
         args = {
             mapAssist = NS.BuildMapAssistOptions(),
+            combatAssist = NS.BuildCombatAssistOptions(),
             classAssist = NS.BuildClassAssistOptions(),
             about = BuildAboutOptions(),
         },
@@ -271,4 +284,12 @@ end
 
 function Options:OpenMageFrostAssist()
     return self:Open("classAssist", "mage", "frost")
+end
+
+function Options:OpenCombatAssist()
+    return self:Open("combatAssist")
+end
+
+function Options:OpenTrinketMonitor()
+    return self:Open("combatAssist", "trinketMonitor")
 end

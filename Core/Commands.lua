@@ -27,6 +27,14 @@ local function OpenSettingsByCommand(message)
         if NS.Options:OpenQuickWaypoint() then
             return
         end
+    elseif input == "combat" then
+        if NS.Options:OpenCombatAssist() then
+            return
+        end
+    elseif input == "trinket" then
+        if NS.Options:OpenTrinketMonitor() then
+            return
+        end
     elseif input == "mage" then
         if NS.Options:OpenMageAssist() then
             return

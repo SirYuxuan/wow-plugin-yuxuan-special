@@ -2,9 +2,10 @@
 
 NS.ADDON_NAME = ADDON_NAME
 NS.DISPLAY_NAME = "雨轩专用插件"
-NS.VERSION = "0.2.1"
+NS.VERSION = "0.3.0"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
+NS.Modules.CombatAssist = NS.Modules.CombatAssist or {}
 NS.Modules.ClassAssist = NS.Modules.ClassAssist or {}
 NS.Modules.ClassAssist.Mage = NS.Modules.ClassAssist.Mage or {}
 NS.Options = NS.Options or {}
@@ -34,6 +35,11 @@ function Core:OnPlayerLogin()
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.OnPlayerLogin then
         quickWaypoint:OnPlayerLogin()
+    end
+
+    local trinketMonitor = NS.Modules.CombatAssist and NS.Modules.CombatAssist.TrinketMonitor
+    if trinketMonitor and trinketMonitor.OnPlayerLogin then
+        trinketMonitor:OnPlayerLogin()
     end
 
     local shatterIndicator = NS.Modules.ClassAssist
