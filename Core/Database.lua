@@ -70,6 +70,7 @@ NS.DEFAULTS = {
             readyOffsetX = 0,
             readyOffsetY = 180,
             alertDuration = 1.5,
+            blockedItemIDs = "",
         },
     },
     classAssist = {

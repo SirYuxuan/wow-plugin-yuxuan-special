@@ -127,6 +127,17 @@ local function NormalizeSoundPath(path)
     return value
 end
 
+local function ParseBlockedItemIDs(rawValue)
+    local text = tostring(rawValue or "")
+    local result = {}
+
+    for itemID in text:gmatch("%d+") do
+        result[tonumber(itemID)] = true
+    end
+
+    return result
+end
+
 local function SetCooldownFrame(cooldownFrame, startTime, duration, enable)
     if not cooldownFrame then
         return
@@ -214,6 +225,58 @@ local function ApplyCooldownTextAnchor(fontString, parent, position)
     end
 end
 
+local function SetButtonVisualVisible(button, visible)
+    local alpha = visible and 1 or 0
+
+    if button.icon then
+        button.icon:SetAlpha(alpha)
+    end
+    if button.shadow then
+        button.shadow:SetAlpha(visible and 0.55 or 0)
+    end
+    if button.cooldown then
+        button.cooldown:SetAlpha(alpha)
+    end
+    if button.text then
+        if visible and button._textVisible then
+            button.text:Show()
+        else
+            button.text:Hide()
+        end
+    end
+    if button._border then
+        for _, texture in ipairs(button._border) do
+            texture:SetAlpha(alpha)
+        end
+    end
+    if button._readyDashes then
+        for _, dash in ipairs(button._readyDashes) do
+            if visible and button._readyAnimationEnabled and button._usingFallbackDashes then
+                dash:Show()
+            else
+                dash:Hide()
+            end
+        end
+    end
+end
+
+local function ApplySecureButtonVisibility(button, visible)
+    button._layoutVisible = visible and true or false
+
+    if InCombatLockdown() then
+        SetButtonVisualVisible(button, button:IsShown() and visible)
+        return
+    end
+
+    if visible then
+        button:Show()
+    else
+        button:Hide()
+    end
+
+    SetButtonVisualVisible(button, visible)
+end
+
 local function StopReadyHighlight(button)
     if not button then
         return
@@ -231,6 +294,7 @@ local function StopReadyHighlight(button)
 
     button._readyAnimationEnabled = false
     button._dashPhase = nil
+    button._usingFallbackDashes = false
     button._glowColorKey = nil
     button._glowSize = nil
     button:SetScript("OnUpdate", nil)
@@ -248,6 +312,7 @@ local function SetReadyAnimationEnabled(button, enabled, color)
 
     button._readyAnimationEnabled = true
     button._dashPhase = button._dashPhase or 0
+    button._usingFallbackDashes = false
 
     if GlowLib then
         local rgba = {
@@ -257,21 +322,30 @@ local function SetReadyAnimationEnabled(button, enabled, color)
             color and color.a or 1,
         }
         local colorKey = table.concat(rgba, ":")
-        local size = button:GetWidth() or 40
+        local size = button:GetWidth() or 50
+
         if button._glowColorKey ~= colorKey or button._glowSize ~= size then
             pcall(GlowLib.PixelGlow_Stop, button)
+
+            local count = 8
+            local frequency = 0.25
             local length = (10 / 50) * size
-            local thickness = math.max(1, (1 / 50) * size)
-            pcall(GlowLib.PixelGlow_Start, button, rgba, 8, 0.2, length, thickness, 0, 0, true)
+            local thickness = (1 / 50) * size
+
+            pcall(GlowLib.PixelGlow_Start, button, rgba, count, frequency, length, thickness, 0, 0, true)
             button._glowColorKey = colorKey
             button._glowSize = size
         end
+
         for _, dash in ipairs(button._readyDashes) do
             dash:Hide()
         end
+
         button:SetScript("OnUpdate", nil)
         return
     end
+
+    button._usingFallbackDashes = true
 
     for _, dash in ipairs(button._readyDashes) do
         dash:Show()
@@ -308,6 +382,15 @@ function TrinketMonitor:GetTextPositionChoices()
     return TEXT_POSITIONS
 end
 
+function TrinketMonitor:GetBlockedItemIDSet()
+    local rawValue = self:GetConfig().blockedItemIDs or ""
+    if self._blockedItemIDsRaw ~= rawValue then
+        self._blockedItemIDsRaw = rawValue
+        self._blockedItemIDs = ParseBlockedItemIDs(rawValue)
+    end
+    return self._blockedItemIDs or {}
+end
+
 function TrinketMonitor:CreateButton(slotInfo)
     local button = CreateFrame("Button", nil, self._mainFrame, "SecureActionButtonTemplate")
     button.slotID = slotInfo.slotID
@@ -340,7 +423,7 @@ function TrinketMonitor:CreateButton(slotInfo)
     local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
     cooldown:SetAllPoints(button)
     cooldown:SetDrawSwipe(true)
-    cooldown:SetDrawEdge(true)
+    cooldown:SetDrawEdge(false)
     cooldown:SetHideCountdownNumbers(true)
     cooldown:SetFrameLevel(button:GetFrameLevel() + 2)
     button.cooldown = cooldown
@@ -359,7 +442,10 @@ function TrinketMonitor:CreateButton(slotInfo)
     text:SetShadowColor(0, 0, 0, 0.95)
     ApplyChatLikeFont(text, 14, "OUTLINE")
     text:SetText("")
+    text:Hide()
     button.text = text
+    button._textVisible = false
+    button._layoutVisible = true
 
     button._readyDashes = {}
     for _ = 1, DASH_COUNT do
@@ -383,7 +469,7 @@ function TrinketMonitor:CreateButton(slotInfo)
         end
     end)
     button:SetScript("OnEnter", function(self)
-        if not self.itemLink then
+        if not self.itemLink or self._layoutVisible ~= true then
             return
         end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -521,6 +607,7 @@ function TrinketMonitor:RefreshLayout()
         if button.cooldown and button.cooldown.SetSwipeColor then
             button.cooldown:SetSwipeColor(0, 0, 0, 0.75)
         end
+        SetButtonVisualVisible(button, button._layoutVisible ~= false and button:IsShown())
     end
 
     ApplyChatLikeFont(self._alertText, readyTextSize, "OUTLINE")
@@ -557,9 +644,9 @@ function TrinketMonitor:ShowReadyAlert(itemLink)
     self._alertFrame:Show()
 end
 
-function TrinketMonitor:PlayReadySound()
+function TrinketMonitor:PlayReadySound(forcePlay)
     local config = self:GetConfig()
-    if config.playReadySound == false then
+    if not forcePlay and config.playReadySound == false then
         return
     end
 
@@ -602,7 +689,7 @@ function TrinketMonitor:RefreshVisibleLayout()
     local shownButtons = {}
 
     for _, button in ipairs(self._buttons or {}) do
-        if button:IsShown() then
+        if button._layoutVisible then
             table.insert(shownButtons, button)
         end
     end
@@ -628,6 +715,7 @@ end
 function TrinketMonitor:UpdateButton(button, now)
     local config = self:GetConfig()
     self._slotState = self._slotState or {}
+    local blockedItemIDs = self:GetBlockedItemIDSet()
 
     local slotID = button.slotID
     local itemID = GetInventoryItemID("player", slotID)
@@ -637,10 +725,26 @@ function TrinketMonitor:UpdateButton(button, now)
         button.itemLink = nil
         button.icon:SetTexture(134400)
         button.text:SetText("")
+        button._textVisible = false
         ClearCooldownFrame(button.cooldown)
         SetReadyAnimationEnabled(button, false)
-        button:Hide()
+        ApplySecureButtonVisibility(button, false)
         state.lastItemID = nil
+        state.ready = false
+        state.hadCooldown = false
+        self._slotState[slotID] = state
+        return
+    end
+
+    if blockedItemIDs[itemID] then
+        button.itemLink = nil
+        button.icon:SetTexture(134400)
+        button.text:SetText("")
+        button._textVisible = false
+        ClearCooldownFrame(button.cooldown)
+        SetReadyAnimationEnabled(button, false)
+        ApplySecureButtonVisibility(button, false)
+        state.lastItemID = itemID
         state.ready = false
         state.hadCooldown = false
         self._slotState[slotID] = state
@@ -652,11 +756,12 @@ function TrinketMonitor:UpdateButton(button, now)
     local hasUseEffect = IsActiveTrinket(itemLink or itemID)
 
     if not hasUseEffect then
-        button.itemLink = itemLink
+        button.itemLink = nil
         button.text:SetText("")
+        button._textVisible = false
         ClearCooldownFrame(button.cooldown)
         SetReadyAnimationEnabled(button, false)
-        button:Hide()
+        ApplySecureButtonVisibility(button, false)
         state.lastItemID = itemID
         state.ready = false
         state.hadCooldown = false
@@ -671,7 +776,7 @@ function TrinketMonitor:UpdateButton(button, now)
         state.hadCooldown = false
     end
 
-    button:Show()
+    ApplySecureButtonVisibility(button, true)
     button.itemLink = itemLink
     button.icon:SetTexture(itemTexture)
     button.icon:SetVertexColor(1, 1, 1, 1)
@@ -691,9 +796,11 @@ function TrinketMonitor:UpdateButton(button, now)
 
     if config.showText ~= false and isCoolingDown then
         button.text:SetText(FormatCooldownText(remaining))
+        button._textVisible = true
         button.text:Show()
     else
         button.text:SetText("")
+        button._textVisible = false
         button.text:Hide()
     end
 
@@ -709,6 +816,7 @@ function TrinketMonitor:UpdateButton(button, now)
     state.ready = ready
     self._slotState[slotID] = state
     SetReadyAnimationEnabled(button, config.highlightReady ~= false and ready, config.highlightColor)
+    SetButtonVisualVisible(button, button._layoutVisible ~= false and button:IsShown())
 end
 
 function TrinketMonitor:UpdateDisplay()
@@ -730,7 +838,7 @@ function TrinketMonitor:UpdateDisplay()
     local anyVisible = false
     for _, button in ipairs(self._buttons or {}) do
         self:UpdateButton(button, now)
-        anyVisible = anyVisible or button:IsShown()
+        anyVisible = anyVisible or button._layoutVisible == true
     end
 
     self:RefreshVisibleLayout()
@@ -814,6 +922,10 @@ function TrinketMonitor:TestReadyAlert()
     self:RefreshLayout()
     self:ShowReadyAlert(nil)
     self:PlayReadySound()
+end
+
+function TrinketMonitor:TestReadySound()
+    self:PlayReadySound(true)
 end
 
 function TrinketMonitor:OnEvent(event, ...)
