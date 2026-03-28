@@ -293,3 +293,17 @@ end
 function Options:OpenTrinketMonitor()
     return self:Open("combatAssist", "trinketMonitor")
 end
+
+local optionEventFrame = CreateFrame("Frame")
+optionEventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+optionEventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+optionEventFrame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
+optionEventFrame:SetScript("OnEvent", function(_, event, unit)
+    if event == "PLAYER_SPECIALIZATION_CHANGED" and unit and unit ~= "player" then
+        return
+    end
+
+    if Options and Options.IsOpen and Options:IsOpen() then
+        Options:NotifyChanged()
+    end
+end)

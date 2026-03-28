@@ -262,16 +262,15 @@ end
 
 local function ApplySecureButtonVisibility(button, visible)
     button._layoutVisible = visible and true or false
+    button:EnableMouse(visible and true or false)
 
     if InCombatLockdown() then
-        SetButtonVisualVisible(button, button:IsShown() and visible)
+        SetButtonVisualVisible(button, visible)
         return
     end
 
-    if visible then
+    if not button:IsShown() then
         button:Show()
-    else
-        button:Hide()
     end
 
     SetButtonVisualVisible(button, visible)
@@ -580,8 +579,21 @@ function TrinketMonitor:CreateFrames()
     end
 end
 
+function TrinketMonitor:EnsureSecureButtonsShown()
+    if InCombatLockdown() then
+        return
+    end
+
+    for _, button in ipairs(self._buttons or {}) do
+        if not button:IsShown() then
+            button:Show()
+        end
+    end
+end
+
 function TrinketMonitor:RefreshLayout()
     self:CreateFrames()
+    self:EnsureSecureButtonsShown()
 
     local config = self:GetConfig()
     local iconSize = Clamp(config.iconSize or 44, 20, 120)
@@ -683,6 +695,13 @@ function TrinketMonitor:RefreshVisibleLayout()
     if not self._mainFrame then
         return
     end
+
+    if InCombatLockdown() then
+        self._pendingVisibleLayout = true
+        return
+    end
+
+    self._pendingVisibleLayout = false
 
     local config = self:GetConfig()
     local spacing = Clamp(config.spacing or 8, 0, 40)
@@ -824,15 +843,10 @@ function TrinketMonitor:UpdateDisplay()
         return
     end
 
+    self:EnsureSecureButtonsShown()
+
     local config = self:GetConfig()
-    if config.combatOnly and not config.unlocked and not InCombatLockdown() then
-        for _, button in ipairs(self._buttons or {}) do
-            StopReadyHighlight(button)
-        end
-        self._mainFrame:Hide()
-        self._alertFrame:Hide()
-        return
-    end
+    local suppressOutOfCombat = config.combatOnly and not config.unlocked and not InCombatLockdown()
 
     local now = GetTime()
     local anyVisible = false
@@ -843,13 +857,20 @@ function TrinketMonitor:UpdateDisplay()
 
     self:RefreshVisibleLayout()
 
-    if anyVisible then
+    if suppressOutOfCombat then
+        for _, button in ipairs(self._buttons or {}) do
+            StopReadyHighlight(button)
+        end
+        self._mainFrame:Hide()
+    elseif anyVisible then
         self._mainFrame:Show()
     else
         self._mainFrame:Hide()
     end
 
-    if not config.combatOnly or InCombatLockdown() or config.unlocked then
+    if suppressOutOfCombat then
+        self._alertFrame:Hide()
+    elseif not config.combatOnly or InCombatLockdown() or config.unlocked then
         self:UpdateAlertFrame(now)
     else
         self._alertFrame:Hide()
@@ -881,6 +902,7 @@ function TrinketMonitor:Activate()
     self._active = true
     self._slotState = self._slotState or {}
     self:CreateFrames()
+    self:EnsureSecureButtonsShown()
     self:RefreshLayout()
     self:StartUpdating()
     self:UpdateDisplay()
