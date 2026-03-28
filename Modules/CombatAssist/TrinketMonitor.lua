@@ -639,7 +639,9 @@ function TrinketMonitor:RefreshLayout()
     local unlocked = config.unlocked == true
     self._mainFrame:EnableMouse(unlocked)
     self._mainFrame:SetAlpha(1)
-    self._mainFrame:Show()
+    if not self._mainFrame:IsShown() and not InCombatLockdown() then
+        self._mainFrame:Show()
+    end
     self._alertFrame:EnableMouse(unlocked)
     if self._interactionBlocker then
         self._interactionBlocker:Hide()
@@ -875,14 +877,12 @@ function TrinketMonitor:UpdateDisplay()
             StopReadyHighlight(button)
             SetButtonVisualVisible(button, false)
         end
-        self._mainFrame:Show()
         self._mainFrame:SetAlpha(0)
         self._mainFrame:EnableMouse(false)
         if self._interactionBlocker then
             self._interactionBlocker:Show()
         end
     elseif anyVisible then
-        self._mainFrame:Show()
         self._mainFrame:SetAlpha(1)
         self._mainFrame:EnableMouse(config.unlocked == true)
         if self._interactionBlocker then
@@ -892,7 +892,6 @@ function TrinketMonitor:UpdateDisplay()
         for _, button in ipairs(self._buttons or {}) do
             SetButtonVisualVisible(button, false)
         end
-        self._mainFrame:Show()
         self._mainFrame:SetAlpha(0)
         self._mainFrame:EnableMouse(false)
         if self._interactionBlocker then
@@ -948,7 +947,10 @@ function TrinketMonitor:Deactivate()
     self._active = false
     self:StopUpdating()
     if self._mainFrame then
-        self._mainFrame:Hide()
+        self._mainFrame:SetAlpha(0)
+        if not InCombatLockdown() then
+            self._mainFrame:Hide()
+        end
     end
     if self._alertFrame then
         self._alertFrame:Hide()
