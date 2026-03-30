@@ -523,7 +523,15 @@ function Private.ShowDropdownMenu(anchor, items)
             backdrop:SetBackdropBorderColor(Private.UnpackColor(Private.Colors.borderActive))
         end
         if menuBackdrop then
-            menuBackdrop:SetAlpha(0)
+            menuBackdrop:SetAlpha(1)
+            if not menuBackdrop._yxsFill then
+                local fill = menuBackdrop:CreateTexture(nil, "BACKGROUND")
+                fill:SetAllPoints(menuBackdrop)
+                menuBackdrop._yxsFill = fill
+            end
+            menuBackdrop._yxsFill:SetColorTexture(
+                Private.UnpackColor(Private.MixColor(Private.Colors.cardSoft, Private.Colors.bg, 0.25, 0.98))
+            )
         end
 
         local buttonCount = UIDROPDOWNMENU_MAXBUTTONS or 32

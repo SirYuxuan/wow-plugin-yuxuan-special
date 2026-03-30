@@ -158,7 +158,7 @@ function UI.CreateDropdownButton(parent, width, height)
         line:SetTexture("Interface\\Buttons\\WHITE8x8")
         line:SetSize(7, 2)
         line:SetPoint("CENTER", offset, 0)
-        line:SetRotation(index == 1 and math.rad(45) or math.rad(-45))
+        line:SetRotation(index == 1 and math.rad(-45) or math.rad(45))
         button.arrow.lines[index] = line
     end
 
