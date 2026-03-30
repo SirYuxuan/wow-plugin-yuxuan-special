@@ -653,23 +653,23 @@ function Core:ImportProfile(profileKey, text)
     end
 
     local targetKey = profileKey or PROFILE_KEY_GLOBAL
+    if targetKey == PROFILE_KEY_GLOBAL then
+        return false, "全局配置不能直接导入覆盖。"
+    end
+
     local target = CloneTable(imported)
     ApplyDefaults(target, NS.DEFAULTS)
 
-    if targetKey == PROFILE_KEY_GLOBAL then
-        self.dbRoot.profiles.global = target
-    else
-        local normalized, normalizeError = NormalizeProfileName(targetKey)
-        if not normalized then
-            return false, normalizeError
-        end
-
-        if not self:GetNamedProfile(normalized, false) then
-            return false, "导入目标配置不存在。"
-        end
-
-        self.dbRoot.profiles.named[normalized] = target
+    local normalized, normalizeError = NormalizeProfileName(targetKey)
+    if not normalized then
+        return false, normalizeError
     end
+
+    if not self:GetNamedProfile(normalized, false) then
+        return false, "导入目标配置不存在。"
+    end
+
+    self.dbRoot.profiles.named[normalized] = target
 
     self:RefreshActiveDatabase()
     return true

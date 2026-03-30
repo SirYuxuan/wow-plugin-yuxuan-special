@@ -4,13 +4,23 @@ local Core = NS.Core
 --[[
 通用设置负责两类全局能力：
 1. 外观设置：字体、主题色等会影响整个插件的展示层。
-2. 配置管理：当前角色绑定哪一份配置，以及配置的导入导出和命名管理。
+2. 配置管理：当前角色绑定哪一份配置，以及配置的新建、编辑、导入导出。
+
+这里把配置管理拆成 4 个区块：
+1. 当前绑定
+2. 新建配置
+3. 编辑配置
+4. 导入导出
+这样操作路径会比之前更清楚。
 ]]
 
 local PROFILE_KEY_GLOBAL = "GLOBAL"
 
-local managedProfileKey = PROFILE_KEY_GLOBAL
-local profileDraftName = ""
+local createSourceKey = PROFILE_KEY_GLOBAL
+local editTargetKey = PROFILE_KEY_GLOBAL
+local transferTargetKey = PROFILE_KEY_GLOBAL
+local createProfileName = ""
+local renameProfileName = ""
 local profileTransferText = ""
 
 local function TrimText(value)
@@ -58,12 +68,12 @@ local function RefreshAllSettings(notifyOptions)
     end
 end
 
-local function GetCurrentProfileKey()
-    return Core:GetCurrentCharacterProfileKey() or PROFILE_KEY_GLOBAL
-end
-
 local function GetProfileChoices()
     return Core:GetProfileChoices()
+end
+
+local function GetCurrentProfileKey()
+    return Core:GetCurrentCharacterProfileKey() or PROFILE_KEY_GLOBAL
 end
 
 local function GetProfileLabel(profileKey)
@@ -74,41 +84,81 @@ local function GetProfileLabel(profileKey)
     return tostring(profileKey)
 end
 
-local function EnsureManagedProfileKey()
-    local currentKey = managedProfileKey
-    if currentKey == PROFILE_KEY_GLOBAL then
-        return currentKey
+local function EnsureSelectableProfileKey(profileKey)
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
+        return PROFILE_KEY_GLOBAL
     end
 
-    if Core:GetNamedProfile(currentKey, false) then
-        return currentKey
+    if Core:GetNamedProfile(profileKey, false) then
+        return profileKey
     end
 
-    managedProfileKey = GetCurrentProfileKey()
-    if managedProfileKey ~= PROFILE_KEY_GLOBAL and not Core:GetNamedProfile(managedProfileKey, false) then
-        managedProfileKey = PROFILE_KEY_GLOBAL
-    end
-
-    return managedProfileKey
+    return PROFILE_KEY_GLOBAL
 end
 
-local function SetManagedProfileKey(profileKey)
-    managedProfileKey = profileKey or PROFILE_KEY_GLOBAL
-    EnsureManagedProfileKey()
+local function SetCreateSourceKey(profileKey)
+    createSourceKey = EnsureSelectableProfileKey(profileKey)
+end
+
+local function SetEditTargetKey(profileKey)
+    editTargetKey = EnsureSelectableProfileKey(profileKey)
+    if editTargetKey ~= PROFILE_KEY_GLOBAL then
+        renameProfileName = tostring(editTargetKey)
+    else
+        renameProfileName = ""
+    end
+end
+
+local function SetTransferTargetKey(profileKey)
+    transferTargetKey = EnsureSelectableProfileKey(profileKey)
+end
+
+local function InitializeManagerState()
+    local currentProfileKey = GetCurrentProfileKey()
+
+    if createSourceKey == nil then
+        createSourceKey = currentProfileKey
+    end
+    if editTargetKey == nil then
+        editTargetKey = currentProfileKey
+    end
+    if transferTargetKey == nil then
+        transferTargetKey = currentProfileKey
+    end
+
+    SetCreateSourceKey(createSourceKey or currentProfileKey)
+    SetEditTargetKey(editTargetKey or currentProfileKey)
+    SetTransferTargetKey(transferTargetKey or currentProfileKey)
 end
 
 local function GetProfileStatusText()
     local characterKey = Core:GetCurrentCharacterKey() or "当前角色"
-    local activeProfileKey = GetCurrentProfileKey()
-
     return string.format(
-        "当前角色 %s 正在使用 %s。",
+        "当前角色 %s 正在使用 %s。所有角色默认都走全局配置，只有手动切换后才会使用自定义配置。",
         characterKey,
-        GetProfileLabel(activeProfileKey)
+        GetProfileLabel(GetCurrentProfileKey())
     )
 end
 
+local function GetEditTargetTip()
+    if editTargetKey == PROFILE_KEY_GLOBAL then
+        return "全局配置是保留配置，不能重命名、删除，也不能通过导入直接覆盖。"
+    end
+
+    return string.format("当前正在编辑配置：%s", GetProfileLabel(editTargetKey))
+end
+
+local function GetTransferTargetTip()
+    if transferTargetKey == PROFILE_KEY_GLOBAL then
+        return "全局配置只允许导出，不允许通过导入直接覆盖。"
+    end
+
+    return string.format("当前导入导出的目标配置：%s", GetProfileLabel(transferTargetKey))
+end
+
 function NS.BuildGeneralOptions()
+    InitializeManagerState()
+
     return {
         type = "group",
         name = "通用设置",
@@ -217,166 +267,259 @@ function NS.BuildGeneralOptions()
                         end,
                         set = function(_, value)
                             Core:SetCurrentCharacterProfileKey(value)
-                            SetManagedProfileKey(value)
-                            if value and value ~= PROFILE_KEY_GLOBAL then
-                                profileDraftName = tostring(value)
-                            end
+                            local currentKey = GetCurrentProfileKey()
+                            SetCreateSourceKey(currentKey)
+                            SetEditTargetKey(currentKey)
+                            SetTransferTargetKey(currentKey)
                             RefreshAllSettings(true)
                         end,
                     },
-                    manageTarget = {
-                        type = "select",
-                        order = 11,
-                        name = "管理目标配置",
-                        values = function()
-                            return GetProfileChoices()
-                        end,
-                        get = function()
-                            return EnsureManagedProfileKey()
-                        end,
-                        set = function(_, value)
-                            SetManagedProfileKey(value)
-                            if value and value ~= PROFILE_KEY_GLOBAL then
-                                profileDraftName = tostring(value)
-                            end
-                            if NS.Options and NS.Options.NotifyChanged then
-                                NS.Options:NotifyChanged()
-                            end
-                        end,
-                    },
-                    profileName = {
-                        type = "input",
-                        order = 12,
-                        width = "full",
-                        name = "配置名称",
-                        desc = "用于复制新配置或重命名当前管理目标配置。",
-                        get = function()
-                            return profileDraftName
-                        end,
-                        set = function(_, value)
-                            profileDraftName = value or ""
-                        end,
-                    },
-                    createProfile = {
-                        type = "execute",
-                        order = 13,
-                        width = 1.0,
-                        name = "复制目标为新配置",
-                        disabled = function()
-                            return TrimText(profileDraftName) == ""
-                        end,
-                        func = function()
-                            local created, errorMessage = Core:CreateNamedProfile(
-                                profileDraftName,
-                                EnsureManagedProfileKey()
-                            )
-                            if not created then
-                                Core:Print(errorMessage or "新配置创建失败。")
-                                return
-                            end
-
-                            SetManagedProfileKey(created)
-                            profileDraftName = created
-                            Core:Print("已创建配置：" .. created)
-                            RefreshAllSettings(true)
-                        end,
-                    },
-                    renameProfile = {
-                        type = "execute",
-                        order = 14,
-                        width = 1.0,
-                        name = "重命名目标配置",
-                        disabled = function()
-                            return EnsureManagedProfileKey() == PROFILE_KEY_GLOBAL or TrimText(profileDraftName) == ""
-                        end,
-                        func = function()
-                            local renamed, errorMessage = Core:RenameNamedProfile(
-                                EnsureManagedProfileKey(),
-                                profileDraftName
-                            )
-                            if not renamed then
-                                Core:Print(errorMessage or "配置重命名失败。")
-                                return
-                            end
-
-                            SetManagedProfileKey(renamed)
-                            profileDraftName = renamed
-                            Core:Print("已重命名配置：" .. renamed)
-                            RefreshAllSettings(true)
-                        end,
-                    },
-                    deleteProfile = {
-                        type = "execute",
-                        order = 15,
-                        width = 1.0,
-                        name = "删除目标配置",
-                        disabled = function()
-                            return EnsureManagedProfileKey() == PROFILE_KEY_GLOBAL
-                        end,
-                        confirm = true,
-                        confirmText = "确认删除当前管理目标配置吗？所有使用这份配置的角色会自动切回全局配置。",
-                        func = function()
-                            local deleted, errorMessage = Core:DeleteNamedProfile(EnsureManagedProfileKey())
-                            if not deleted then
-                                Core:Print(errorMessage or "配置删除失败。")
-                                return
-                            end
-
-                            SetManagedProfileKey(PROFILE_KEY_GLOBAL)
-                            Core:Print("已删除目标配置。")
-                            RefreshAllSettings(true)
-                        end,
-                    },
-                    exportProfile = {
-                        type = "execute",
+                    createGroup = {
+                        type = "group",
                         order = 20,
-                        width = 1.0,
-                        name = "导出目标配置",
-                        func = function()
-                            profileTransferText = Core:ExportProfile(EnsureManagedProfileKey())
-                            Core:Print("已生成编码后的配置文本。")
-                            if NS.Options and NS.Options.NotifyChanged then
-                                NS.Options:NotifyChanged()
-                            end
-                        end,
-                    },
-                    importProfile = {
-                        type = "execute",
-                        order = 21,
-                        width = 1.0,
-                        name = "导入到目标配置",
-                        disabled = function()
-                            return TrimText(profileTransferText) == ""
-                        end,
-                        confirm = true,
-                        confirmText = "确认将文本内容导入到当前管理目标配置吗？这会覆盖目标配置。",
-                        func = function()
-                            local ok, errorMessage = Core:ImportProfile(
-                                EnsureManagedProfileKey(),
-                                profileTransferText
-                            )
-                            if not ok then
-                                Core:Print(errorMessage or "配置导入失败。")
-                                return
-                            end
+                        name = "新建配置",
+                        inline = true,
+                        args = {
+                            createSource = {
+                                type = "select",
+                                order = 1,
+                                name = "复制来源",
+                                values = function()
+                                    return GetProfileChoices()
+                                end,
+                                get = function()
+                                    return EnsureSelectableProfileKey(createSourceKey)
+                                end,
+                                set = function(_, value)
+                                    SetCreateSourceKey(value)
+                                    if NS.Options and NS.Options.NotifyChanged then
+                                        NS.Options:NotifyChanged()
+                                    end
+                                end,
+                            },
+                            createName = {
+                                type = "input",
+                                order = 2,
+                                width = "full",
+                                name = "新配置名称",
+                                get = function()
+                                    return createProfileName
+                                end,
+                                set = function(_, value)
+                                    createProfileName = value or ""
+                                end,
+                            },
+                            createAction = {
+                                type = "execute",
+                                order = 3,
+                                width = 1.0,
+                                name = "新建配置",
+                                disabled = function()
+                                    return TrimText(createProfileName) == ""
+                                end,
+                                func = function()
+                                    local created, errorMessage = Core:CreateNamedProfile(
+                                        createProfileName,
+                                        EnsureSelectableProfileKey(createSourceKey)
+                                    )
+                                    if not created then
+                                        Core:Print(errorMessage or "新配置创建失败。")
+                                        return
+                                    end
 
-                            Core:Print("已导入目标配置。")
-                            RefreshAllSettings(true)
-                        end,
+                                    SetEditTargetKey(created)
+                                    SetTransferTargetKey(created)
+                                    createProfileName = ""
+                                    Core:Print("已创建配置：" .. created)
+                                    RefreshAllSettings(true)
+                                end,
+                            },
+                        },
                     },
-                    transferBox = {
-                        type = "input",
+                    editGroup = {
+                        type = "group",
                         order = 30,
-                        width = "full",
-                        multiline = 10,
-                        name = "配置文本",
-                        desc = "这里使用编码后的配置文本。可以导出目标配置到这里，也可以粘贴后导入到目标配置。",
-                        get = function()
-                            return profileTransferText
-                        end,
-                        set = function(_, value)
-                            profileTransferText = value or ""
-                        end,
+                        name = "编辑配置",
+                        inline = true,
+                        args = {
+                            editTarget = {
+                                type = "select",
+                                order = 1,
+                                name = "编辑目标",
+                                values = function()
+                                    return GetProfileChoices()
+                                end,
+                                get = function()
+                                    return EnsureSelectableProfileKey(editTargetKey)
+                                end,
+                                set = function(_, value)
+                                    SetEditTargetKey(value)
+                                    if NS.Options and NS.Options.NotifyChanged then
+                                        NS.Options:NotifyChanged()
+                                    end
+                                end,
+                            },
+                            editTip = {
+                                type = "description",
+                                order = 2,
+                                fontSize = "medium",
+                                name = function()
+                                    return GetEditTargetTip()
+                                end,
+                            },
+                            renameName = {
+                                type = "input",
+                                order = 3,
+                                width = "full",
+                                name = "重命名为",
+                                disabled = function()
+                                    return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
+                                end,
+                                get = function()
+                                    return renameProfileName
+                                end,
+                                set = function(_, value)
+                                    renameProfileName = value or ""
+                                end,
+                            },
+                            renameAction = {
+                                type = "execute",
+                                order = 4,
+                                width = 1.0,
+                                name = "保存名称",
+                                disabled = function()
+                                    return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
+                                        or TrimText(renameProfileName) == ""
+                                end,
+                                func = function()
+                                    local renamed, errorMessage = Core:RenameNamedProfile(
+                                        EnsureSelectableProfileKey(editTargetKey),
+                                        renameProfileName
+                                    )
+                                    if not renamed then
+                                        Core:Print(errorMessage or "配置重命名失败。")
+                                        return
+                                    end
+
+                                    SetEditTargetKey(renamed)
+                                    SetTransferTargetKey(renamed)
+                                    Core:Print("已重命名配置：" .. renamed)
+                                    RefreshAllSettings(true)
+                                end,
+                            },
+                            deleteAction = {
+                                type = "execute",
+                                order = 5,
+                                width = 1.0,
+                                name = "删除配置",
+                                disabled = function()
+                                    return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
+                                end,
+                                confirm = true,
+                                confirmText = "确认删除当前编辑目标配置吗？所有使用这份配置的角色会自动切回全局配置。",
+                                func = function()
+                                    local deleted, errorMessage = Core:DeleteNamedProfile(
+                                        EnsureSelectableProfileKey(editTargetKey)
+                                    )
+                                    if not deleted then
+                                        Core:Print(errorMessage or "配置删除失败。")
+                                        return
+                                    end
+
+                                    SetEditTargetKey(PROFILE_KEY_GLOBAL)
+                                    SetTransferTargetKey(PROFILE_KEY_GLOBAL)
+                                    Core:Print("已删除目标配置。")
+                                    RefreshAllSettings(true)
+                                end,
+                            },
+                        },
+                    },
+                    transferGroup = {
+                        type = "group",
+                        order = 40,
+                        name = "导入导出",
+                        inline = true,
+                        args = {
+                            transferTarget = {
+                                type = "select",
+                                order = 1,
+                                name = "导入导出目标",
+                                values = function()
+                                    return GetProfileChoices()
+                                end,
+                                get = function()
+                                    return EnsureSelectableProfileKey(transferTargetKey)
+                                end,
+                                set = function(_, value)
+                                    SetTransferTargetKey(value)
+                                    if NS.Options and NS.Options.NotifyChanged then
+                                        NS.Options:NotifyChanged()
+                                    end
+                                end,
+                            },
+                            transferTip = {
+                                type = "description",
+                                order = 2,
+                                fontSize = "medium",
+                                name = function()
+                                    return GetTransferTargetTip()
+                                end,
+                            },
+                            exportAction = {
+                                type = "execute",
+                                order = 3,
+                                width = 1.0,
+                                name = "导出配置",
+                                func = function()
+                                    profileTransferText = Core:ExportProfile(
+                                        EnsureSelectableProfileKey(transferTargetKey)
+                                    )
+                                    Core:Print("已生成编码后的配置文本。")
+                                    if NS.Options and NS.Options.NotifyChanged then
+                                        NS.Options:NotifyChanged()
+                                    end
+                                end,
+                            },
+                            importAction = {
+                                type = "execute",
+                                order = 4,
+                                width = 1.0,
+                                name = "导入配置",
+                                disabled = function()
+                                    return EnsureSelectableProfileKey(transferTargetKey) == PROFILE_KEY_GLOBAL
+                                        or TrimText(profileTransferText) == ""
+                                end,
+                                confirm = true,
+                                confirmText = "确认将文本内容导入到当前导入导出目标吗？这会覆盖目标配置。",
+                                func = function()
+                                    local ok, errorMessage = Core:ImportProfile(
+                                        EnsureSelectableProfileKey(transferTargetKey),
+                                        profileTransferText
+                                    )
+                                    if not ok then
+                                        Core:Print(errorMessage or "配置导入失败。")
+                                        return
+                                    end
+
+                                    Core:Print("已导入目标配置。")
+                                    RefreshAllSettings(true)
+                                end,
+                            },
+                            transferBox = {
+                                type = "input",
+                                order = 5,
+                                width = "full",
+                                multiline = 10,
+                                name = "配置文本",
+                                desc = "这里使用编码后的配置文本。可以导出目标配置到这里，也可以粘贴后导入到指定命名配置。",
+                                get = function()
+                                    return profileTransferText
+                                end,
+                                set = function(_, value)
+                                    profileTransferText = value or ""
+                                end,
+                            },
+                        },
                     },
                 },
             },
