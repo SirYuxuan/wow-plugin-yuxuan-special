@@ -1,27 +1,28 @@
-﻿local _, NS = ...
+local _, NS = ...
 local Core = NS.Core
 
 --[[
-数据库按 模块 -> 功能 分层 避免后续功能一多就堆成平铺字段
-当前结构示意
+数据库按 模块 -> 功能 分层，避免后续功能一多就堆成平铺字段。
 
-YuXuanSpecialDB = {
-    mapAssist = {
-        quickWaypoint = { ... }
-    },
-    interfaceEnhance = {
-        quickChat = { ... }
-    },
-    combatAssist = {
-        trinketMonitor = { ... }
-    },
-    classAssist = {
-        mage = {
-            shatterIndicator = { ... }
-        }
-    }
-}
+当前版本的存档结构分为两层：
+1. profiles.global：全局共享配置。
+2. profiles.named：可重复复用的命名配置。
+
+每个角色只保存“当前绑定哪一份配置”，真正的配置内容都落在全局或命名配置里。
+这样后面就可以做到：
+1. 一个角色继续走全局配置。
+2. 一个角色切到任意命名配置。
+3. 多个角色共用同一份命名配置。
 ]]
+
+local PROFILE_KEY_GLOBAL = "GLOBAL"
+local PROFILE_EXPORT_PREFIX = "YXS1:"
+local BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local BASE64_LOOKUP = {}
+
+for index = 1, #BASE64_ALPHABET do
+    BASE64_LOOKUP[BASE64_ALPHABET:sub(index, index)] = index - 1
+end
 
 NS.DEFAULTS = {
     general = {
@@ -172,6 +173,10 @@ NS.DEFAULTS = {
     },
 }
 
+local function TrimText(value)
+    return tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
 local function CloneTable(source)
     if type(source) ~= "table" then
         return source
@@ -233,10 +238,8 @@ local function SerializeValue(value, indent)
     local parts = { "{\n" }
 
     for _, key in ipairs(SortedKeys(value)) do
-        local keyType = type(key)
         local serializedKey
-
-        if keyType == "number" then
+        if type(key) == "number" then
             serializedKey = "[" .. tostring(key) .. "]"
         else
             serializedKey = "[" .. string.format("%q", tostring(key)) .. "]"
@@ -254,17 +257,103 @@ local function SerializeValue(value, indent)
     return table.concat(parts)
 end
 
+local function Base64Encode(text)
+    local rawText = tostring(text or "")
+    local parts = {}
+
+    for index = 1, #rawText, 3 do
+        local b1 = string.byte(rawText, index) or 0
+        local b2 = string.byte(rawText, index + 1) or 0
+        local b3 = string.byte(rawText, index + 2) or 0
+        local packed = (b1 * 65536) + (b2 * 256) + b3
+
+        local c1 = math.floor(packed / 262144) % 64 + 1
+        local c2 = math.floor(packed / 4096) % 64 + 1
+        local c3 = math.floor(packed / 64) % 64 + 1
+        local c4 = packed % 64 + 1
+
+        if index + 1 > #rawText then
+            parts[#parts + 1] = BASE64_ALPHABET:sub(c1, c1) .. BASE64_ALPHABET:sub(c2, c2) .. "=="
+        elseif index + 2 > #rawText then
+            parts[#parts + 1] = BASE64_ALPHABET:sub(c1, c1)
+                .. BASE64_ALPHABET:sub(c2, c2)
+                .. BASE64_ALPHABET:sub(c3, c3)
+                .. "="
+        else
+            parts[#parts + 1] = BASE64_ALPHABET:sub(c1, c1)
+                .. BASE64_ALPHABET:sub(c2, c2)
+                .. BASE64_ALPHABET:sub(c3, c3)
+                .. BASE64_ALPHABET:sub(c4, c4)
+        end
+    end
+
+    return table.concat(parts)
+end
+
+local function Base64Decode(text)
+    local cleaned = tostring(text or ""):gsub("%s+", "")
+    if cleaned == "" then
+        return ""
+    end
+
+    if (#cleaned % 4) ~= 0 then
+        return nil, "编码长度不正确。"
+    end
+
+    local bytes = {}
+    for index = 1, #cleaned, 4 do
+        local c1 = cleaned:sub(index, index)
+        local c2 = cleaned:sub(index + 1, index + 1)
+        local c3 = cleaned:sub(index + 2, index + 2)
+        local c4 = cleaned:sub(index + 3, index + 3)
+
+        local v1 = BASE64_LOOKUP[c1]
+        local v2 = BASE64_LOOKUP[c2]
+        local v3 = c3 == "=" and 0 or BASE64_LOOKUP[c3]
+        local v4 = c4 == "=" and 0 or BASE64_LOOKUP[c4]
+
+        if v1 == nil or v2 == nil or v3 == nil or v4 == nil then
+            return nil, "编码内容不正确。"
+        end
+
+        local packed = (v1 * 262144) + (v2 * 4096) + (v3 * 64) + v4
+        local b1 = math.floor(packed / 65536) % 256
+        local b2 = math.floor(packed / 256) % 256
+        local b3 = packed % 256
+
+        bytes[#bytes + 1] = string.char(b1)
+        if c3 ~= "=" then
+            bytes[#bytes + 1] = string.char(b2)
+        end
+        if c4 ~= "=" then
+            bytes[#bytes + 1] = string.char(b3)
+        end
+    end
+
+    return table.concat(bytes)
+end
+
 local function DeserializeProfile(text)
-    local rawText = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local rawText = TrimText(text)
     if rawText == "" then
         return nil, "导入内容不能为空。"
     end
 
+    local payload = rawText
+    if payload:sub(1, #PROFILE_EXPORT_PREFIX) == PROFILE_EXPORT_PREFIX then
+        payload = payload:sub(#PROFILE_EXPORT_PREFIX + 1)
+        local decoded, decodeError = Base64Decode(payload)
+        if not decoded then
+            return nil, decodeError or "配置编码无法解析。"
+        end
+        payload = decoded
+    end
+
     local loader
     if loadstring then
-        loader = loadstring("return " .. rawText)
+        loader = loadstring("return " .. payload)
     elseif load then
-        loader = load("return " .. rawText, "YuXuanSpecialImport", "t", {})
+        loader = load("return " .. payload, "YuXuanSpecialImport", "t", {})
     end
 
     if not loader then
@@ -291,31 +380,56 @@ local function GetCharacterKey()
     return string.format("%s-%s", tostring(name), realm)
 end
 
+local function NormalizeProfileName(name)
+    local trimmed = TrimText(name)
+    if trimmed == "" then
+        return nil, "配置名称不能为空。"
+    end
+
+    if trimmed == PROFILE_KEY_GLOBAL then
+        return nil, "该名称保留给全局配置。"
+    end
+
+    return trimmed
+end
+
+function Core:FindAvailableProfileName(baseName)
+    local normalized = NormalizeProfileName(baseName or "新配置")
+    local seed = normalized or "新配置"
+    local candidate = seed
+    local suffix = 2
+
+    while self:GetNamedProfile(candidate, false) do
+        candidate = string.format("%s-%d", seed, suffix)
+        suffix = suffix + 1
+    end
+
+    return candidate
+end
+
 function Core:InitializeDatabase()
     YuXuanSpecialDB = YuXuanSpecialDB or {}
     self.dbRoot = YuXuanSpecialDB
     self.currentCharacterKey = GetCharacterKey()
 
-    self:MigrateLegacyDatabase()
+    self:MigrateLegacyRootStorage()
 
-    self.dbRoot.profileModes = self.dbRoot.profileModes or {}
     self.dbRoot.profiles = self.dbRoot.profiles or {}
-    self.dbRoot.profiles.characters = self.dbRoot.profiles.characters or {}
     self.dbRoot.profiles.global = self.dbRoot.profiles.global or CloneTable(NS.DEFAULTS)
+    self.dbRoot.profiles.named = self.dbRoot.profiles.named or {}
+    self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
+
+    self:MigrateLegacyCharacterProfiles()
 
     ApplyDefaults(self.dbRoot.profiles.global, NS.DEFAULTS)
+    for _, profile in pairs(self.dbRoot.profiles.named) do
+        ApplyDefaults(profile, NS.DEFAULTS)
+    end
+
     self:RefreshActiveDatabase()
 end
 
-function Core:GetConfig(...)
-    local current = self.db
-    for index = 1, select("#", ...) do
-        current = current and current[select(index, ...)]
-    end
-    return current
-end
-
-function Core:MigrateLegacyDatabase()
+function Core:MigrateLegacyRootStorage()
     if self.dbRoot.profiles then
         return
     end
@@ -334,21 +448,38 @@ function Core:MigrateLegacyDatabase()
     if migrated then
         self.dbRoot.profiles = {
             global = legacyProfile,
-            characters = {},
         }
     end
 end
 
-function Core:RefreshActiveDatabase()
-    if self:DoesCurrentCharacterUseOwnProfile() then
-        self.db = self:GetCharacterProfile(self.currentCharacterKey, true)
-    else
-        self.db = self:GetGlobalProfile()
+function Core:MigrateLegacyCharacterProfiles()
+    local profiles = self.dbRoot.profiles or {}
+    local legacyCharacters = profiles.characters or {}
+    local legacyModes = self.dbRoot.profileModes or {}
+
+    profiles.named = profiles.named or {}
+    self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
+
+    for characterKey, profile in pairs(legacyCharacters) do
+        local profileName = self:FindAvailableProfileName(characterKey)
+        profiles.named[profileName] = CloneTable(profile)
+        ApplyDefaults(profiles.named[profileName], NS.DEFAULTS)
+
+        if legacyModes[characterKey] == "CHARACTER" and not self.dbRoot.profileAssignments[characterKey] then
+            self.dbRoot.profileAssignments[characterKey] = profileName
+        end
     end
+
+    profiles.characters = nil
+    self.dbRoot.profileModes = nil
 end
 
-function Core:GetCurrentCharacterKey()
-    return self.currentCharacterKey
+function Core:GetConfig(...)
+    local current = self.db
+    for index = 1, select("#", ...) do
+        current = current and current[select(index, ...)]
+    end
+    return current
 end
 
 function Core:GetGlobalProfile()
@@ -358,15 +489,20 @@ function Core:GetGlobalProfile()
     return self.dbRoot.profiles.global
 end
 
-function Core:GetCharacterProfile(characterKey, createIfMissing)
-    local key = characterKey or self.currentCharacterKey
-    self.dbRoot.profiles = self.dbRoot.profiles or {}
-    self.dbRoot.profiles.characters = self.dbRoot.profiles.characters or {}
+function Core:GetNamedProfile(profileName, createIfMissing, sourceProfileKey)
+    local normalized, errorMessage = NormalizeProfileName(profileName)
+    if not normalized then
+        return nil, errorMessage
+    end
 
-    local profile = self.dbRoot.profiles.characters[key]
+    self.dbRoot.profiles = self.dbRoot.profiles or {}
+    self.dbRoot.profiles.named = self.dbRoot.profiles.named or {}
+
+    local profile = self.dbRoot.profiles.named[normalized]
     if not profile and createIfMissing then
-        profile = CloneTable(self.db or self:GetGlobalProfile())
-        self.dbRoot.profiles.characters[key] = profile
+        local source = self:ResolveProfile(sourceProfileKey or self:GetCurrentCharacterProfileKey())
+        profile = CloneTable(source or self:GetGlobalProfile())
+        self.dbRoot.profiles.named[normalized] = profile
     end
 
     if profile then
@@ -376,69 +512,223 @@ function Core:GetCharacterProfile(characterKey, createIfMissing)
     return profile
 end
 
-function Core:DoesCurrentCharacterUseOwnProfile()
-    local profileModes = self.dbRoot and self.dbRoot.profileModes or {}
-    return profileModes and profileModes[self.currentCharacterKey] == "CHARACTER"
+function Core:GetNamedProfileNames()
+    local names = {}
+    for name in pairs((self.dbRoot.profiles and self.dbRoot.profiles.named) or {}) do
+        names[#names + 1] = name
+    end
+
+    table.sort(names)
+    return names
 end
 
-function Core:SetCurrentCharacterUseOwnProfile(enabled)
-    self.dbRoot.profileModes = self.dbRoot.profileModes or {}
+function Core:GetProfileChoices()
+    local values = {
+        [PROFILE_KEY_GLOBAL] = "全局配置",
+    }
 
-    if enabled then
-        if not self:GetCharacterProfile(self.currentCharacterKey, false) then
-            self.dbRoot.profiles.characters[self.currentCharacterKey] = CloneTable(self.db or self:GetGlobalProfile())
-        end
-        self.dbRoot.profileModes[self.currentCharacterKey] = "CHARACTER"
-    else
-        self.dbRoot.profileModes[self.currentCharacterKey] = nil
+    for _, profileName in ipairs(self:GetNamedProfileNames()) do
+        values[profileName] = profileName
+    end
+
+    return values
+end
+
+function Core:GetCurrentCharacterKey()
+    return self.currentCharacterKey
+end
+
+function Core:GetCurrentCharacterProfileKey()
+    self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
+
+    local assigned = self.dbRoot.profileAssignments[self.currentCharacterKey]
+    if assigned and self:GetNamedProfile(assigned, false) then
+        return assigned
+    end
+
+    self.dbRoot.profileAssignments[self.currentCharacterKey] = nil
+    return PROFILE_KEY_GLOBAL
+end
+
+function Core:SetCurrentCharacterProfileKey(profileKey)
+    self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
+
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
+        self.dbRoot.profileAssignments[self.currentCharacterKey] = nil
+    elseif self:GetNamedProfile(profileKey, false) then
+        self.dbRoot.profileAssignments[self.currentCharacterKey] = profileKey
     end
 
     self:RefreshActiveDatabase()
 end
 
-function Core:CopyGlobalToCurrentCharacter()
-    local profile = CloneTable(self:GetGlobalProfile())
-    self.dbRoot.profiles.characters[self.currentCharacterKey] = profile
-    ApplyDefaults(profile, NS.DEFAULTS)
-
-    if self:DoesCurrentCharacterUseOwnProfile() then
-        self.db = profile
+function Core:ResolveProfile(profileKey)
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
+        return self:GetGlobalProfile()
     end
 
-    return profile
-end
-
-function Core:CopyCurrentProfileToGlobal()
-    local profile = CloneTable(self.db or self:GetGlobalProfile())
-    self.dbRoot.profiles.global = profile
-    ApplyDefaults(profile, NS.DEFAULTS)
-
-    if not self:DoesCurrentCharacterUseOwnProfile() then
-        self.db = profile
+    local profile = self:GetNamedProfile(profileKey, false)
+    if profile then
+        return profile
     end
 
-    return profile
+    return self:GetGlobalProfile()
 end
 
-function Core:ExportGlobalProfile()
-    return SerializeValue(self:GetGlobalProfile())
+function Core:RefreshActiveDatabase()
+    self.db = self:ResolveProfile(self:GetCurrentCharacterProfileKey())
 end
 
-function Core:ImportGlobalProfile(text)
+function Core:CreateNamedProfile(profileName, sourceProfileKey)
+    local normalized, errorMessage = NormalizeProfileName(profileName)
+    if not normalized then
+        return nil, errorMessage
+    end
+
+    if self:GetNamedProfile(normalized, false) then
+        return nil, "配置名称已存在。"
+    end
+
+    local source = self:ResolveProfile(sourceProfileKey)
+    self.dbRoot.profiles.named[normalized] = CloneTable(source)
+    ApplyDefaults(self.dbRoot.profiles.named[normalized], NS.DEFAULTS)
+    return normalized
+end
+
+function Core:RenameNamedProfile(oldName, newName)
+    local oldProfile, oldError = self:GetNamedProfile(oldName, false)
+    if not oldProfile then
+        return nil, oldError or "要重命名的配置不存在。"
+    end
+
+    local normalized, errorMessage = NormalizeProfileName(newName)
+    if not normalized then
+        return nil, errorMessage
+    end
+
+    if normalized ~= oldName and self:GetNamedProfile(normalized, false) then
+        return nil, "新的配置名称已存在。"
+    end
+
+    self.dbRoot.profiles.named[normalized] = oldProfile
+    if normalized ~= oldName then
+        self.dbRoot.profiles.named[oldName] = nil
+        for characterKey, profileKey in pairs(self.dbRoot.profileAssignments or {}) do
+            if profileKey == oldName then
+                self.dbRoot.profileAssignments[characterKey] = normalized
+            end
+        end
+    end
+
+    self:RefreshActiveDatabase()
+    return normalized
+end
+
+function Core:DeleteNamedProfile(profileName)
+    local profile = self:GetNamedProfile(profileName, false)
+    if not profile then
+        return false, "要删除的配置不存在。"
+    end
+
+    self.dbRoot.profiles.named[profileName] = nil
+    for characterKey, assignedProfile in pairs(self.dbRoot.profileAssignments or {}) do
+        if assignedProfile == profileName then
+            self.dbRoot.profileAssignments[characterKey] = nil
+        end
+    end
+
+    self:RefreshActiveDatabase()
+    return true
+end
+
+function Core:ExportProfile(profileKey)
+    local serialized = SerializeValue(self:ResolveProfile(profileKey))
+    return PROFILE_EXPORT_PREFIX .. Base64Encode(serialized)
+end
+
+function Core:ImportProfile(profileKey, text)
     local imported, errorMessage = DeserializeProfile(text)
     if not imported then
         return false, errorMessage
     end
 
-    local profile = CloneTable(imported)
-    ApplyDefaults(profile, NS.DEFAULTS)
-    self.dbRoot.profiles.global = profile
+    local targetKey = profileKey or PROFILE_KEY_GLOBAL
+    local target = CloneTable(imported)
+    ApplyDefaults(target, NS.DEFAULTS)
 
-    if not self:DoesCurrentCharacterUseOwnProfile() then
-        self.db = profile
+    if targetKey == PROFILE_KEY_GLOBAL then
+        self.dbRoot.profiles.global = target
+    else
+        local normalized, normalizeError = NormalizeProfileName(targetKey)
+        if not normalized then
+            return false, normalizeError
+        end
+
+        if not self:GetNamedProfile(normalized, false) then
+            return false, "导入目标配置不存在。"
+        end
+
+        self.dbRoot.profiles.named[normalized] = target
     end
 
+    self:RefreshActiveDatabase()
     return true
+end
+
+-- 兼容上一版“当前角色独立配置”的调用方式。
+function Core:DoesCurrentCharacterUseOwnProfile()
+    return self:GetCurrentCharacterProfileKey() ~= PROFILE_KEY_GLOBAL
+end
+
+function Core:SetCurrentCharacterUseOwnProfile(enabled)
+    if enabled then
+        local profileKey = self:GetCurrentCharacterProfileKey()
+        if profileKey == PROFILE_KEY_GLOBAL then
+            local newName = self:FindAvailableProfileName(self.currentCharacterKey)
+            local created, errorMessage = self:CreateNamedProfile(newName, PROFILE_KEY_GLOBAL)
+            if not created then
+                return nil, errorMessage
+            end
+            self:SetCurrentCharacterProfileKey(created)
+            return created
+        end
+
+        return profileKey
+    end
+
+    self:SetCurrentCharacterProfileKey(PROFILE_KEY_GLOBAL)
+    return PROFILE_KEY_GLOBAL
+end
+
+function Core:CopyGlobalToCurrentCharacter()
+    local profileKey = self:GetCurrentCharacterProfileKey()
+    if profileKey == PROFILE_KEY_GLOBAL then
+        profileKey = self:SetCurrentCharacterUseOwnProfile(true)
+    end
+
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
+        return nil
+    end
+
+    self.dbRoot.profiles.named[profileKey] = CloneTable(self:GetGlobalProfile())
+    ApplyDefaults(self.dbRoot.profiles.named[profileKey], NS.DEFAULTS)
+    self:RefreshActiveDatabase()
+    return self.dbRoot.profiles.named[profileKey]
+end
+
+function Core:CopyCurrentProfileToGlobal()
+    self.dbRoot.profiles.global = CloneTable(self.db or self:GetGlobalProfile())
+    ApplyDefaults(self.dbRoot.profiles.global, NS.DEFAULTS)
+    self:RefreshActiveDatabase()
+    return self.dbRoot.profiles.global
+end
+
+function Core:ExportGlobalProfile()
+    return self:ExportProfile(PROFILE_KEY_GLOBAL)
+end
+
+function Core:ImportGlobalProfile(text)
+    return self:ImportProfile(PROFILE_KEY_GLOBAL, text)
 end
 
 function Core:ResetQuickWaypointConfig()

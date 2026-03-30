@@ -4,11 +4,13 @@ local Core = NS.Core
 --[[
 通用设置负责两类全局能力：
 1. 外观设置：字体、主题色等会影响整个插件的展示层。
-2. 配置管理：共享全局配置、当前角色独立配置，以及全局配置的导入导出。
-
-这里不直接操作控件，只负责提供 options 定义和刷新逻辑。
+2. 配置管理：当前角色绑定哪一份配置，以及配置的导入导出和命名管理。
 ]]
 
+local PROFILE_KEY_GLOBAL = "GLOBAL"
+
+local managedProfileKey = PROFILE_KEY_GLOBAL
+local profileDraftName = ""
 local profileTransferText = ""
 
 local function TrimText(value)
@@ -20,12 +22,10 @@ local function GetAppearanceConfig()
 end
 
 local function RefreshAllSettings(notifyOptions)
-    -- 设置界面的字体、主题色属于外观层，优先刷新设置窗口本身。
     if NS.Options and NS.Options.RefreshAppearance then
         NS.Options:RefreshAppearance()
     end
 
-    -- 下面这些模块都有独立的 RefreshFromSettings，用来同步运行中框体。
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.RefreshFromSettings then
         quickWaypoint:RefreshFromSettings()
@@ -58,13 +58,54 @@ local function RefreshAllSettings(notifyOptions)
     end
 end
 
-local function GetProfileStatusText()
-    local characterKey = Core:GetCurrentCharacterKey() or "当前角色"
-    if Core:DoesCurrentCharacterUseOwnProfile() then
-        return string.format("当前角色 %s 正在使用独立配置。", characterKey)
+local function GetCurrentProfileKey()
+    return Core:GetCurrentCharacterProfileKey() or PROFILE_KEY_GLOBAL
+end
+
+local function GetProfileChoices()
+    return Core:GetProfileChoices()
+end
+
+local function GetProfileLabel(profileKey)
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
+        return "全局配置"
     end
 
-    return string.format("当前角色 %s 正在使用全局共享配置。", characterKey)
+    return tostring(profileKey)
+end
+
+local function EnsureManagedProfileKey()
+    local currentKey = managedProfileKey
+    if currentKey == PROFILE_KEY_GLOBAL then
+        return currentKey
+    end
+
+    if Core:GetNamedProfile(currentKey, false) then
+        return currentKey
+    end
+
+    managedProfileKey = GetCurrentProfileKey()
+    if managedProfileKey ~= PROFILE_KEY_GLOBAL and not Core:GetNamedProfile(managedProfileKey, false) then
+        managedProfileKey = PROFILE_KEY_GLOBAL
+    end
+
+    return managedProfileKey
+end
+
+local function SetManagedProfileKey(profileKey)
+    managedProfileKey = profileKey or PROFILE_KEY_GLOBAL
+    EnsureManagedProfileKey()
+end
+
+local function GetProfileStatusText()
+    local characterKey = Core:GetCurrentCharacterKey() or "当前角色"
+    local activeProfileKey = GetCurrentProfileKey()
+
+    return string.format(
+        "当前角色 %s 正在使用 %s。",
+        characterKey,
+        GetProfileLabel(activeProfileKey)
+    )
 end
 
 function NS.BuildGeneralOptions()
@@ -164,80 +205,162 @@ function NS.BuildGeneralOptions()
                             return GetProfileStatusText()
                         end,
                     },
-                    useCharacterProfile = {
-                        type = "toggle",
+                    currentProfile = {
+                        type = "select",
                         order = 10,
-                        width = 1.4,
-                        name = "当前角色使用独立配置",
-                        desc = "开启时会复制当前配置给本角色单独使用；关闭后切回全局共享配置。",
+                        name = "当前角色使用配置",
+                        values = function()
+                            return GetProfileChoices()
+                        end,
                         get = function()
-                            return Core:DoesCurrentCharacterUseOwnProfile()
+                            return GetCurrentProfileKey()
                         end,
                         set = function(_, value)
-                            Core:SetCurrentCharacterUseOwnProfile(value and true or false)
+                            Core:SetCurrentCharacterProfileKey(value)
+                            SetManagedProfileKey(value)
+                            if value and value ~= PROFILE_KEY_GLOBAL then
+                                profileDraftName = tostring(value)
+                            end
                             RefreshAllSettings(true)
                         end,
                     },
-                    copyGlobalToCharacter = {
-                        type = "execute",
+                    manageTarget = {
+                        type = "select",
                         order = 11,
-                        width = 1.0,
-                        name = "全局覆盖当前角色",
-                        disabled = function()
-                            return not Core:DoesCurrentCharacterUseOwnProfile()
+                        name = "管理目标配置",
+                        values = function()
+                            return GetProfileChoices()
                         end,
-                        confirm = true,
-                        confirmText = "确认用全局配置覆盖当前角色的独立配置吗？",
-                        func = function()
-                            Core:CopyGlobalToCurrentCharacter()
-                            Core:Print("已用全局配置覆盖当前角色。")
-                            RefreshAllSettings(true)
+                        get = function()
+                            return EnsureManagedProfileKey()
                         end,
-                    },
-                    copyCurrentToGlobal = {
-                        type = "execute",
-                        order = 12,
-                        width = 1.0,
-                        name = "当前配置写入全局",
-                        confirm = true,
-                        confirmText = "确认用当前配置覆盖全局配置吗？",
-                        func = function()
-                            Core:CopyCurrentProfileToGlobal()
-                            Core:Print("已将当前配置写入全局配置。")
-                            RefreshAllSettings(true)
-                        end,
-                    },
-                    exportGlobal = {
-                        type = "execute",
-                        order = 20,
-                        width = 1.0,
-                        name = "导出全局配置",
-                        func = function()
-                            profileTransferText = Core:ExportGlobalProfile()
-                            Core:Print("已生成全局配置导出文本。")
+                        set = function(_, value)
+                            SetManagedProfileKey(value)
+                            if value and value ~= PROFILE_KEY_GLOBAL then
+                                profileDraftName = tostring(value)
+                            end
                             if NS.Options and NS.Options.NotifyChanged then
                                 NS.Options:NotifyChanged()
                             end
                         end,
                     },
-                    importGlobal = {
+                    profileName = {
+                        type = "input",
+                        order = 12,
+                        width = "full",
+                        name = "配置名称",
+                        desc = "用于复制新配置或重命名当前管理目标配置。",
+                        get = function()
+                            return profileDraftName
+                        end,
+                        set = function(_, value)
+                            profileDraftName = value or ""
+                        end,
+                    },
+                    createProfile = {
+                        type = "execute",
+                        order = 13,
+                        width = 1.0,
+                        name = "复制目标为新配置",
+                        disabled = function()
+                            return TrimText(profileDraftName) == ""
+                        end,
+                        func = function()
+                            local created, errorMessage = Core:CreateNamedProfile(
+                                profileDraftName,
+                                EnsureManagedProfileKey()
+                            )
+                            if not created then
+                                Core:Print(errorMessage or "新配置创建失败。")
+                                return
+                            end
+
+                            SetManagedProfileKey(created)
+                            profileDraftName = created
+                            Core:Print("已创建配置：" .. created)
+                            RefreshAllSettings(true)
+                        end,
+                    },
+                    renameProfile = {
+                        type = "execute",
+                        order = 14,
+                        width = 1.0,
+                        name = "重命名目标配置",
+                        disabled = function()
+                            return EnsureManagedProfileKey() == PROFILE_KEY_GLOBAL or TrimText(profileDraftName) == ""
+                        end,
+                        func = function()
+                            local renamed, errorMessage = Core:RenameNamedProfile(
+                                EnsureManagedProfileKey(),
+                                profileDraftName
+                            )
+                            if not renamed then
+                                Core:Print(errorMessage or "配置重命名失败。")
+                                return
+                            end
+
+                            SetManagedProfileKey(renamed)
+                            profileDraftName = renamed
+                            Core:Print("已重命名配置：" .. renamed)
+                            RefreshAllSettings(true)
+                        end,
+                    },
+                    deleteProfile = {
+                        type = "execute",
+                        order = 15,
+                        width = 1.0,
+                        name = "删除目标配置",
+                        disabled = function()
+                            return EnsureManagedProfileKey() == PROFILE_KEY_GLOBAL
+                        end,
+                        confirm = true,
+                        confirmText = "确认删除当前管理目标配置吗？所有使用这份配置的角色会自动切回全局配置。",
+                        func = function()
+                            local deleted, errorMessage = Core:DeleteNamedProfile(EnsureManagedProfileKey())
+                            if not deleted then
+                                Core:Print(errorMessage or "配置删除失败。")
+                                return
+                            end
+
+                            SetManagedProfileKey(PROFILE_KEY_GLOBAL)
+                            Core:Print("已删除目标配置。")
+                            RefreshAllSettings(true)
+                        end,
+                    },
+                    exportProfile = {
+                        type = "execute",
+                        order = 20,
+                        width = 1.0,
+                        name = "导出目标配置",
+                        func = function()
+                            profileTransferText = Core:ExportProfile(EnsureManagedProfileKey())
+                            Core:Print("已生成编码后的配置文本。")
+                            if NS.Options and NS.Options.NotifyChanged then
+                                NS.Options:NotifyChanged()
+                            end
+                        end,
+                    },
+                    importProfile = {
                         type = "execute",
                         order = 21,
                         width = 1.0,
-                        name = "导入到全局配置",
+                        name = "导入到目标配置",
                         disabled = function()
                             return TrimText(profileTransferText) == ""
                         end,
                         confirm = true,
-                        confirmText = "确认把文本内容导入到全局配置吗？这会覆盖现有全局配置。",
+                        confirmText = "确认将文本内容导入到当前管理目标配置吗？这会覆盖目标配置。",
                         func = function()
-                            local ok, errorMessage = Core:ImportGlobalProfile(profileTransferText)
+                            local ok, errorMessage = Core:ImportProfile(
+                                EnsureManagedProfileKey(),
+                                profileTransferText
+                            )
                             if not ok then
-                                Core:Print(errorMessage or "全局配置导入失败。")
+                                Core:Print(errorMessage or "配置导入失败。")
                                 return
                             end
 
-                            Core:Print("已导入全局配置。")
+                            Core:Print("已导入目标配置。")
                             RefreshAllSettings(true)
                         end,
                     },
@@ -246,8 +369,8 @@ function NS.BuildGeneralOptions()
                         order = 30,
                         width = "full",
                         multiline = 10,
-                        name = "全局配置文本",
-                        desc = "可以导出全局配置到这里，也可以把别处的全局配置文本粘贴回来导入。",
+                        name = "配置文本",
+                        desc = "这里使用编码后的配置文本。可以导出目标配置到这里，也可以粘贴后导入到目标配置。",
                         get = function()
                             return profileTransferText
                         end,
