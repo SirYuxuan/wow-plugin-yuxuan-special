@@ -144,15 +144,31 @@ function UI.CreateDropdownButton(parent, width, height)
 
     button.valueText = UI.CreateText(button, 12)
     button.valueText:SetPoint("LEFT", 14, 0)
-    button.valueText:SetPoint("RIGHT", -30, 0)
+    button.valueText:SetPoint("RIGHT", -34, 0)
     button.valueText:SetJustifyH("LEFT")
     button.valueText:SetJustifyV("MIDDLE")
 
-    button.arrow = button:CreateTexture(nil, "ARTWORK")
-    button.arrow:SetSize(14, 14)
-    button.arrow:SetPoint("RIGHT", -9, 0)
-    button.arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
-    button.arrow:SetVertexColor(Private.UnpackColor(Colors.muted))
+    button.arrow = CreateFrame("Frame", nil, button)
+    button.arrow:SetSize(10, 10)
+    button.arrow:SetPoint("RIGHT", -11, -1)
+    button.arrow.lines = {}
+
+    for index, offset in ipairs({ -2, 2 }) do
+        local line = button.arrow:CreateTexture(nil, "ARTWORK")
+        line:SetTexture("Interface\\Buttons\\WHITE8x8")
+        line:SetSize(7, 2)
+        line:SetPoint("CENTER", offset, 0)
+        line:SetRotation(index == 1 and math.rad(45) or math.rad(-45))
+        button.arrow.lines[index] = line
+    end
+
+    function button:SetArrowColor(color)
+        for _, line in ipairs(self.arrow.lines or {}) do
+            line:SetVertexColor(Private.UnpackColor(color or Colors.muted))
+        end
+    end
+
+    button:SetArrowColor(Colors.muted)
 
     function button:SetValue(text)
         self.valueText:SetText(text or "")
@@ -161,12 +177,12 @@ function UI.CreateDropdownButton(parent, width, height)
     button:SetScript("OnEnter", function(self)
         self.fill:SetColorTexture(Private.UnpackColor(Colors.card))
         self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
-        self.arrow:SetVertexColor(Private.UnpackColor(Colors.accent))
+        self:SetArrowColor(Colors.accent)
     end)
     button:SetScript("OnLeave", function(self)
         self.fill:SetColorTexture(Private.UnpackColor(Colors.cardSoft))
         self:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
-        self.arrow:SetVertexColor(Private.UnpackColor(Colors.muted))
+        self:SetArrowColor(Colors.muted)
     end)
 
     return button
@@ -435,34 +451,19 @@ function UI.CreateSlider(parent)
     local container = CreateFrame("Frame", nil, parent)
     container:SetHeight(28)
 
-    local slider = CreateFrame("Slider", nil, container, "OptionsSliderTemplate")
+    local slider = CreateFrame("Slider", nil, container)
     slider:SetPoint("LEFT", 0, 0)
     slider:SetPoint("RIGHT", -76, 0)
-    slider:SetHeight(20)
+    slider:SetHeight(22)
     slider:SetOrientation("HORIZONTAL")
     slider:SetObeyStepOnDrag(true)
     slider:EnableMouse(true)
-    slider:SetHitRectInsets(0, 0, -6, -6)
-
-    if slider.Low then
-        slider.Low:Hide()
-    end
-    if slider.High then
-        slider.High:Hide()
-    end
-    if slider.Text then
-        slider.Text:Hide()
-    end
-    for _, region in ipairs({ slider:GetRegions() }) do
-        if region and region ~= slider.Low and region ~= slider.High and region ~= slider.Text then
-            region:SetAlpha(0)
-        end
-    end
+    slider:SetHitRectInsets(0, 0, -8, -8)
 
     local track = CreateFrame("Frame", nil, container, "BackdropTemplate")
     track:SetPoint("LEFT", slider, "LEFT", 0, 0)
     track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
-    track:SetHeight(6)
+    track:SetHeight(8)
     track:SetFrameLevel(math.max(slider:GetFrameLevel() - 1, 0))
     UI.CreateBackdrop(track, Colors.card, Colors.border)
     slider.track = track
@@ -476,7 +477,7 @@ function UI.CreateSlider(parent)
     -- 保留系统 slider 的可拖拽行为，只重绘外观。
     slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
     local thumb = slider:GetThumbTexture()
-    thumb:SetSize(8, 14)
+    thumb:SetSize(10, 16)
     thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
     slider.thumb = thumb
 

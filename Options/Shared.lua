@@ -519,7 +519,7 @@ function Private.ShowDropdownMenu(anchor, items)
         local backdrop = _G["DropDownList" .. level .. "Backdrop"]
         local menuBackdrop = _G["DropDownList" .. level .. "MenuBackdrop"]
         if backdrop and backdrop.SetBackdropColor then
-            backdrop:SetBackdropColor(Private.UnpackColor(Private.Colors.card))
+            backdrop:SetBackdropColor(Private.UnpackColor(Private.MixColor(Private.Colors.card, Private.Colors.bg, 0.35, 0.98)))
             backdrop:SetBackdropBorderColor(Private.UnpackColor(Private.Colors.borderActive))
         end
         if menuBackdrop then
@@ -530,12 +530,6 @@ function Private.ShowDropdownMenu(anchor, items)
         for index = 1, buttonCount do
             local button = _G["DropDownList" .. level .. "Button" .. index]
             if button and button:IsShown() then
-                if not button._yxsBg then
-                    local bg = button:CreateTexture(nil, "BACKGROUND")
-                    bg:SetPoint("TOPLEFT", 4, -1)
-                    bg:SetPoint("BOTTOMRIGHT", -4, 1)
-                    button._yxsBg = bg
-                end
                 if not button._yxsHighlight then
                     local highlight = button:CreateTexture(nil, "HIGHLIGHT")
                     highlight:SetPoint("TOPLEFT", 4, -1)
@@ -544,7 +538,6 @@ function Private.ShowDropdownMenu(anchor, items)
                     button._yxsHighlight = highlight
                 end
 
-                button._yxsBg:SetColorTexture(Private.UnpackColor(Private.Colors.cardSoft))
                 button._yxsHighlight:SetColorTexture(Private.UnpackColor(Private.Colors.accentBg))
 
                 local check = _G[button:GetName() .. "Check"]
