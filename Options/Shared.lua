@@ -525,6 +525,47 @@ function Private.ShowDropdownMenu(anchor, items)
         if menuBackdrop then
             menuBackdrop:SetAlpha(0)
         end
+
+        local buttonCount = UIDROPDOWNMENU_MAXBUTTONS or 32
+        for index = 1, buttonCount do
+            local button = _G["DropDownList" .. level .. "Button" .. index]
+            if button and button:IsShown() then
+                if not button._yxsBg then
+                    local bg = button:CreateTexture(nil, "BACKGROUND")
+                    bg:SetPoint("TOPLEFT", 4, -1)
+                    bg:SetPoint("BOTTOMRIGHT", -4, 1)
+                    button._yxsBg = bg
+                end
+                if not button._yxsHighlight then
+                    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+                    highlight:SetPoint("TOPLEFT", 4, -1)
+                    highlight:SetPoint("BOTTOMRIGHT", -4, 1)
+                    button:SetHighlightTexture(highlight)
+                    button._yxsHighlight = highlight
+                end
+
+                button._yxsBg:SetColorTexture(Private.UnpackColor(Private.Colors.cardSoft))
+                button._yxsHighlight:SetColorTexture(Private.UnpackColor(Private.Colors.accentBg))
+
+                local check = _G[button:GetName() .. "Check"]
+                local uncheck = _G[button:GetName() .. "UnCheck"]
+                local fontString = _G[button:GetName() .. "NormalText"] or button:GetFontString()
+
+                if check then
+                    check:ClearAllPoints()
+                    check:SetPoint("LEFT", button, "LEFT", 10, 0)
+                end
+                if uncheck then
+                    uncheck:ClearAllPoints()
+                    uncheck:SetPoint("LEFT", button, "LEFT", 10, 0)
+                end
+                if fontString then
+                    fontString:ClearAllPoints()
+                    fontString:SetPoint("LEFT", button, "LEFT", 30, 0)
+                    fontString:SetJustifyH("LEFT")
+                end
+            end
+        end
     end
 
     return true

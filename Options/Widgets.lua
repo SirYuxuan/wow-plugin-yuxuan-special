@@ -135,33 +135,38 @@ end
 function UI.CreateDropdownButton(parent, width, height)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
     button:SetSize(width or 176, height or 28)
-    UI.CreateBackdrop(button, Colors.cardSoft, Colors.border)
+    UI.CreateBackdrop(button, Colors.card, Colors.border)
+
+    button.fill = button:CreateTexture(nil, "BACKGROUND")
+    button.fill:SetPoint("TOPLEFT", 1, -1)
+    button.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+    button.fill:SetColorTexture(Private.UnpackColor(Colors.cardSoft))
 
     button.valueText = UI.CreateText(button, 12)
-    button.valueText:SetPoint("LEFT", 12, 0)
-    button.valueText:SetPoint("RIGHT", -26, 0)
+    button.valueText:SetPoint("LEFT", 14, 0)
+    button.valueText:SetPoint("RIGHT", -30, 0)
+    button.valueText:SetJustifyH("LEFT")
     button.valueText:SetJustifyV("MIDDLE")
 
-    button.arrow = UI.CreateText(button, 12, "OUTLINE")
-    button.arrow:SetPoint("RIGHT", -10, 0)
-    button.arrow:SetJustifyH("CENTER")
-    button.arrow:SetJustifyV("MIDDLE")
-    button.arrow:SetText("▾")
-    button.arrow:SetTextColor(Private.UnpackColor(Colors.muted))
+    button.arrow = button:CreateTexture(nil, "ARTWORK")
+    button.arrow:SetSize(14, 14)
+    button.arrow:SetPoint("RIGHT", -9, 0)
+    button.arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
+    button.arrow:SetVertexColor(Private.UnpackColor(Colors.muted))
 
     function button:SetValue(text)
         self.valueText:SetText(text or "")
     end
 
     button:SetScript("OnEnter", function(self)
-        self:SetBackdropColor(Private.UnpackColor(Colors.card))
+        self.fill:SetColorTexture(Private.UnpackColor(Colors.card))
         self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
-        self.arrow:SetTextColor(Private.UnpackColor(Colors.accent))
+        self.arrow:SetVertexColor(Private.UnpackColor(Colors.accent))
     end)
     button:SetScript("OnLeave", function(self)
-        self:SetBackdropColor(Private.UnpackColor(Colors.cardSoft))
+        self.fill:SetColorTexture(Private.UnpackColor(Colors.cardSoft))
         self:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
-        self.arrow:SetTextColor(Private.UnpackColor(Colors.muted))
+        self.arrow:SetVertexColor(Private.UnpackColor(Colors.muted))
     end)
 
     return button
@@ -457,21 +462,27 @@ function UI.CreateSlider(parent)
     local track = CreateFrame("Frame", nil, container, "BackdropTemplate")
     track:SetPoint("LEFT", slider, "LEFT", 0, 0)
     track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
-    track:SetHeight(4)
+    track:SetHeight(6)
     track:SetFrameLevel(math.max(slider:GetFrameLevel() - 1, 0))
-    UI.CreateBackdrop(track, Colors.bg, Colors.borderSoft or Colors.border)
+    UI.CreateBackdrop(track, Colors.card, Colors.border)
     slider.track = track
 
-    -- 直接使用系统 slider thumb，保留拖拽命中与原生行为，再在外层补自定义样式。
+    local trackFill = track:CreateTexture(nil, "BACKGROUND")
+    trackFill:SetPoint("TOPLEFT", 1, -1)
+    trackFill:SetPoint("BOTTOMRIGHT", -1, 1)
+    trackFill:SetColorTexture(Private.UnpackColor(Colors.bg))
+    slider.trackFill = trackFill
+
+    -- 保留系统 slider 的可拖拽行为，只重绘外观。
     slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
     local thumb = slider:GetThumbTexture()
-    thumb:SetSize(12, 18)
+    thumb:SetSize(8, 14)
     thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
     slider.thumb = thumb
 
     local thumbFrame = CreateFrame("Frame", nil, slider, "BackdropTemplate")
-    thumbFrame:SetPoint("TOPLEFT", thumb, "TOPLEFT", -2, 2)
-    thumbFrame:SetPoint("BOTTOMRIGHT", thumb, "BOTTOMRIGHT", 2, -2)
+    thumbFrame:SetPoint("TOPLEFT", thumb, "TOPLEFT", -1, 1)
+    thumbFrame:SetPoint("BOTTOMRIGHT", thumb, "BOTTOMRIGHT", 1, -1)
     thumbFrame:EnableMouse(false)
     UI.CreateBackdrop(thumbFrame, { 0, 0, 0, 0 }, Colors.borderActive)
     thumbFrame:SetFrameLevel(slider:GetFrameLevel() + 1)
@@ -552,14 +563,20 @@ function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
     local track = CreateFrame("Frame", nil, slider, "BackdropTemplate")
     track:SetPoint("TOP", 0, 0)
     track:SetPoint("BOTTOM", 0, 0)
-    track:SetWidth(10)
+    track:SetWidth(8)
     track:SetFrameLevel(math.max(slider:GetFrameLevel() - 1, 0))
-    UI.CreateBackdrop(track, { 0.03, 0.03, 0.04, 0.68 }, Colors.borderSoft or Colors.border)
+    UI.CreateBackdrop(track, Colors.card, Colors.border)
     slider.track = track
+
+    local trackFill = track:CreateTexture(nil, "BACKGROUND")
+    trackFill:SetPoint("TOPLEFT", 1, -1)
+    trackFill:SetPoint("BOTTOMRIGHT", -1, 1)
+    trackFill:SetColorTexture(Private.UnpackColor(Colors.bg))
+    slider.trackFill = trackFill
 
     slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
     local thumb = slider:GetThumbTexture()
-    thumb:SetSize(10, 40)
+    thumb:SetSize(6, 36)
     thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
     slider.thumb = thumb
 
@@ -580,7 +597,7 @@ function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
 
         thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
         thumbFrame:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
-        track:SetBackdropBorderColor(Private.UnpackColor(Colors.borderSoft or Colors.border))
+        track:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
 
         local range = scrollFrame:GetVerticalScrollRange() or 0
         slider:SetMinMaxValues(0, range)
@@ -597,7 +614,7 @@ function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
         if childHeight > 0 and viewHeight > 0 then
             ratio = math.max(0.18, math.min(1, viewHeight / childHeight))
         end
-        thumb:SetHeight(math.max(34, (slider:GetHeight() or 0) * ratio))
+        thumb:SetHeight(math.max(28, (slider:GetHeight() or 0) * ratio))
 
         slider:SetShown(range > 0.5)
     end

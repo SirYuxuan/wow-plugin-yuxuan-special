@@ -39,7 +39,6 @@ end
 这里先放 3 类最常用的全局能力：
 1. 字体
 2. 主题色
-3. 设置窗口整体缩放
 后续如果还要加音效、动画、窗口行为，也可以继续往这里扩。
 ]]
 function NS.BuildGeneralOptions()
@@ -57,7 +56,7 @@ function NS.BuildGeneralOptions()
                         type = "description",
                         order = 1,
                         fontSize = "medium",
-                        name = "这里可以统一调整插件设置界面的字体、主题色和整体缩放。",
+                        name = "这里可以统一调整插件设置界面的字体和主题色。",
                     },
                     fontPreset = {
                         type = "select",
@@ -110,21 +109,6 @@ function NS.BuildGeneralOptions()
                             color.g = g
                             color.b = b
                             color.a = a or 1
-                            RefreshAppearance(true)
-                        end,
-                    },
-                    uiScale = {
-                        type = "range",
-                        name = "设置界面缩放",
-                        order = 13,
-                        min = 0.80,
-                        max = 1.30,
-                        step = 0.05,
-                        get = function()
-                            return GetConfig().uiScale
-                        end,
-                        set = function(_, value)
-                            GetConfig().uiScale = value
                             RefreshAppearance(true)
                         end,
                     },

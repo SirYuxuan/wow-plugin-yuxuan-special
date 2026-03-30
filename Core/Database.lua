@@ -34,7 +34,6 @@ NS.DEFAULTS = {
                 b = 0.18,
                 a = 1.00,
             },
-            uiScale = 1.00,
         },
     },
     mapAssist = {

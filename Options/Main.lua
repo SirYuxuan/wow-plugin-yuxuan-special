@@ -23,32 +23,20 @@ function Options:EnsureRegistered()
         Private.RefreshThemeColors()
     end
     self:CreateMainFrame()
-    self:ApplyWindowScale()
+    self.frame:SetScale(1)
     return self.frame ~= nil
 end
 
 function Options:ApplyWindowScale()
-    if not self.frame then
-        return
+    if self.frame then
+        self.frame:SetScale(1)
     end
-
-    local config = Private and Private.GetAppearanceConfig and Private.GetAppearanceConfig()
-    local scale = tonumber(config and config.uiScale) or 1
-    if scale < 0.8 then
-        scale = 0.8
-    elseif scale > 1.3 then
-        scale = 1.3
-    end
-
-    self.frame:SetScale(scale)
 end
 
 function Options:RefreshAppearance()
     if Private and Private.RefreshThemeColors then
         Private.RefreshThemeColors()
     end
-
-    self:ApplyWindowScale()
 
     if self.frame and Private and Private.RefreshFonts then
         Private.RefreshFonts(self.frame)

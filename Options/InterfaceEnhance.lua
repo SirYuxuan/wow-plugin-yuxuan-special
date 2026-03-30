@@ -52,35 +52,27 @@ local function BuildButtonManagementArgs()
         local entryIndex = index
         local key = def.key
         local isCustom = def.action == "custom"
-        local groupName = (isCustom and "[自定义] " or "[内置] ") .. def.label
+        local rowName = (isCustom and "[自定义] " or "[内置] ") .. def.label
 
         args["button_" .. key] = {
-            type = "group",
+            type = "actionRow",
             order = entryIndex * 10,
-            inline = true,
-            name = groupName,
-            args = {
-                color = {
-                    type = "color",
-                    order = 1,
-                    width = 0.7,
-                    name = "颜色",
-                    hasAlpha = false,
-                    get = function()
-                        local color = quickChat:GetColorForKey(key)
-                        return color.r, color.g, color.b
-                    end,
-                    set = function(_, r, g, b)
-                        local color = quickChat:GetColorForKey(key)
-                        color.r, color.g, color.b = r, g, b
-                        RefreshQuickChat(false)
-                    end,
-                },
-                moveUp = {
-                    type = "execute",
-                    order = 2,
-                    width = 0.7,
-                    name = "上移",
+            name = rowName,
+            color = {
+                get = function()
+                    local color = quickChat:GetColorForKey(key)
+                    return color.r, color.g, color.b
+                end,
+                set = function(_, r, g, b)
+                    local color = quickChat:GetColorForKey(key)
+                    color.r, color.g, color.b = r, g, b
+                    RefreshQuickChat(false)
+                end,
+            },
+            actions = {
+                {
+                    label = "上移",
+                    width = 46,
                     disabled = function()
                         return entryIndex == 1
                     end,
@@ -92,11 +84,9 @@ local function BuildButtonManagementArgs()
                         end
                     end,
                 },
-                moveDown = {
-                    type = "execute",
-                    order = 3,
-                    width = 0.7,
-                    name = "下移",
+                {
+                    label = "下移",
+                    width = 46,
                     disabled = function()
                         return entryIndex == #defs
                     end,
@@ -108,11 +98,9 @@ local function BuildButtonManagementArgs()
                         end
                     end,
                 },
-                delete = {
-                    type = "execute",
-                    order = 4,
-                    width = 0.7,
-                    name = isCustom and "删除" or "移除",
+                {
+                    label = isCustom and "删除" or "移除",
+                    width = 50,
                     confirm = true,
                     confirmText = "确认移除这个按钮吗？",
                     func = function()
@@ -136,43 +124,6 @@ local function BuildButtonManagementArgs()
                 },
             },
         }
-
-        if isCustom then
-            args["button_" .. key].args.label = {
-                type = "input",
-                order = 10,
-                width = 1.0,
-                name = "按钮文字",
-                get = function()
-                    local custom = quickChat:GetCustomButtonByKey(key)
-                    return custom and custom.label or ""
-                end,
-                set = function(_, value)
-                    local custom = quickChat:GetCustomButtonByKey(key)
-                    if custom then
-                        custom.label = value or ""
-                        RefreshQuickChat(true)
-                    end
-                end,
-            }
-            args["button_" .. key].args.command = {
-                type = "input",
-                order = 11,
-                width = "full",
-                name = "聊天指令",
-                get = function()
-                    local custom = quickChat:GetCustomButtonByKey(key)
-                    return custom and custom.command or ""
-                end,
-                set = function(_, value)
-                    local custom = quickChat:GetCustomButtonByKey(key)
-                    if custom then
-                        custom.command = value or ""
-                        RefreshQuickChat(true)
-                    end
-                end,
-            }
-        end
     end
 
     return args
@@ -191,12 +142,6 @@ function NS.BuildInterfaceEnhanceOptions()
                 childGroups = "tab",
                 args = {
                     basic = BuildTab("基础设置", 10, {
-                        intro = {
-                            type = "description",
-                            order = 1,
-                            fontSize = "medium",
-                            name = "在屏幕上放一排快捷聊天按钮，左键快速切换频道，世界按钮右键可直接退频道。",
-                        },
                         enabled = {
                             type = "toggle",
                             order = 10,

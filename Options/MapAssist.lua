@@ -75,6 +75,8 @@ function NS.BuildMapAssistOptions()
                         type = "radio",
                         name = "锚点位置",
                         order = 11,
+                        compact = true,
+                        buttonWidth = 76,
                         values = GetAnchorOptions,
                         disabled = function()
                             return not GetConfig().enabled
@@ -86,12 +88,6 @@ function NS.BuildMapAssistOptions()
                             GetConfig().anchorPreset = value
                             RefreshWidget()
                         end,
-                    },
-                    spacer2 = {
-                        type = "description",
-                        order = 12,
-                        name = " ",
-                        width = "full",
                     },
                     offsetX = {
                         type = "range",

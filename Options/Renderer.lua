@@ -341,15 +341,27 @@ end
 
 function Options:RenderRadio(parent, option, top)
     local descText = Private.ResolveText(option.desc)
-    local height = Private.TrimText(descText) ~= "" and 82 or 66
+    local compact = option.compact and true or false
+    local height
+    if compact then
+        height = 44
+    else
+        height = Private.TrimText(descText) ~= "" and 82 or 66
+    end
     local row = self:CreateCard(parent, top, height)
 
     local title = UI.CreateText(row, 12)
-    title:SetPoint("TOPLEFT", 12, -10)
-    title:SetPoint("TOPRIGHT", -12, -10)
+    if compact then
+        title:SetPoint("LEFT", 12, 0)
+        title:SetPoint("RIGHT", -220, 0)
+        title:SetJustifyV("MIDDLE")
+    else
+        title:SetPoint("TOPLEFT", 12, -10)
+        title:SetPoint("TOPRIGHT", -12, -10)
+    end
     title:SetText(Private.ResolveText(option.name))
 
-    if Private.TrimText(descText) ~= "" then
+    if not compact and Private.TrimText(descText) ~= "" then
         local desc = UI.CreateText(row, 11)
         desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
         desc:SetPoint("TOPRIGHT", -12, 0)
@@ -361,14 +373,31 @@ function Options:RenderRadio(parent, option, top)
     local currentValue = Private.GetOptionValue(option)
     local disabled = Private.IsDisabled(option)
     local gap = 8
-    local availableWidth = math.max(220, GetParentContentWidth(self, row) - 24)
-    local buttonWidth = math.floor((availableWidth - math.max(0, (#values - 1) * gap)) / math.max(#values, 1))
+    local buttonWidth = option.buttonWidth or 96
     local xOffset = 12
+    local totalWidth = 0
+
+    if compact then
+        local rowWidth = math.max(320, GetParentContentWidth(self, row))
+        totalWidth = (#values * buttonWidth) + math.max(0, (#values - 1) * gap)
+        xOffset = math.max(12, rowWidth - totalWidth - 12)
+        title:ClearAllPoints()
+        title:SetPoint("LEFT", 12, 0)
+        title:SetPoint("RIGHT", -(totalWidth + 24), 0)
+        title:SetJustifyV("MIDDLE")
+    else
+        local availableWidth = math.max(220, GetParentContentWidth(self, row) - 24)
+        buttonWidth = math.floor((availableWidth - math.max(0, (#values - 1) * gap)) / math.max(#values, 1))
+    end
 
     for _, entry in ipairs(values) do
         local entryValue = entry.value
         local button = UI.CreateChoiceButton(row, entry.label, buttonWidth, 28)
-        button:SetPoint("BOTTOMLEFT", xOffset, 12)
+        if compact then
+            button:SetPoint("TOPLEFT", xOffset, -8)
+        else
+            button:SetPoint("BOTTOMLEFT", xOffset, 12)
+        end
         button:SetSelected(entryValue == currentValue)
         button:SetEnabled(not disabled)
         if disabled then
@@ -389,6 +418,94 @@ function Options:RenderRadio(parent, option, top)
     end
 
     return height + Sizes.rowGap
+end
+
+function Options:RenderActionRow(parent, option, top)
+    local row = self:CreateCard(parent, top, 42)
+    local disabled = Private.IsDisabled(option)
+
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("LEFT", 12, 0)
+    title:SetPoint("RIGHT", -220, 0)
+    title:SetJustifyV("MIDDLE")
+    title:SetText(Private.ResolveText(option.name))
+
+    local rightOffset = -12
+    local actions = option.actions or {}
+
+    for index = #actions, 1, -1 do
+        local action = actions[index]
+        local actionDisabled = disabled or Private.Evaluate(action.disabled)
+        local button = UI.CreateButton(row, Private.ResolveText(action.label), action.width or 48, 24)
+        button:SetPoint("RIGHT", rightOffset, 0)
+        button:SetEnabled(not actionDisabled)
+        if actionDisabled then
+            button:SetAlpha(0.45)
+        end
+        button:SetScript("OnClick", function()
+            if actionDisabled then
+                return
+            end
+            local run = function()
+                if action.func then
+                    action.func()
+                end
+                self:NotifyChanged()
+            end
+            if action.confirm then
+                self:ShowConfirm(Private.ResolveText(action.confirmText, "确认执行这个操作吗？"), run)
+            else
+                run()
+            end
+        end)
+        rightOffset = rightOffset - (button:GetWidth() + 6)
+    end
+
+    if option.color then
+        local colorButton = CreateFrame("Button", nil, row, "BackdropTemplate")
+        colorButton:SetSize(28, 24)
+        colorButton:SetPoint("RIGHT", rightOffset, 0)
+        UI.CreateBackdrop(colorButton, Colors.card, Colors.border)
+
+        local swatch = colorButton:CreateTexture(nil, "ARTWORK")
+        swatch:SetPoint("TOPLEFT", 3, -3)
+        swatch:SetPoint("BOTTOMRIGHT", -3, 3)
+        colorButton.swatch = swatch
+
+        local function updateSwatch()
+            local r, g, b = option.color.get()
+            swatch:SetColorTexture(r or 1, g or 1, b or 1, 1)
+        end
+
+        updateSwatch()
+        colorButton:SetEnabled(not disabled)
+        if disabled then
+            colorButton:SetAlpha(0.45)
+        end
+        colorButton:SetScript("OnClick", function()
+            if disabled then
+                return
+            end
+            self:OpenColorPicker({
+                hasAlpha = false,
+                get = function()
+                    local r, g, b = option.color.get()
+                    return r, g, b, 1
+                end,
+                set = function(_, r, g, b)
+                    option.color.set(nil, r, g, b)
+                    updateSwatch()
+                end,
+            })
+        end)
+        rightOffset = rightOffset - 34
+    end
+
+    if disabled then
+        row:SetAlpha(0.60)
+    end
+
+    return 42 + Sizes.rowGap
 end
 
 function Options:OpenColorPicker(option)
@@ -608,6 +725,9 @@ function Options:RenderOption(parent, option, top)
     end
     if option.type == "radio" then
         return self:RenderRadio(parent, option, top)
+    end
+    if option.type == "actionRow" then
+        return self:RenderActionRow(parent, option, top)
     end
     if option.type == "color" then
         return self:RenderColor(parent, option, top)
