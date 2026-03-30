@@ -186,7 +186,7 @@ function Options:UpdateBodyLayout(showSecondNav)
         if self.frame.secondNavDivider then
             self.frame.secondNavDivider:Show()
         end
-        detailPanel:SetPoint("TOPLEFT", self.frame.secondNav, "TOPRIGHT", 10, 0)
+        detailPanel:SetPoint("TOPLEFT", self.frame.secondNav, "TOPRIGHT", 12, 0)
     else
         if self.frame.secondNav then
             self.frame.secondNav:Hide()
@@ -197,7 +197,7 @@ function Options:UpdateBodyLayout(showSecondNav)
         detailPanel:SetPoint("TOPLEFT", self.frame.body, "TOPLEFT", 0, 0)
     end
 
-    detailPanel:SetPoint("BOTTOMRIGHT", self.frame.body, "BOTTOMRIGHT", -2, 0)
+    detailPanel:SetPoint("BOTTOMRIGHT", self.frame.body, "BOTTOMRIGHT", 0, 0)
 end
 
 function Options:CreateMainFrame()
@@ -284,7 +284,7 @@ function Options:CreateMainFrame()
 
     local navScroll = CreateFrame("ScrollFrame", nil, nav)
     navScroll:SetPoint("TOPLEFT", 0, -78)
-    navScroll:SetPoint("BOTTOMRIGHT", -12, 8)
+    navScroll:SetPoint("BOTTOMRIGHT", -16, 8)
     nav.navScroll = navScroll
 
     local navChild = CreateFrame("Frame", nil, navScroll)
@@ -355,13 +355,13 @@ function Options:CreateMainFrame()
     secondNav:SetPoint("TOPLEFT", 0, 0)
     secondNav:SetPoint("BOTTOMLEFT", 0, 0)
     secondNav:SetWidth(Sizes.secondNavWidth)
-    UI.CreateBackdrop(secondNav, Colors.panel, Colors.border)
+    UI.CreateBackdrop(secondNav, Colors.bg, Colors.bg)
     secondNav:Hide()
     frame.secondNav = secondNav
 
     local secondNavScroll = CreateFrame("ScrollFrame", nil, secondNav)
-    secondNavScroll:SetPoint("TOPLEFT", 6, -6)
-    secondNavScroll:SetPoint("BOTTOMRIGHT", -12, 6)
+    secondNavScroll:SetPoint("TOPLEFT", 0, -2)
+    secondNavScroll:SetPoint("BOTTOMRIGHT", -14, 2)
     secondNav.scrollFrame = secondNavScroll
 
     local secondNavChild = CreateFrame("Frame", nil, secondNavScroll)
@@ -379,18 +379,18 @@ function Options:CreateMainFrame()
     secondNavDivider:SetWidth(1)
     secondNavDivider:SetColorTexture(Private.UnpackColor(Colors.border))
     secondNavDivider:SetAlpha(0.5)
-    secondNavDivider:SetPoint("TOPLEFT", secondNav, "TOPRIGHT", 5, 0)
-    secondNavDivider:SetPoint("BOTTOMLEFT", secondNav, "BOTTOMRIGHT", 5, 0)
+    secondNavDivider:SetPoint("TOPLEFT", secondNav, "TOPRIGHT", 6, 0)
+    secondNavDivider:SetPoint("BOTTOMLEFT", secondNav, "BOTTOMRIGHT", 6, 0)
     secondNavDivider:Hide()
     frame.secondNavDivider = secondNavDivider
 
     local detailPanel = CreateFrame("Frame", nil, body, "BackdropTemplate")
-    UI.CreateBackdrop(detailPanel, Colors.panel, Colors.border)
+    UI.CreateBackdrop(detailPanel, Colors.bg, Colors.bg)
     frame.detailPanel = detailPanel
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, detailPanel)
-    scrollFrame:SetPoint("TOPLEFT", 0, 0)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -12, 0)
+    scrollFrame:SetPoint("TOPLEFT", Sizes.contentInset, -Sizes.contentInset)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -(16 + Sizes.contentInset), Sizes.contentInset)
     frame.scrollFrame = scrollFrame
 
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
@@ -423,13 +423,22 @@ function Options:RefreshNavigation()
             self.navButtons[index] = button
         end
 
+        local entryKey = entry.key
+        local entryName = Private.ResolveText(entry.value.name, entry.key)
+        local isDisabled = Private.IsDisabled(entry.value)
+        local disabledTip = Private.GetDisabledTip(entry.value, "当前模块暂时不可用")
+
         button:Show()
         button:ClearAllPoints()
         button:SetPoint("TOPLEFT", 0, yOffset)
-        button.text:SetText(Private.ResolveText(entry.value.name, entry.key))
-        button:SetSelected(entry.key == self.selectedTopKey)
+        button.text:SetText(entryName)
+        button:SetSelected(entryKey == self.selectedTopKey)
+        button:SetDisabled(isDisabled, disabledTip)
         button:SetScript("OnClick", function()
-            self.selectedTopKey = entry.key
+            if isDisabled then
+                return
+            end
+            self.selectedTopKey = entryKey
             self:Render()
         end)
 
@@ -481,13 +490,20 @@ function Options:UpdateSecondaryNavigation(entries, path)
 
     local yOffset = -2
     for _, entry in ipairs(entries) do
-        local button = UI.CreateNavButton(navChild, Sizes.secondNavWidth - 22, 30)
+        local entryKey = entry.key
         local label = Private.ResolveText(entry.value.name, entry.key)
+        local isDisabled = Private.IsDisabled(entry.value)
+        local disabledTip = Private.GetDisabledTip(entry.value, "当前模块暂时不可用")
+        local button = UI.CreateNavButton(navChild, Sizes.secondNavWidth - 22, 30)
         UI.SetButtonLabel(button, label)
         button:SetPoint("TOPLEFT", 0, yOffset)
-        button:SetSelected(entry.key == selectedKey)
+        button:SetSelected(entryKey == selectedKey)
+        button:SetDisabled(isDisabled, disabledTip)
         button:SetScript("OnClick", function()
-            self.selectedChildren[pathKey] = entry.key
+            if isDisabled then
+                return
+            end
+            self.selectedChildren[pathKey] = entryKey
             self:Render()
         end)
 
@@ -540,7 +556,7 @@ function Options:GetScrollWidth()
         return 720
     end
 
-    local width = self.frame.detailPanel:GetWidth() - 24
+    local width = self.frame.detailPanel:GetWidth() - (32 + Sizes.contentInset * 2)
     if width < 420 then
         width = 420
     end
@@ -549,9 +565,25 @@ end
 
 function Options:CreateCard(parent, top, height)
     local card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
-    card:SetPoint("TOPLEFT", 2, top)
-    card:SetWidth(self:GetScrollWidth() - 4)
+    card:SetPoint("TOPLEFT", 0, top)
+    local width = (parent and parent.GetWidth and parent:GetWidth()) or 0
+    if width < 64 then
+        width = self:GetScrollWidth()
+    end
+    card:SetWidth(width)
     card:SetHeight(height)
-    UI.CreateBackdrop(card, Colors.cardSoft, Colors.border)
+    UI.CreateBackdrop(card, Colors.cardSoft, Colors.cardSoft)
     return card
+end
+
+function Options:CreateSection(parent, top, height)
+    local section = CreateFrame("Frame", nil, parent)
+    section:SetPoint("TOPLEFT", 0, top)
+    local width = (parent and parent.GetWidth and parent:GetWidth()) or 0
+    if width < 64 then
+        width = self:GetScrollWidth()
+    end
+    section:SetWidth(width)
+    section:SetHeight(height or 10)
+    return section
 end

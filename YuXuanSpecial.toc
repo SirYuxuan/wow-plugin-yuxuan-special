@@ -11,11 +11,15 @@ Core\Database.lua
 Core\Commands.lua
 
 Modules\MapAssist\QuickWaypoint.lua
+Modules\InterfaceEnhance\QuickChat.lua
+Modules\CombatAssist\QuickFocus.lua
 Modules\CombatAssist\TrinketMonitor.lua
 Modules\ClassAssist\Mage\ShatterIndicator.lua
 
 Options\CombatAssist.lua
 Options\ClassAssist.lua
+Options\General.lua
+Options\InterfaceEnhance.lua
 Options\Mage.lua
 Options\MapAssist.lua
 Options\Shared.lua

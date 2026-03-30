@@ -1,0 +1,11 @@
+# Local editor settings
+.vscode/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak

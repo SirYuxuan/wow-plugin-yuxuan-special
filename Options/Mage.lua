@@ -72,6 +72,30 @@ local function GetSpecTabName(label, specID)
     return "|cFF7F7F7F" .. label .. "|r"
 end
 
+local function GetAutoSpecTabKey()
+    if not IsMagePlayer() then
+        return nil
+    end
+
+    local currentSpecIndex = GetSpecialization and GetSpecialization()
+    if not currentSpecIndex then
+        return "frost"
+    end
+
+    local currentSpecID = GetSpecializationInfo and GetSpecializationInfo(currentSpecIndex)
+    if currentSpecID == 62 then
+        return "arcane"
+    end
+    if currentSpecID == 63 then
+        return "fire"
+    end
+    if currentSpecID == 64 then
+        return "frost"
+    end
+
+    return "frost"
+end
+
 local function UpsertMonitorEntry(count, color)
     local config = GetConfig()
     config.monitorList = config.monitorList or {}
@@ -126,10 +150,13 @@ local function BuildMonitorListArgs()
 
     local order = 10
     for index, entry in ipairs(list) do
-        args["entry_" .. index] = {
+        local entryIndex = index
+        local monitorEntry = entry
+
+        args["entry_" .. entryIndex] = {
             type = "group",
             order = order,
-            name = string.format("监控 %d", index),
+            name = string.format("监控 %d", entryIndex),
             inline = true,
             args = {
                 count = {
@@ -141,10 +168,10 @@ local function BuildMonitorListArgs()
                     step = 1,
                     width = 1.0,
                     get = function()
-                        return entry.count or 1
+                        return monitorEntry.count or 1
                     end,
                     set = function(_, value)
-                        entry.count = value
+                        monitorEntry.count = value
                         RefreshIndicator(false)
                     end,
                 },
@@ -155,11 +182,11 @@ local function BuildMonitorListArgs()
                     hasAlpha = true,
                     width = 0.8,
                     get = function()
-                        local color = entry.color or { r = 1, g = 1, b = 1, a = 1 }
+                        local color = monitorEntry.color or { r = 1, g = 1, b = 1, a = 1 }
                         return color.r, color.g, color.b, color.a or 1
                     end,
                     set = function(_, r, g, b, a)
-                        entry.color = { r = r, g = g, b = b, a = a }
+                        monitorEntry.color = { r = r, g = g, b = b, a = a }
                         RefreshIndicator(false)
                     end,
                 },
@@ -171,8 +198,11 @@ local function BuildMonitorListArgs()
                     confirm = true,
                     confirmText = "确认删除这个监控阈值吗？",
                     func = function()
-                        RemoveMonitorEntry(index)
+                        RemoveMonitorEntry(entryIndex)
                         RefreshIndicator(true)
+                        C_Timer.After(0, function()
+                            RefreshIndicator(true)
+                        end)
                     end,
                 },
             },
@@ -193,6 +223,7 @@ local function BuildUnavailableSpecTab(label, order, specID)
         disabled = function()
             return not IsCurrentSpec(specID)
         end,
+        disabledTip = "请切换到对应专精后查看",
         args = {
             desc = {
                 type = "description",
@@ -215,6 +246,7 @@ local function BuildFrostSpecTab()
         disabled = function()
             return not IsCurrentSpec(64)
         end,
+        disabledTip = "请切换到冰霜专精后查看",
         args = {
             intro = {
                 type = "description",
@@ -465,6 +497,9 @@ local function BuildFrostSpecTab()
                         func = function()
                             UpsertMonitorEntry(pendingMonitorCount, pendingMonitorColor)
                             RefreshIndicator(true)
+                            C_Timer.After(0, function()
+                                RefreshIndicator(true)
+                            end)
                         end,
                     },
                     resetButton = {
@@ -489,6 +524,7 @@ function NS.BuildMageAssistOptions()
         name = "法师",
         order = 10,
         childGroups = "tab",
+        autoSelectChild = GetAutoSpecTabKey,
         args = {
             arcane = BuildUnavailableSpecTab("奥术专精", 10, 62),
             fire = BuildUnavailableSpecTab("火焰专精", 20, 63),

@@ -17,6 +17,20 @@ local Colors = Private.Colors
 Private.UI = Private.UI or {}
 local UI = Private.UI
 
+function UI.ShowTooltip(owner, text)
+    if not owner or not text or text == "" then
+        return
+    end
+
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:SetText(text, 1, 0.82, 0.18, true)
+    GameTooltip:Show()
+end
+
+function UI.HideTooltip()
+    GameTooltip:Hide()
+end
+
 function UI.CreateBackdrop(frame, color, borderColor)
     if not frame.SetBackdrop then
         return
@@ -55,14 +69,9 @@ function UI.CreateText(parent, size, outline)
     text:SetJustifyV("TOP")
     text:SetWordWrap(true)
     text:SetTextColor(Private.UnpackColor(Colors.text))
-
-    local fontObject = ChatFontNormal or GameFontNormal
-    if fontObject and fontObject.GetFont then
-        local fontPath = fontObject:GetFont()
-        text:SetFont(fontPath or STANDARD_TEXT_FONT, size or 12, outline or "")
-    else
-        text:SetFont(STANDARD_TEXT_FONT, size or 12, outline or "")
-    end
+    text._yxsFontSize = size or 12
+    text._yxsFontOutline = outline or ""
+    Private.ApplyStoredFont(text)
 
     return text
 end
@@ -71,10 +80,16 @@ function UI.CreateButton(parent, label, width, height, variant)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
     button:SetSize(width or 120, height or 28)
 
+    local normalBg = variant == "accent" and Colors.accentBg or Colors.card
+    local normalBorder = variant == "accent" and Colors.borderActive or Colors.border
+    local hoverBg = variant == "accent"
+        and Private.MixColor(Colors.accentBg, Colors.accent, 0.18, 0.96)
+        or Colors.cardSoft
+
     UI.CreateBackdrop(
         button,
-        variant == "accent" and Colors.accentSoft or Colors.card,
-        variant == "accent" and Colors.borderActive or Colors.border
+        normalBg,
+        normalBorder
     )
 
     local text = UI.CreateText(button, 12)
@@ -89,14 +104,14 @@ function UI.CreateButton(parent, label, width, height, variant)
 
     button:SetScript("OnEnter", function(self)
         self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+        self:SetBackdropColor(Private.UnpackColor(hoverBg))
         if self.text then
             self.text:SetTextColor(1, 1, 1, 1)
         end
     end)
     button:SetScript("OnLeave", function(self)
-        self:SetBackdropBorderColor(
-            Private.UnpackColor(variant == "accent" and Colors.borderActive or Colors.border)
-        )
+        self:SetBackdropBorderColor(Private.UnpackColor(normalBorder))
+        self:SetBackdropColor(Private.UnpackColor(normalBg))
         if self.text then
             self.text:SetTextColor(
                 Private.UnpackColor(variant == "accent" and { 0.98, 0.92, 0.70, 1 } or Colors.text)
@@ -117,6 +132,71 @@ function UI.CreateButton(parent, label, width, height, variant)
     return button
 end
 
+function UI.CreateDropdownButton(parent, width, height)
+    local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    button:SetSize(width or 176, height or 28)
+    UI.CreateBackdrop(button, Colors.cardSoft, Colors.border)
+
+    button.valueText = UI.CreateText(button, 12)
+    button.valueText:SetPoint("LEFT", 12, 0)
+    button.valueText:SetPoint("RIGHT", -26, 0)
+    button.valueText:SetJustifyV("MIDDLE")
+
+    button.arrow = UI.CreateText(button, 12, "OUTLINE")
+    button.arrow:SetPoint("RIGHT", -10, 0)
+    button.arrow:SetJustifyH("CENTER")
+    button.arrow:SetJustifyV("MIDDLE")
+    button.arrow:SetText("▾")
+    button.arrow:SetTextColor(Private.UnpackColor(Colors.muted))
+
+    function button:SetValue(text)
+        self.valueText:SetText(text or "")
+    end
+
+    button:SetScript("OnEnter", function(self)
+        self:SetBackdropColor(Private.UnpackColor(Colors.card))
+        self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+        self.arrow:SetTextColor(Private.UnpackColor(Colors.accent))
+    end)
+    button:SetScript("OnLeave", function(self)
+        self:SetBackdropColor(Private.UnpackColor(Colors.cardSoft))
+        self:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
+        self.arrow:SetTextColor(Private.UnpackColor(Colors.muted))
+    end)
+
+    return button
+end
+
+function UI.CreateChoiceButton(parent, label, width, height)
+    local button = UI.CreateButton(parent, label or "", width or 120, height or 28)
+
+    function button:SetSelected(selected)
+        self.selected = selected and true or false
+        if self.selected then
+            self:SetBackdropColor(Private.UnpackColor(Colors.accentBg))
+            self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+            self.text:SetTextColor(Private.UnpackColor(Colors.accent))
+        else
+            self:SetBackdropColor(Private.UnpackColor(Colors.cardSoft))
+            self:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
+            self.text:SetTextColor(Private.UnpackColor(Colors.text))
+        end
+    end
+
+    button:SetScript("OnEnter", function(self)
+        if not self.selected then
+            self:SetBackdropColor(Private.UnpackColor(Colors.card))
+            self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+            self.text:SetTextColor(1, 1, 1, 1)
+        end
+    end)
+    button:SetScript("OnLeave", function(self)
+        self:SetSelected(self.selected)
+    end)
+
+    return button
+end
+
 function UI.SetButtonLabel(button, label)
     if button and button.text then
         button.text:SetText(label or "")
@@ -125,7 +205,9 @@ end
 
 function UI.CreateCloseButton(parent)
     local button = UI.CreateButton(parent, "X", 26, 26)
-    button.text:SetFont(STANDARD_TEXT_FONT, 14, "")
+    button.text._yxsFontSize = 14
+    button.text._yxsFontOutline = ""
+    Private.ApplyStoredFont(button.text)
     button:SetBackdropColor(0.48, 0.12, 0.14, 1)
     button:SetBackdropBorderColor(0.68, 0.20, 0.22, 1)
 
@@ -144,14 +226,20 @@ end
 function UI.CreateNavButton(parent, width, height)
     local button = CreateFrame("Button", nil, parent, "BackdropTemplate")
     button:SetSize(width, height or 36)
-    UI.CreateBackdrop(button, Colors.panel, Colors.panel)
+    UI.CreateBackdrop(button, Colors.bg, Colors.bg)
 
     button.accent = button:CreateTexture(nil, "ARTWORK")
-    button.accent:SetPoint("TOPLEFT", 0, 4)
-    button.accent:SetPoint("BOTTOMLEFT", 0, -4)
-    button.accent:SetWidth(2)
+    button.accent:SetPoint("TOPLEFT", 1, -1)
+    button.accent:SetPoint("BOTTOMLEFT", 1, 1)
+    button.accent:SetWidth(3)
     button.accent:SetColorTexture(Private.UnpackColor(Colors.borderActive))
     button.accent:Hide()
+
+    button.hover = button:CreateTexture(nil, "BACKGROUND")
+    button.hover:SetPoint("TOPLEFT", 1, -1)
+    button.hover:SetPoint("BOTTOMRIGHT", -1, 1)
+    button.hover:SetColorTexture(Private.UnpackColor(Colors.cardSoft))
+    button.hover:SetAlpha(0)
 
     button.text = UI.CreateText(button, 13)
     button.text:SetPoint("LEFT", 14, 0)
@@ -160,24 +248,57 @@ function UI.CreateNavButton(parent, width, height)
 
     function button:SetSelected(selected)
         self.selected = selected and true or false
-        self.accent:SetShown(self.selected)
+        self.accent:SetColorTexture(Private.UnpackColor(Colors.borderActive))
         if self.selected then
-            self:SetBackdropColor(0, 0, 0, 0)
-            self:SetBackdropBorderColor(0, 0, 0, 0)
+            self.accent:SetShown(true)
+            self.hover:SetAlpha(1)
+            self.hover:SetColorTexture(Private.UnpackColor(Colors.accentBg))
+            self:SetBackdropColor(Private.UnpackColor(Colors.accentBg))
+            self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
             self.text:SetTextColor(Private.UnpackColor(Colors.accent))
         else
+            self.accent:SetShown(false)
+            self.hover:SetAlpha(0)
             self:SetBackdropColor(0, 0, 0, 0)
             self:SetBackdropBorderColor(0, 0, 0, 0)
             self.text:SetTextColor(Private.UnpackColor(Colors.text))
         end
     end
 
+    function button:SetDisabled(disabled, tip)
+        self.isDisabled = disabled and true or false
+        self.disabledTip = tip
+        if self.isDisabled then
+            self:SetAlpha(0.45)
+            if not self.selected then
+                self.hover:SetAlpha(0)
+                self:SetBackdropColor(0, 0, 0, 0)
+                self:SetBackdropBorderColor(0, 0, 0, 0)
+                self.text:SetTextColor(Private.UnpackColor(Colors.muted))
+            end
+        else
+            self:SetAlpha(1)
+            self:SetSelected(self.selected)
+        end
+    end
+
     button:SetScript("OnEnter", function(self)
+        if self.isDisabled then
+            self.text:SetTextColor(Private.UnpackColor(Colors.muted))
+            UI.ShowTooltip(self, self.disabledTip or "当前不可用")
+            return
+        end
+
         if not self.selected then
+            self.hover:SetAlpha(1)
+            self.hover:SetColorTexture(Private.UnpackColor(Colors.cardSoft))
+            self:SetBackdropColor(Private.UnpackColor(Colors.cardSoft))
+            self:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
             self.text:SetTextColor(1, 1, 1, 1)
         end
     end)
     button:SetScript("OnLeave", function(self)
+        UI.HideTooltip()
         self:SetSelected(self.selected)
     end)
 
@@ -190,7 +311,7 @@ function UI.CreateTabButton(parent)
     function button:SetSelected(selected)
         self.selected = selected and true or false
         if self.selected then
-            self:SetBackdropColor(Private.UnpackColor(Colors.accentSoft))
+            self:SetBackdropColor(Private.UnpackColor(Colors.accentBg))
             self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
             self.text:SetTextColor(Private.UnpackColor(Colors.accent))
         else
@@ -200,7 +321,33 @@ function UI.CreateTabButton(parent)
         end
     end
 
+    function button:SetDisabled(disabled, tip)
+        self.isDisabled = disabled and true or false
+        self.disabledTip = tip
+        if self.isDisabled then
+            self:SetAlpha(self.selected and 0.75 or 0.45)
+            if not self.selected then
+                self.text:SetTextColor(Private.UnpackColor(Colors.muted))
+            end
+        else
+            self:SetAlpha(1)
+            self:SetSelected(self.selected)
+        end
+    end
+
+    button:SetScript("OnEnter", function(self)
+        if self.isDisabled then
+            UI.ShowTooltip(self, self.disabledTip or "当前不可用")
+            return
+        end
+
+        if not self.selected then
+            self:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+            self.text:SetTextColor(1, 1, 1, 1)
+        end
+    end)
     button:SetScript("OnLeave", function(self)
+        UI.HideTooltip()
         self:SetSelected(self.selected)
     end)
 
@@ -252,7 +399,9 @@ function UI.CreateEditBox(parent, multiline)
     UI.CreateBackdrop(editBox, Colors.cardSoft, Colors.border)
     editBox:SetAutoFocus(false)
     editBox:SetTextInsets(10, 10, 8, 8)
-    editBox:SetFontObject(ChatFontNormal)
+    editBox._yxsFontSize = 12
+    editBox._yxsFontOutline = ""
+    Private.ApplyStoredFont(editBox)
     editBox:SetTextColor(Private.UnpackColor(Colors.text))
     if editBox.SetCursorColor then
         editBox:SetCursorColor(Private.UnpackColor(Colors.accent))
@@ -281,25 +430,52 @@ function UI.CreateSlider(parent)
     local container = CreateFrame("Frame", nil, parent)
     container:SetHeight(28)
 
-    local slider = CreateFrame("Slider", nil, container)
+    local slider = CreateFrame("Slider", nil, container, "OptionsSliderTemplate")
     slider:SetPoint("LEFT", 0, 0)
     slider:SetPoint("RIGHT", -76, 0)
     slider:SetHeight(20)
     slider:SetOrientation("HORIZONTAL")
     slider:SetObeyStepOnDrag(true)
+    slider:EnableMouse(true)
+    slider:SetHitRectInsets(0, 0, -6, -6)
+
+    if slider.Low then
+        slider.Low:Hide()
+    end
+    if slider.High then
+        slider.High:Hide()
+    end
+    if slider.Text then
+        slider.Text:Hide()
+    end
+    for _, region in ipairs({ slider:GetRegions() }) do
+        if region and region ~= slider.Low and region ~= slider.High and region ~= slider.Text then
+            region:SetAlpha(0)
+        end
+    end
 
     local track = CreateFrame("Frame", nil, container, "BackdropTemplate")
     track:SetPoint("LEFT", slider, "LEFT", 0, 0)
     track:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
-    track:SetHeight(8)
-    UI.CreateBackdrop(track, Colors.cardSoft, Colors.border)
+    track:SetHeight(4)
+    track:SetFrameLevel(math.max(slider:GetFrameLevel() - 1, 0))
+    UI.CreateBackdrop(track, Colors.bg, Colors.borderSoft or Colors.border)
     slider.track = track
 
-    local thumb = slider:CreateTexture(nil, "OVERLAY")
-    thumb:SetSize(12, 20)
-    thumb:SetColorTexture(Private.UnpackColor(Colors.accent))
-    slider:SetThumbTexture(thumb)
+    -- 直接使用系统 slider thumb，保留拖拽命中与原生行为，再在外层补自定义样式。
+    slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
+    local thumb = slider:GetThumbTexture()
+    thumb:SetSize(12, 18)
+    thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
     slider.thumb = thumb
+
+    local thumbFrame = CreateFrame("Frame", nil, slider, "BackdropTemplate")
+    thumbFrame:SetPoint("TOPLEFT", thumb, "TOPLEFT", -2, 2)
+    thumbFrame:SetPoint("BOTTOMRIGHT", thumb, "BOTTOMRIGHT", 2, -2)
+    thumbFrame:EnableMouse(false)
+    UI.CreateBackdrop(thumbFrame, { 0, 0, 0, 0 }, Colors.borderActive)
+    thumbFrame:SetFrameLevel(slider:GetFrameLevel() + 1)
+    slider.thumbFrame = thumbFrame
 
     -- 右侧附带一个数值输入框，方便精确输入。
     local valueBox = UI.CreateEditBox(container, false)
@@ -364,11 +540,11 @@ end
 function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
     local parent = sliderParent or scrollFrame:GetParent()
     local target = anchorTarget or scrollFrame
-    local slider = CreateFrame("Slider", nil, parent, "BackdropTemplate")
+    local slider = CreateFrame("Slider", nil, parent)
     slider:SetOrientation("VERTICAL")
-    slider:SetWidth(12)
-    slider:SetPoint("TOPRIGHT", target, "TOPRIGHT", -2, -2)
-    slider:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", -2, 2)
+    slider:SetWidth(14)
+    slider:SetPoint("TOPRIGHT", target, "TOPRIGHT", -2, -1)
+    slider:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", -2, 1)
     slider:SetMinMaxValues(0, 0)
     slider:SetValue(0)
     slider:SetValueStep(1)
@@ -376,15 +552,24 @@ function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
     local track = CreateFrame("Frame", nil, slider, "BackdropTemplate")
     track:SetPoint("TOP", 0, 0)
     track:SetPoint("BOTTOM", 0, 0)
-    track:SetWidth(8)
-    UI.CreateBackdrop(track, Colors.cardSoft, Colors.border)
+    track:SetWidth(10)
+    track:SetFrameLevel(math.max(slider:GetFrameLevel() - 1, 0))
+    UI.CreateBackdrop(track, { 0.03, 0.03, 0.04, 0.68 }, Colors.borderSoft or Colors.border)
     slider.track = track
 
-    local thumb = slider:CreateTexture(nil, "ARTWORK")
-    thumb:SetSize(8, 34)
-    thumb:SetColorTexture(Private.UnpackColor(Colors.accent))
-    slider:SetThumbTexture(thumb)
+    slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
+    local thumb = slider:GetThumbTexture()
+    thumb:SetSize(10, 40)
+    thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
     slider.thumb = thumb
+
+    local thumbFrame = CreateFrame("Frame", nil, slider, "BackdropTemplate")
+    thumbFrame:SetPoint("TOPLEFT", thumb, "TOPLEFT", -1, 1)
+    thumbFrame:SetPoint("BOTTOMRIGHT", thumb, "BOTTOMRIGHT", 1, -1)
+    thumbFrame:EnableMouse(false)
+    UI.CreateBackdrop(thumbFrame, { 0, 0, 0, 0 }, Colors.borderActive)
+    thumbFrame:SetFrameLevel(slider:GetFrameLevel() + 1)
+    slider.thumbFrame = thumbFrame
 
     local syncing = false
 
@@ -392,6 +577,10 @@ function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
         if not scrollFrame then
             return
         end
+
+        thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
+        thumbFrame:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+        track:SetBackdropBorderColor(Private.UnpackColor(Colors.borderSoft or Colors.border))
 
         local range = scrollFrame:GetVerticalScrollRange() or 0
         slider:SetMinMaxValues(0, range)
@@ -401,6 +590,15 @@ function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
         slider:SetValue(value)
         syncing = false
 
+        local ratio = 1
+        local viewHeight = scrollFrame:GetHeight() or 0
+        local child = scrollFrame:GetScrollChild()
+        local childHeight = child and child:GetHeight() or 0
+        if childHeight > 0 and viewHeight > 0 then
+            ratio = math.max(0.18, math.min(1, viewHeight / childHeight))
+        end
+        thumb:SetHeight(math.max(34, (slider:GetHeight() or 0) * ratio))
+
         slider:SetShown(range > 0.5)
     end
 
@@ -409,6 +607,13 @@ function UI.AttachCustomScrollBar(scrollFrame, sliderParent, anchorTarget)
             return
         end
         scrollFrame:SetVerticalScroll(value)
+    end)
+
+    slider:SetScript("OnEnter", function()
+        thumb:SetVertexColor(Private.UnpackColor(Private.MixColor(Colors.accent, { 1, 1, 1, 1 }, 0.18, 1)))
+    end)
+    slider:SetScript("OnLeave", function()
+        thumb:SetVertexColor(Private.UnpackColor(Colors.accent))
     end)
 
     scrollFrame:EnableMouseWheel(true)

@@ -25,14 +25,16 @@ Private.Constants = {
 Private.Colors = {
     bg = { 0.07, 0.08, 0.10, 0.98 },
     panel = { 0.10, 0.11, 0.14, 0.98 },
-    card = { 0.13, 0.14, 0.18, 0.98 },
-    cardSoft = { 0.11, 0.12, 0.15, 0.95 },
+    card = { 0.12, 0.13, 0.17, 0.98 },
+    cardSoft = { 0.10, 0.11, 0.14, 0.95 },
     border = { 0.22, 0.24, 0.30, 1.00 },
+    borderSoft = { 0.18, 0.20, 0.25, 1.00 },
     borderActive = { 0.95, 0.76, 0.18, 1.00 },
     text = { 0.96, 0.96, 0.98, 1.00 },
     muted = { 0.62, 0.65, 0.72, 1.00 },
     accent = { 0.95, 0.76, 0.18, 1.00 },
     accentSoft = { 0.44, 0.33, 0.06, 1.00 },
+    accentBg = { 0.24, 0.19, 0.07, 0.88 },
     success = { 0.22, 0.72, 0.44, 1.00 },
     shadow = { 0.00, 0.00, 0.00, 0.45 },
     disabled = { 0.38, 0.40, 0.45, 1.00 },
@@ -46,8 +48,10 @@ Private.Sizes = {
     brandHeight = 58,
     secondNavWidth = 146,
     gap = 10,
-    cardGap = 10,
-    rowGap = 8,
+    cardGap = 8,
+    rowGap = 4,
+    sectionGap = 12,
+    contentInset = 8,
 }
 
 Private.Meta = {
@@ -58,8 +62,171 @@ Private.Assets = {
     qqIcon = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Icons\\qq.png",
 }
 
+Private.FontPresets = {
+    CHAT = {
+        label = "聊天字体",
+    },
+    DEFAULT = {
+        label = "系统默认",
+        path = STANDARD_TEXT_FONT,
+    },
+    FRIZQT = {
+        label = "Frizqt",
+        path = "Fonts\\FRIZQT__.TTF",
+    },
+    MORPHEUS = {
+        label = "Morpheus",
+        path = "Fonts\\MORPHEUS.ttf",
+    },
+    SKURRI = {
+        label = "Skurri",
+        path = "Fonts\\skurri.ttf",
+    },
+}
+
 function Private.UnpackColor(color)
     return color[1], color[2], color[3], color[4] or 1
+end
+
+function Private.CopyColor(color, alpha)
+    if not color then
+        return { 1, 1, 1, alpha or 1 }
+    end
+
+    return {
+        color[1] or 1,
+        color[2] or 1,
+        color[3] or 1,
+        alpha or color[4] or 1,
+    }
+end
+
+function Private.MixColor(base, target, factor, alpha)
+    local mix = math.max(0, math.min(1, tonumber(factor) or 0))
+    local left = base or { 1, 1, 1, 1 }
+    local right = target or { 1, 1, 1, 1 }
+
+    return {
+        (left[1] or 1) + ((right[1] or 1) - (left[1] or 1)) * mix,
+        (left[2] or 1) + ((right[2] or 1) - (left[2] or 1)) * mix,
+        (left[3] or 1) + ((right[3] or 1) - (left[3] or 1)) * mix,
+        alpha or left[4] or 1,
+    }
+end
+
+function Private.GetPlayerClassColor()
+    local _, classToken = UnitClass("player")
+    local classColor = classToken and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classToken]
+    if classColor then
+        return { classColor.r, classColor.g, classColor.b, 1 }
+    end
+
+    return { 0.95, 0.76, 0.18, 1.00 }
+end
+
+function Private.GetAppearanceConfig()
+    local core = NS.Core
+    if core and core.GetConfig then
+        return core:GetConfig("general", "appearance")
+    end
+    return nil
+end
+
+function Private.RefreshThemeColors()
+    local config = Private.GetAppearanceConfig()
+    local accent = Private.GetPlayerClassColor()
+    local borderBase = { 0.22, 0.24, 0.30, 1.00 }
+    local panelBase = { 0.10, 0.11, 0.14, 0.98 }
+    local successBase = { 0.22, 0.72, 0.44, 1.00 }
+
+    if config and config.colorMode == "CUSTOM" and config.customColor then
+        accent = {
+            config.customColor.r or accent[1],
+            config.customColor.g or accent[2],
+            config.customColor.b or accent[3],
+            config.customColor.a or 1,
+        }
+    end
+
+    Private.Colors.accent = accent
+    Private.Colors.borderActive = Private.MixColor(borderBase, accent, 0.78, 1.00)
+    Private.Colors.accentSoft = Private.MixColor(panelBase, accent, 0.28, 1.00)
+    Private.Colors.accentBg = Private.MixColor(panelBase, accent, 0.18, 0.90)
+    Private.Colors.success = Private.MixColor(successBase, accent, 0.22, 1.00)
+end
+
+function Private.GetFontOptions()
+    local values = {}
+    for key, info in pairs(Private.FontPresets) do
+        values[key] = info.label
+    end
+    return values
+end
+
+function Private.GetFontPathAndFlags(outline, fontPresetKey)
+    local config = Private.GetAppearanceConfig()
+    local presetKey = fontPresetKey or ((config and config.fontPreset) or "CHAT")
+    local preset = Private.FontPresets[presetKey] or Private.FontPresets.CHAT
+    local fontPath = preset.path
+    local fontFlags = outline or ""
+
+    if not fontPath and ChatFontNormal and ChatFontNormal.GetFont then
+        local chatPath, _, chatFlags = ChatFontNormal:GetFont()
+        fontPath = chatPath
+        if fontFlags == "" then
+            fontFlags = chatFlags or ""
+        end
+    end
+
+    if not fontPath then
+        fontPath = STANDARD_TEXT_FONT
+    end
+
+    return fontPath, fontFlags
+end
+
+function Private.ApplyFont(target, size, outline, fontPresetKey)
+    if not (target and target.SetFont) then
+        return
+    end
+
+    local fontPath, fontFlags = Private.GetFontPathAndFlags(outline, fontPresetKey)
+    target:SetFont(fontPath, size or 12, fontFlags or "")
+end
+
+function Private.ApplyStoredFont(target)
+    if not target then
+        return
+    end
+
+    local size = target._yxsFontSize
+    if not size then
+        return
+    end
+
+    Private.ApplyFont(target, size, target._yxsFontOutline or "")
+end
+
+function Private.RefreshFonts(root)
+    if not root then
+        return
+    end
+
+    Private.ApplyStoredFont(root)
+
+    if root.GetRegions then
+        local regions = { root:GetRegions() }
+        for _, region in ipairs(regions) do
+            Private.ApplyStoredFont(region)
+        end
+    end
+
+    if root.GetChildren then
+        local children = { root:GetChildren() }
+        for _, child in ipairs(children) do
+            Private.RefreshFonts(child)
+        end
+    end
 end
 
 --[[
@@ -153,6 +320,21 @@ function Private.FormatNumber(value, step)
     return string.format("%." .. precision .. "f", number)
 end
 
+function Private.FormatHexColor(r, g, b)
+    local red = math.floor(math.max(0, math.min(255, (tonumber(r) or 0) * 255)) + 0.5)
+    local green = math.floor(math.max(0, math.min(255, (tonumber(g) or 0) * 255)) + 0.5)
+    local blue = math.floor(math.max(0, math.min(255, (tonumber(b) or 0) * 255)) + 0.5)
+    return string.format("#%02X%02X%02X", red, green, blue)
+end
+
+function Private.GetDisabledTip(option, fallback)
+    local tip = Private.Evaluate(option and option.disabledTip)
+    if tip == nil or tostring(tip) == "" then
+        return fallback or ""
+    end
+    return tostring(tip)
+end
+
 --[[
 AceConfig 风格的 options 表是无序字典。
 这里统一把 args 按 order 排好，渲染时就不需要在每个地方重复排序。
@@ -242,6 +424,24 @@ function Private.NormalizeDropdownValues(values)
     local resolved = Private.Evaluate(values) or {}
     local list = {}
 
+    -- 支持按顺序传入数组，避免下拉项被字母排序打乱。
+    -- 例如：
+    -- {
+    --     { value = "shift", label = "Shift" },
+    --     { value = "alt", label = "Alt" },
+    -- }
+    if type(resolved[1]) == "table" then
+        for _, entry in ipairs(resolved) do
+            if entry.value ~= nil then
+                list[#list + 1] = {
+                    value = entry.value,
+                    label = tostring(entry.label or entry.text or entry.value),
+                }
+            end
+        end
+        return list
+    end
+
     for key, label in pairs(resolved) do
         list[#list + 1] = {
             value = key,
@@ -272,4 +472,60 @@ function Private.EnsureDropdownHelper()
         "UIDropDownMenuTemplate"
     )
     return Options.dropdownHelper
+end
+
+--[[
+当前客户端里 EasyMenu 可能不存在，但 UIDropDownMenu 依然可用。
+这里统一封装成一个稳定的弹出接口，渲染层只需要传入按钮和菜单项即可。
+]]
+function Private.ShowDropdownMenu(anchor, items)
+    if not (
+        anchor
+        and UIDropDownMenu_Initialize
+        and UIDropDownMenu_CreateInfo
+        and UIDropDownMenu_AddButton
+        and ToggleDropDownMenu
+    ) then
+        return false
+    end
+
+    local dropdown = Private.EnsureDropdownHelper()
+    dropdown.displayMode = "MENU"
+    if UIDropDownMenu_SetWidth and anchor.GetWidth then
+        UIDropDownMenu_SetWidth(dropdown, math.max(120, anchor:GetWidth()))
+    end
+    dropdown.initialize = function(_, level)
+        if level and level ~= 1 then
+            return
+        end
+
+        for _, item in ipairs(items or {}) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = tostring(item.text or "")
+            info.checked = item.checked and true or false
+            info.func = item.func
+            info.disabled = item.disabled and true or false
+            info.keepShownOnClick = item.keepShownOnClick and true or false
+            info.isNotRadio = true
+            info.notCheckable = item.notCheckable and true or false
+            UIDropDownMenu_AddButton(info, level)
+        end
+    end
+
+    CloseDropDownMenus()
+    ToggleDropDownMenu(1, nil, dropdown, anchor, 0, 2)
+
+    for level = 1, 2 do
+        local backdrop = _G["DropDownList" .. level .. "Backdrop"]
+        local menuBackdrop = _G["DropDownList" .. level .. "MenuBackdrop"]
+        if backdrop and backdrop.SetBackdropColor then
+            backdrop:SetBackdropColor(Private.UnpackColor(Private.Colors.card))
+            backdrop:SetBackdropBorderColor(Private.UnpackColor(Private.Colors.borderActive))
+        end
+        if menuBackdrop then
+            menuBackdrop:SetAlpha(0)
+        end
+    end
+
+    return true
 end

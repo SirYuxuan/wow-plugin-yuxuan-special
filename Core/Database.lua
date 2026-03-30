@@ -9,6 +9,9 @@ YuXuanSpecialDB = {
     mapAssist = {
         quickWaypoint = { ... }
     },
+    interfaceEnhance = {
+        quickChat = { ... }
+    },
     combatAssist = {
         trinketMonitor = { ... }
     },
@@ -21,6 +24,19 @@ YuXuanSpecialDB = {
 ]]
 
 NS.DEFAULTS = {
+    general = {
+        appearance = {
+            fontPreset = "CHAT",
+            colorMode = "CLASS",
+            customColor = {
+                r = 0.95,
+                g = 0.76,
+                b = 0.18,
+                a = 1.00,
+            },
+            uiScale = 1.00,
+        },
+    },
     mapAssist = {
         quickWaypoint = {
             enabled = true,
@@ -31,7 +47,53 @@ NS.DEFAULTS = {
             bgAlpha = 35,
         },
     },
+    interfaceEnhance = {
+        quickChat = {
+            enabled = false,
+            unlocked = false,
+            worldChannelName = "大脚世界频道",
+            spacing = 10,
+            fontSize = 14,
+            fontPreset = "CHAT",
+            buttonOrder = {
+                "SAY",
+                "YELL",
+                "PARTY",
+                "INSTANCE_CHAT",
+                "RAID",
+                "GUILD",
+                "WORLD",
+                "DICE",
+            },
+            customButtons = {},
+            nextCustomId = 1,
+            buttonColors = {
+                SAY = { r = 1.00, g = 1.00, b = 1.00 },
+                YELL = { r = 1.00, g = 0.25, b = 0.25 },
+                PARTY = { r = 0.66, g = 0.66, b = 1.00 },
+                INSTANCE_CHAT = { r = 1.00, g = 0.50, b = 0.20 },
+                RAID = { r = 1.00, g = 0.50, b = 0.00 },
+                GUILD = { r = 0.25, g = 1.00, b = 0.25 },
+                WORLD = { r = 0.30, g = 0.95, b = 1.00 },
+                DICE = { r = 1.00, g = 0.82, b = 0.00 },
+            },
+            barPoint = {
+                point = "CENTER",
+                relativePoint = "CENTER",
+                x = 0,
+                y = -180,
+            },
+        },
+    },
     combatAssist = {
+        quickFocus = {
+            enabled = false,
+            modifier = "shift",
+            mouseButton = "1",
+            allowClearFocus = false,
+            enableMarking = false,
+            selectedMarker = 0,
+        },
         trinketMonitor = {
             enabled = false,
             unlocked = false,
@@ -156,10 +218,28 @@ function Core:ResetQuickWaypointConfig()
     return self.db.mapAssist.quickWaypoint
 end
 
+function Core:ResetAppearanceConfig()
+    self.db.general = self.db.general or {}
+    self.db.general.appearance = CloneTable(NS.DEFAULTS.general.appearance)
+    return self.db.general.appearance
+end
+
+function Core:ResetQuickChatConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.quickChat = CloneTable(NS.DEFAULTS.interfaceEnhance.quickChat)
+    return self.db.interfaceEnhance.quickChat
+end
+
 function Core:ResetTrinketMonitorConfig()
     self.db.combatAssist = self.db.combatAssist or {}
     self.db.combatAssist.trinketMonitor = CloneTable(NS.DEFAULTS.combatAssist.trinketMonitor)
     return self.db.combatAssist.trinketMonitor
+end
+
+function Core:ResetQuickFocusConfig()
+    self.db.combatAssist = self.db.combatAssist or {}
+    self.db.combatAssist.quickFocus = CloneTable(NS.DEFAULTS.combatAssist.quickFocus)
+    return self.db.combatAssist.quickFocus
 end
 
 function Core:ResetMageShatterIndicatorConfig()

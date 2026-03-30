@@ -5,6 +5,11 @@ local function GetConfig()
     return Core:GetConfig("mapAssist", "quickWaypoint")
 end
 
+local ANCHOR_OPTIONS = {
+    { value = "MAP_TOP", label = "地图上方" },
+    { value = "MAP_BOTTOM", label = "地图下方" },
+}
+
 local function RefreshWidget(notifyOptions)
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.RefreshFromSettings then
@@ -16,12 +21,7 @@ local function RefreshWidget(notifyOptions)
 end
 
 local function GetAnchorOptions()
-    local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
-    local values = {}
-    for key, preset in pairs(quickWaypoint.ANCHOR_PRESETS) do
-        values[key] = preset.label
-    end
-    return values
+    return ANCHOR_OPTIONS
 end
 
 --[[
@@ -72,10 +72,9 @@ function NS.BuildMapAssistOptions()
                         end,
                     },
                     anchorPreset = {
-                        type = "select",
+                        type = "radio",
                         name = "锚点位置",
                         order = 11,
-                        width = 1.1,
                         values = GetAnchorOptions,
                         disabled = function()
                             return not GetConfig().enabled
@@ -184,27 +183,6 @@ function NS.BuildMapAssistOptions()
                         func = function()
                             Core:ResetQuickWaypointConfig()
                             RefreshWidget(true)
-                        end,
-                    },
-                    summary = {
-                        type = "description",
-                        order = 31,
-                        fontSize = "medium",
-                        name = function()
-                            local config = GetConfig()
-                            local quickWaypoint = NS.Modules.MapAssist.QuickWaypoint
-                            local preset = quickWaypoint.ANCHOR_PRESETS[config.anchorPreset]
-                            local presetLabel = preset and preset.label or "地图上方"
-
-                            return string.format(
-                                "|cFFCCCCCC当前配置|r %s  锚点 %s  偏移 X %+d / Y %+d  字体 %d  透明度 %d%%",
-                                config.enabled and "已启用" or "已关闭",
-                                presetLabel,
-                                config.offsetX or 0,
-                                config.offsetY or 0,
-                                config.fontSize or 12,
-                                config.bgAlpha or 35
-                            )
                         end,
                     },
                 },

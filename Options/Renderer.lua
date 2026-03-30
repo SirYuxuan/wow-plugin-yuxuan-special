@@ -6,6 +6,28 @@ local UI = Private.UI
 local Colors = Private.Colors
 local Sizes = Private.Sizes
 
+local function GetParentContentWidth(self, parent)
+    local width = (parent and parent.GetWidth and parent:GetWidth()) or 0
+    if width < 64 then
+        width = self:GetScrollWidth()
+    end
+    return width
+end
+
+local function CreateDisabledPlaceholderGroup(message)
+    return {
+        type = "group",
+        args = {
+            tip = {
+                type = "description",
+                order = 1,
+                fontSize = "medium",
+                name = message or "当前选项暂时不可用",
+            },
+        },
+    }
+end
+
 --[[
 这个文件负责把 options table 真正画到屏幕上。
 
@@ -68,10 +90,10 @@ function Options:RenderDescription(parent, option, top, isHeader)
         return 12
     end
 
-    local fontSize = isHeader and 17 or (option.fontSize == "medium" and 13 or 12)
+    local fontSize = isHeader and 15 or (option.fontSize == "medium" and 12 or 11)
     local text = UI.CreateText(parent, fontSize, isHeader and "OUTLINE" or "")
     text:SetPoint("TOPLEFT", 0, top)
-    text:SetWidth(self:GetScrollWidth())
+    text:SetWidth(GetParentContentWidth(self, parent))
     text:SetText(textValue)
 
     if isHeader then
@@ -80,23 +102,23 @@ function Options:RenderDescription(parent, option, top, isHeader)
         text:SetTextColor(Private.UnpackColor(Colors.text))
     end
 
-    return text:GetStringHeight() + (isHeader and 10 or 8)
+    return text:GetStringHeight() + (isHeader and 8 or 4)
 end
 
 function Options:RenderToggle(parent, option, top)
     local descText = Private.ResolveText(option.desc)
-    local height = Private.TrimText(descText) ~= "" and 66 or 48
+    local height = Private.TrimText(descText) ~= "" and 58 or 42
     local row = self:CreateCard(parent, top, height)
 
-    local title = UI.CreateText(row, 13)
-    title:SetPoint("TOPLEFT", 16, -14)
-    title:SetPoint("TOPRIGHT", -92, -14)
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPRIGHT", -88, -10)
     title:SetText(Private.ResolveText(option.name))
 
     if Private.TrimText(descText) ~= "" then
         local desc = UI.CreateText(row, 11)
-        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-        desc:SetPoint("TOPRIGHT", -92, 0)
+        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+        desc:SetPoint("TOPRIGHT", -88, 0)
         desc:SetText(descText)
         desc:SetTextColor(Private.UnpackColor(Colors.muted))
     end
@@ -105,7 +127,7 @@ function Options:RenderToggle(parent, option, top)
     local value = Private.IsTruthy(Private.GetOptionValue(option))
 
     local switch = UI.CreateSwitch(row)
-    switch:SetPoint("RIGHT", -16, 0)
+    switch:SetPoint("RIGHT", -12, 0)
     switch:SetValue(value, disabled)
     switch:SetScript("OnClick", function()
         if Private.IsDisabled(option) then
@@ -126,25 +148,25 @@ end
 
 function Options:RenderExecute(parent, option, top)
     local descText = Private.ResolveText(option.desc)
-    local height = Private.TrimText(descText) ~= "" and 72 or 54
+    local height = Private.TrimText(descText) ~= "" and 60 or 44
     local row = self:CreateCard(parent, top, height)
 
-    local title = UI.CreateText(row, 13)
-    title:SetPoint("TOPLEFT", 16, -14)
-    title:SetPoint("TOPRIGHT", -170, -14)
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPRIGHT", -152, -10)
     title:SetText(Private.ResolveText(option.name))
 
     if Private.TrimText(descText) ~= "" then
         local desc = UI.CreateText(row, 11)
-        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-        desc:SetPoint("TOPRIGHT", -170, 0)
+        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+        desc:SetPoint("TOPRIGHT", -152, 0)
         desc:SetText(descText)
         desc:SetTextColor(Private.UnpackColor(Colors.muted))
     end
 
     local disabled = Private.IsDisabled(option)
-    local button = UI.CreateButton(row, Private.ResolveText(option.name), 140, 30, "accent")
-    button:SetPoint("RIGHT", -16, 0)
+    local button = UI.CreateButton(row, Private.ResolveText(option.name), 128, 28, "accent")
+    button:SetPoint("RIGHT", -12, 0)
     button:SetEnabled(not disabled)
     if disabled then
         button:SetAlpha(0.45)
@@ -173,25 +195,25 @@ end
 
 function Options:RenderRange(parent, option, top)
     local descText = Private.ResolveText(option.desc)
-    local height = Private.TrimText(descText) ~= "" and 98 or 82
+    local height = Private.TrimText(descText) ~= "" and 84 or 70
     local row = self:CreateCard(parent, top, height)
 
-    local title = UI.CreateText(row, 13)
-    title:SetPoint("TOPLEFT", 16, -14)
-    title:SetPoint("TOPRIGHT", -16, -14)
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPRIGHT", -12, -10)
     title:SetText(Private.ResolveText(option.name))
 
     if Private.TrimText(descText) ~= "" then
         local desc = UI.CreateText(row, 11)
-        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-        desc:SetPoint("TOPRIGHT", -16, 0)
+        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+        desc:SetPoint("TOPRIGHT", -12, 0)
         desc:SetText(descText)
         desc:SetTextColor(Private.UnpackColor(Colors.muted))
     end
 
     local sliderHolder = UI.CreateSlider(row)
-    sliderHolder:SetPoint("BOTTOMLEFT", 16, 14)
-    sliderHolder:SetPoint("BOTTOMRIGHT", -16, 14)
+    sliderHolder:SetPoint("BOTTOMLEFT", 12, 12)
+    sliderHolder:SetPoint("BOTTOMRIGHT", -12, 12)
 
     local slider = sliderHolder.slider
     local minValue = tonumber(option.min) or 0
@@ -254,18 +276,18 @@ end
 
 function Options:RenderSelect(parent, option, top)
     local descText = Private.ResolveText(option.desc)
-    local height = Private.TrimText(descText) ~= "" and 72 or 54
+    local height = Private.TrimText(descText) ~= "" and 60 or 44
     local row = self:CreateCard(parent, top, height)
 
-    local title = UI.CreateText(row, 13)
-    title:SetPoint("TOPLEFT", 16, -14)
-    title:SetPoint("TOPRIGHT", -220, -14)
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPRIGHT", -196, -10)
     title:SetText(Private.ResolveText(option.name))
 
     if Private.TrimText(descText) ~= "" then
         local desc = UI.CreateText(row, 11)
-        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-        desc:SetPoint("TOPRIGHT", -220, 0)
+        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+        desc:SetPoint("TOPRIGHT", -196, 0)
         desc:SetText(descText)
         desc:SetTextColor(Private.UnpackColor(Colors.muted))
     end
@@ -282,8 +304,9 @@ function Options:RenderSelect(parent, option, top)
         end
     end
 
-    local button = UI.CreateButton(row, currentLabel, 190, 30)
-    button:SetPoint("RIGHT", -16, 0)
+    local button = UI.CreateDropdownButton(row, 176, 28)
+    button:SetPoint("RIGHT", -12, 0)
+    button:SetValue(currentLabel)
     button:SetEnabled(not disabled)
 
     if disabled then
@@ -298,19 +321,72 @@ function Options:RenderSelect(parent, option, top)
 
         local menu = {}
         for _, entry in ipairs(values) do
+            local entryValue = entry.value
+            local entryLabel = entry.label
             menu[#menu + 1] = {
-                text = entry.label,
-                checked = entry.value == Private.GetOptionValue(option),
+                text = entryLabel,
+                checked = entryValue == Private.GetOptionValue(option),
                 func = function()
-                    Private.SetOptionValue(option, entry.value)
+                    Private.SetOptionValue(option, entryValue)
                     self:NotifyChanged()
                 end,
             }
         end
 
-        CloseDropDownMenus()
-        EasyMenu(menu, Private.EnsureDropdownHelper(), anchor, 0, 0, "MENU", 2)
+        Private.ShowDropdownMenu(anchor, menu)
     end)
+
+    return height + Sizes.rowGap
+end
+
+function Options:RenderRadio(parent, option, top)
+    local descText = Private.ResolveText(option.desc)
+    local height = Private.TrimText(descText) ~= "" and 82 or 66
+    local row = self:CreateCard(parent, top, height)
+
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPRIGHT", -12, -10)
+    title:SetText(Private.ResolveText(option.name))
+
+    if Private.TrimText(descText) ~= "" then
+        local desc = UI.CreateText(row, 11)
+        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+        desc:SetPoint("TOPRIGHT", -12, 0)
+        desc:SetText(descText)
+        desc:SetTextColor(Private.UnpackColor(Colors.muted))
+    end
+
+    local values = Private.NormalizeDropdownValues(option.values)
+    local currentValue = Private.GetOptionValue(option)
+    local disabled = Private.IsDisabled(option)
+    local gap = 8
+    local availableWidth = math.max(220, GetParentContentWidth(self, row) - 24)
+    local buttonWidth = math.floor((availableWidth - math.max(0, (#values - 1) * gap)) / math.max(#values, 1))
+    local xOffset = 12
+
+    for _, entry in ipairs(values) do
+        local entryValue = entry.value
+        local button = UI.CreateChoiceButton(row, entry.label, buttonWidth, 28)
+        button:SetPoint("BOTTOMLEFT", xOffset, 12)
+        button:SetSelected(entryValue == currentValue)
+        button:SetEnabled(not disabled)
+        if disabled then
+            button:SetAlpha(0.45)
+        end
+        button:SetScript("OnClick", function()
+            if Private.IsDisabled(option) then
+                return
+            end
+            Private.SetOptionValue(option, entryValue)
+            self:NotifyChanged()
+        end)
+        xOffset = xOffset + buttonWidth + gap
+    end
+
+    if disabled then
+        row:SetAlpha(0.60)
+    end
 
     return height + Sizes.rowGap
 end
@@ -325,7 +401,10 @@ function Options:OpenColorPicker(option)
     local function applyColor(restoreValues)
         local nr, ng, nb, na
         if restoreValues then
-            nr, ng, nb, na = unpack(restoreValues)
+            nr = restoreValues.r or restoreValues[1]
+            ng = restoreValues.g or restoreValues[2]
+            nb = restoreValues.b or restoreValues[3]
+            na = restoreValues.a or restoreValues[4]
         else
             if ColorPickerFrame.GetColorRGB then
                 nr, ng, nb = ColorPickerFrame:GetColorRGB()
@@ -352,7 +431,7 @@ function Options:OpenColorPicker(option)
             b = b,
             opacity = 1 - a,
             hasOpacity = option.hasAlpha and true or false,
-            previousValues = { r, g, b, a },
+            previousValues = { r = r, g = g, b = b, a = a, [1] = r, [2] = g, [3] = b, [4] = a },
             swatchFunc = function()
                 applyColor()
             end,
@@ -368,7 +447,7 @@ function Options:OpenColorPicker(option)
 
     ColorPickerFrame.hasOpacity = option.hasAlpha and true or false
     ColorPickerFrame.opacity = 1 - a
-    ColorPickerFrame.previousValues = { r, g, b, a }
+    ColorPickerFrame.previousValues = { r = r, g = g, b = b, a = a, [1] = r, [2] = g, [3] = b, [4] = a }
     ColorPickerFrame.func = function()
         applyColor()
     end
@@ -385,31 +464,31 @@ end
 
 function Options:RenderColor(parent, option, top)
     local descText = Private.ResolveText(option.desc)
-    local height = Private.TrimText(descText) ~= "" and 72 or 54
+    local height = Private.TrimText(descText) ~= "" and 60 or 44
     local row = self:CreateCard(parent, top, height)
 
-    local title = UI.CreateText(row, 13)
-    title:SetPoint("TOPLEFT", 16, -14)
-    title:SetPoint("TOPRIGHT", -180, -14)
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPRIGHT", -150, -10)
     title:SetText(Private.ResolveText(option.name))
 
     if Private.TrimText(descText) ~= "" then
         local desc = UI.CreateText(row, 11)
-        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-        desc:SetPoint("TOPRIGHT", -180, 0)
+        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+        desc:SetPoint("TOPRIGHT", -150, 0)
         desc:SetText(descText)
         desc:SetTextColor(Private.UnpackColor(Colors.muted))
     end
 
     local r, g, b, a = Private.SafeCall(option.get)
     local swatch = CreateFrame("Button", nil, row, "BackdropTemplate")
-    swatch:SetPoint("RIGHT", -16, 0)
-    swatch:SetSize(148, 30)
-    UI.CreateBackdrop(swatch, Colors.cardSoft, Colors.border)
+    swatch:SetPoint("RIGHT", -12, 0)
+    swatch:SetSize(138, 28)
+    UI.CreateBackdrop(swatch, Colors.bg, Colors.borderSoft or Colors.border)
 
     local preview = swatch:CreateTexture(nil, "ARTWORK")
-    preview:SetPoint("LEFT", 6, 6)
-    preview:SetPoint("BOTTOMLEFT", 6, 6)
+    preview:SetPoint("LEFT", 5, 5)
+    preview:SetPoint("BOTTOMLEFT", 5, 5)
     preview:SetSize(18, 18)
     preview:SetColorTexture(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1, tonumber(a) or 1)
 
@@ -417,7 +496,7 @@ function Options:RenderColor(parent, option, top)
     label:SetPoint("LEFT", preview, "RIGHT", 10, 0)
     label:SetPoint("RIGHT", -10, 0)
     label:SetJustifyV("MIDDLE")
-    label:SetText(string.format("%.2f / %.2f / %.2f", tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1))
+    label:SetText(Private.FormatHexColor(r, g, b))
 
     local disabled = Private.IsDisabled(option)
     if disabled then
@@ -444,28 +523,28 @@ end
 function Options:RenderInput(parent, option, top)
     local descText = Private.ResolveText(option.desc)
     local lineCount = tonumber(option.multiline) or 1
-    local inputHeight = lineCount > 1 and math.max(78, lineCount * 20) or 30
-    local height = inputHeight + (Private.TrimText(descText) ~= "" and 68 or 50)
+    local inputHeight = lineCount > 1 and math.max(70, lineCount * 18) or 28
+    local height = inputHeight + (Private.TrimText(descText) ~= "" and 58 or 42)
     local row = self:CreateCard(parent, top, height)
 
-    local title = UI.CreateText(row, 13)
-    title:SetPoint("TOPLEFT", 16, -14)
-    title:SetPoint("TOPRIGHT", -16, -14)
+    local title = UI.CreateText(row, 12)
+    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPRIGHT", -12, -10)
     title:SetText(Private.ResolveText(option.name))
 
     local topAnchor = title
     if Private.TrimText(descText) ~= "" then
         local desc = UI.CreateText(row, 11)
-        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-        desc:SetPoint("TOPRIGHT", -16, 0)
+        desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+        desc:SetPoint("TOPRIGHT", -12, 0)
         desc:SetText(descText)
         desc:SetTextColor(Private.UnpackColor(Colors.muted))
         topAnchor = desc
     end
 
     local editBox = UI.CreateEditBox(row, lineCount > 1)
-    editBox:SetPoint("TOPLEFT", topAnchor, "BOTTOMLEFT", 0, -10)
-    editBox:SetPoint("RIGHT", -16, 0)
+    editBox:SetPoint("TOPLEFT", topAnchor, "BOTTOMLEFT", 0, -8)
+    editBox:SetPoint("RIGHT", -12, 0)
     editBox:SetHeight(inputHeight)
     editBox:SetText(tostring(Private.GetOptionValue(option) or ""))
 
@@ -527,6 +606,9 @@ function Options:RenderOption(parent, option, top)
     if option.type == "select" then
         return self:RenderSelect(parent, option, top)
     end
+    if option.type == "radio" then
+        return self:RenderRadio(parent, option, top)
+    end
     if option.type == "color" then
         return self:RenderColor(parent, option, top)
     end
@@ -552,7 +634,19 @@ function Options:RenderGroupBody(parent, group, path, top)
         if #tabEntries > 0 then
             local tabPath = Private.PathKey(path)
             local selectedKey = self.selectedChildren[tabPath]
+            local autoSelectKey = Private.Evaluate(group.autoSelectChild)
             local validSelection = false
+
+            if autoSelectKey then
+                for _, entry in ipairs(tabEntries) do
+                    if entry.key == autoSelectKey then
+                        selectedKey = autoSelectKey
+                        self.selectedChildren[tabPath] = autoSelectKey
+                        validSelection = true
+                        break
+                    end
+                end
+            end
 
             for _, entry in ipairs(tabEntries) do
                 if entry.key == selectedKey then
@@ -568,32 +662,43 @@ function Options:RenderGroupBody(parent, group, path, top)
 
             local tabBar = CreateFrame("Frame", nil, parent)
             tabBar:SetPoint("TOPLEFT", 0, yOffset)
-            tabBar:SetSize(self:GetScrollWidth(), 30)
+            tabBar:SetSize(GetParentContentWidth(self, parent), 28)
             local tabX = 0
 
             for _, entry in ipairs(tabEntries) do
-                local button = UI.CreateTabButton(tabBar)
+                local entryKey = entry.key
                 local label = Private.ResolveText(entry.value.name, entry.key)
+                local button = UI.CreateTabButton(tabBar)
                 UI.SetButtonLabel(button, label)
-                button:SetWidth(math.max(96, button.text:GetStringWidth() + 28))
+                button:SetWidth(math.max(92, button.text:GetStringWidth() + 24))
                 button:SetPoint("TOPLEFT", tabX, 0)
-                button:SetSelected(entry.key == selectedKey)
+                button:SetSelected(entryKey == selectedKey)
+                local isDisabled = Private.IsDisabled(entry.value)
+                button:SetDisabled(isDisabled, Private.GetDisabledTip(entry.value, "当前选项卡暂时不可用"))
                 button:SetScript("OnClick", function()
-                    self.selectedChildren[tabPath] = entry.key
+                    if isDisabled then
+                        return
+                    end
+                    self.selectedChildren[tabPath] = entryKey
                     self:Render()
                 end)
 
-                if Private.IsDisabled(entry.value) and entry.key ~= selectedKey then
+                if isDisabled and entryKey ~= selectedKey then
                     button:SetAlpha(0.55)
                 end
 
-                tabX = tabX + button:GetWidth() + 8
+                tabX = tabX + button:GetWidth() + 6
             end
 
-            yOffset = yOffset - 40
+            yOffset = yOffset - 34
 
             local selectedGroup = group.args[selectedKey]
             if selectedGroup then
+                if Private.IsDisabled(selectedGroup) then
+                    selectedGroup = CreateDisabledPlaceholderGroup(
+                        "|cFF888888" .. Private.GetDisabledTip(selectedGroup, "当前选项卡暂时不可用") .. "|r"
+                    )
+                end
                 yOffset = yOffset - self:RenderGroupSection(
                     parent,
                     selectedGroup,
@@ -628,28 +733,32 @@ function Options:RenderGroupBody(parent, group, path, top)
 end
 
 function Options:RenderGroupSection(parent, group, path, top, suppressTitle)
-    local card = self:CreateCard(parent, top, 80)
-    local contentTop = -16
+    local section = self:CreateSection(parent, top, 32)
+    local contentTop = 0
 
     local titleText = suppressTitle and "" or Private.ResolveText(group.name)
     if Private.TrimText(titleText) ~= "" then
-        local title = UI.CreateText(card, 15, "OUTLINE")
-        title:SetPoint("TOPLEFT", 16, contentTop)
-        title:SetPoint("TOPRIGHT", -16, contentTop)
+        local title = UI.CreateText(section, 13, "OUTLINE")
+        title:SetPoint("TOPLEFT", 0, -2)
+        title:SetPoint("TOPRIGHT", -2, -2)
         title:SetText(titleText)
         title:SetTextColor(Private.UnpackColor(Colors.accent))
-        contentTop = contentTop - 28
+
+        local divider = UI.CreateDivider(section, 0.38)
+        divider:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+        divider:SetPoint("TOPRIGHT", title, "BOTTOMRIGHT", 0, -6)
+        contentTop = -22
     end
 
-    local usedHeight = self:RenderGroupBody(card, group, path, contentTop)
-    local totalHeight = math.max(usedHeight + math.abs(contentTop) + 14, 54)
-    card:SetHeight(totalHeight)
+    local usedHeight = self:RenderGroupBody(section, group, path, contentTop)
+    local totalHeight = math.max(usedHeight + math.abs(contentTop), 10)
+    section:SetHeight(totalHeight)
 
     if Private.IsDisabled(group) then
-        card:SetAlpha(0.70)
+        section:SetAlpha(0.70)
     end
 
-    return totalHeight + Sizes.cardGap
+    return totalHeight + Sizes.sectionGap
 end
 
 function Options:Render()
@@ -689,9 +798,15 @@ function Options:Render()
         local selectedKey = self.selectedChildren[Private.PathKey({ topKey })] or directGroups[1].key
         local selectedGroup = topGroup.args[selectedKey]
         if selectedGroup then
-            renderGroup = selectedGroup
             renderPath = Private.AppendPath(renderPath, selectedKey)
             pageName = Private.ResolveText(selectedGroup.name, selectedKey)
+            if Private.IsDisabled(selectedGroup) then
+                renderGroup = CreateDisabledPlaceholderGroup(
+                    "|cFF888888" .. Private.GetDisabledTip(selectedGroup, "当前模块暂时不可用") .. "|r"
+                )
+            else
+                renderGroup = selectedGroup
+            end
         end
     else
         self:UpdateSecondaryNavigation(nil)
@@ -702,8 +817,8 @@ function Options:Render()
     self:UpdateHeader(pageName ~= "" and pageName or moduleName, moduleName)
 
     local topOffset = -2
-    local usedHeight = self:RenderGroupBody(self.frame.scrollChild, renderGroup, renderPath, topOffset)
     self.frame.scrollChild:SetWidth(self:GetScrollWidth())
+    local usedHeight = self:RenderGroupBody(self.frame.scrollChild, renderGroup, renderPath, topOffset)
     self.frame.scrollChild:SetHeight(math.max(usedHeight + 24, self.frame.scrollFrame:GetHeight()))
     self.frame.scrollFrame:SetVerticalScroll(0)
 

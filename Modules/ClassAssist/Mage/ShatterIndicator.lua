@@ -57,8 +57,18 @@ local function ConfigureStatusBar(bar)
     end
 end
 
+local function GetOptionsPrivate()
+    return NS.Options and NS.Options.Private
+end
+
 local function ApplyChatLikeFont(fontString, size)
     if not fontString then
+        return
+    end
+
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.ApplyFont then
+        optionsPrivate.ApplyFont(fontString, size or 12, "OUTLINE")
         return
     end
 
@@ -1054,11 +1064,11 @@ end
 -- =========================================================
 
 function ShatterIndicator:RefreshFromSettings()
+    self:EvaluateActivation()
     if self._mainFrame then
         self:RefreshLayout()
         self:RefreshDisplay()
     end
-    self:EvaluateActivation()
 end
 
 function ShatterIndicator:Refresh()

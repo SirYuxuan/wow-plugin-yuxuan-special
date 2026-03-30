@@ -100,7 +100,9 @@ local function GetOptionsTable()
         type = "group",
         childGroups = "tree",
         args = {
+            general = NS.BuildGeneralOptions(),
             mapAssist = NS.BuildMapAssistOptions(),
+            interfaceEnhance = NS.BuildInterfaceEnhanceOptions(),
             combatAssist = NS.BuildCombatAssistOptions(),
             classAssist = NS.BuildClassAssistOptions(),
             about = BuildAboutOptions(),

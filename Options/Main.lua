@@ -1,6 +1,7 @@
 local _, NS = ...
 
 local Options = NS.Options
+local Private = Options.Private
 
 --[[
 设置系统主入口。
@@ -18,8 +19,50 @@ local Options = NS.Options
 function Options:EnsureRegistered()
     self.selectedChildren = self.selectedChildren or {}
     self.navButtons = self.navButtons or {}
+    if Private and Private.RefreshThemeColors then
+        Private.RefreshThemeColors()
+    end
     self:CreateMainFrame()
+    self:ApplyWindowScale()
     return self.frame ~= nil
+end
+
+function Options:ApplyWindowScale()
+    if not self.frame then
+        return
+    end
+
+    local config = Private and Private.GetAppearanceConfig and Private.GetAppearanceConfig()
+    local scale = tonumber(config and config.uiScale) or 1
+    if scale < 0.8 then
+        scale = 0.8
+    elseif scale > 1.3 then
+        scale = 1.3
+    end
+
+    self.frame:SetScale(scale)
+end
+
+function Options:RefreshAppearance()
+    if Private and Private.RefreshThemeColors then
+        Private.RefreshThemeColors()
+    end
+
+    self:ApplyWindowScale()
+
+    if self.frame and Private and Private.RefreshFonts then
+        Private.RefreshFonts(self.frame)
+    end
+
+    if self.frame and self.frame.header and self.frame.header.qqButton and self.frame.header.qqButton.label then
+        Private.ApplyStoredFont(self.frame.header.qqButton.label)
+    end
+
+    if self:IsOpen() then
+        self:Render()
+    elseif self.frame then
+        self:RefreshNavigation()
+    end
 end
 
 function Options:IsOpen()
@@ -34,6 +77,7 @@ function Options:Open(...)
     local path = { ... }
     self:GetRootOptions()
     self:ApplyPathSelection(path)
+    self:RefreshAppearance()
     self.frame:Show()
     self:RestoreWindowPlacement()
     self:Render()

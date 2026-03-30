@@ -5,6 +5,7 @@ NS.DISPLAY_NAME = "雨轩专用插件"
 NS.VERSION = "0.3.0"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
+NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
 NS.Modules.CombatAssist = NS.Modules.CombatAssist or {}
 NS.Modules.ClassAssist = NS.Modules.ClassAssist or {}
 NS.Modules.ClassAssist.Mage = NS.Modules.ClassAssist.Mage or {}
@@ -35,6 +36,16 @@ function Core:OnPlayerLogin()
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.OnPlayerLogin then
         quickWaypoint:OnPlayerLogin()
+    end
+
+    local quickChat = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuickChat
+    if quickChat and quickChat.OnPlayerLogin then
+        quickChat:OnPlayerLogin()
+    end
+
+    local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
+    if quickFocus and quickFocus.OnPlayerLogin then
+        quickFocus:OnPlayerLogin()
     end
 
     local trinketMonitor = NS.Modules.CombatAssist and NS.Modules.CombatAssist.TrinketMonitor
