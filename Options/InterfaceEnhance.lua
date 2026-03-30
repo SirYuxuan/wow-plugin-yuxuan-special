@@ -142,108 +142,132 @@ function NS.BuildInterfaceEnhanceOptions()
                 childGroups = "tab",
                 args = {
                     basic = BuildTab("基础设置", 10, {
-                        enabled = {
-                            type = "toggle",
+                        stateRow = {
+                            type = "group",
                             order = 10,
-                            width = 1.0,
-                            name = "启用快捷频道",
-                            get = function()
-                                return GetConfig().enabled
-                            end,
-                            set = function(_, value)
-                                GetConfig().enabled = value and true or false
-                                RefreshQuickChat(true)
-                            end,
+                            name = "",
+                            layout = "row",
+                            args = {
+                                enabled = {
+                                    type = "toggle",
+                                    order = 1,
+                                    width = 1.0,
+                                    name = "启用快捷频道",
+                                    get = function()
+                                        return GetConfig().enabled
+                                    end,
+                                    set = function(_, value)
+                                        GetConfig().enabled = value and true or false
+                                        RefreshQuickChat(true)
+                                    end,
+                                },
+                                unlocked = {
+                                    type = "toggle",
+                                    order = 2,
+                                    width = 1.0,
+                                    name = "解锁位置拖动",
+                                    disabled = function()
+                                        return not GetConfig().enabled
+                                    end,
+                                    get = function()
+                                        return GetConfig().unlocked
+                                    end,
+                                    set = function(_, value)
+                                        GetConfig().unlocked = value and true or false
+                                        RefreshQuickChat(false)
+                                    end,
+                                },
+                            },
                         },
-                        unlocked = {
-                            type = "toggle",
-                            order = 11,
-                            width = 1.0,
-                            name = "解锁位置拖动",
-                            disabled = function()
-                                return not GetConfig().enabled
-                            end,
-                            get = function()
-                                return GetConfig().unlocked
-                            end,
-                            set = function(_, value)
-                                GetConfig().unlocked = value and true or false
-                                RefreshQuickChat(false)
-                            end,
-                        },
-                        worldChannelName = {
-                            type = "input",
+                        worldChannelRow = {
+                            type = "group",
                             order = 12,
-                            width = 1.4,
-                            name = "世界频道名称",
-                            disabled = function()
-                                return not GetConfig().enabled
-                            end,
-                            get = function()
-                                return GetConfig().worldChannelName or ""
-                            end,
-                            set = function(_, value)
-                                local text = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                                GetConfig().worldChannelName = text ~= "" and text or "大脚世界频道"
-                                RefreshQuickChat(false)
-                            end,
+                            name = "",
+                            layout = "row",
+                            args = {
+                                worldChannelName = {
+                                    type = "input",
+                                    order = 1,
+                                    width = 1.8,
+                                    name = "世界频道名称",
+                                    disabled = function()
+                                        return not GetConfig().enabled
+                                    end,
+                                    get = function()
+                                        return GetConfig().worldChannelName or ""
+                                    end,
+                                    set = function(_, value)
+                                        local text = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+                                        GetConfig().worldChannelName = text ~= "" and text or "大脚世界频道"
+                                        RefreshQuickChat(false)
+                                    end,
+                                },
+                            },
                         },
-                        spacing = {
-                            type = "range",
+                        styleRow = {
+                            type = "group",
                             order = 20,
-                            width = 1.0,
-                            name = "按钮间隔",
-                            min = 0,
-                            max = 30,
-                            step = 1,
-                            disabled = function()
-                                return not GetConfig().enabled
-                            end,
-                            get = function()
-                                return GetConfig().spacing
-                            end,
-                            set = function(_, value)
-                                GetConfig().spacing = value
-                                RefreshQuickChat(false)
-                            end,
-                        },
-                        fontSize = {
-                            type = "range",
-                            order = 21,
-                            width = 1.0,
-                            name = "文字大小",
-                            min = 10,
-                            max = 32,
-                            step = 1,
-                            disabled = function()
-                                return not GetConfig().enabled
-                            end,
-                            get = function()
-                                return GetConfig().fontSize
-                            end,
-                            set = function(_, value)
-                                GetConfig().fontSize = value
-                                RefreshQuickChat(false)
-                            end,
-                        },
-                        fontPreset = {
-                            type = "select",
-                            order = 22,
-                            width = 1.1,
-                            name = "快捷条字体",
-                            disabled = function()
-                                return not GetConfig().enabled
-                            end,
-                            values = function()
-                                return NS.Options.Private.GetFontOptions()
-                            end,
-                            get = function()
-                                return GetConfig().fontPreset
-                            end,
-                            set = function(_, value)
-                                GetConfig().fontPreset = value
-                                RefreshQuickChat(false)
-                            end,
+                            name = "",
+                            layout = "row",
+                            args = {
+                                spacing = {
+                                    type = "range",
+                                    order = 1,
+                                    width = 1.0,
+                                    name = "按钮间隔",
+                                    min = 0,
+                                    max = 30,
+                                    step = 1,
+                                    disabled = function()
+                                        return not GetConfig().enabled
+                                    end,
+                                    get = function()
+                                        return GetConfig().spacing
+                                    end,
+                                    set = function(_, value)
+                                        GetConfig().spacing = value
+                                        RefreshQuickChat(false)
+                                    end,
+                                },
+                                fontSize = {
+                                    type = "range",
+                                    order = 2,
+                                    width = 1.0,
+                                    name = "文字大小",
+                                    min = 10,
+                                    max = 32,
+                                    step = 1,
+                                    disabled = function()
+                                        return not GetConfig().enabled
+                                    end,
+                                    get = function()
+                                        return GetConfig().fontSize
+                                    end,
+                                    set = function(_, value)
+                                        GetConfig().fontSize = value
+                                        RefreshQuickChat(false)
+                                    end,
+                                },
+                                fontPreset = {
+                                    type = "select",
+                                    order = 3,
+                                    width = 1.1,
+                                    name = "快捷条字体",
+                                    disabled = function()
+                                        return not GetConfig().enabled
+                                    end,
+                                    values = function()
+                                        return NS.Options.Private.GetFontOptions()
+                                    end,
+                                    get = function()
+                                        return GetConfig().fontPreset
+                                    end,
+                                    set = function(_, value)
+                                        GetConfig().fontPreset = value
+                                        RefreshQuickChat(false)
+                                    end,
+                                },
+                            },
                         },
                         reset = {
                             type = "execute",
@@ -258,62 +282,69 @@ function NS.BuildInterfaceEnhanceOptions()
                     }),
                     buttonManagement = BuildTab("按钮管理", 20, BuildButtonManagementArgs()),
                     addCustom = BuildTab("自定义按钮", 30, {
-                        label = {
-                            type = "input",
+                        addRow = {
+                            type = "group",
                             order = 10,
-                            width = 1.0,
-                            name = "按钮文字",
-                            get = function()
-                                return pendingLabel
-                            end,
-                            set = function(_, value)
-                                pendingLabel = value or ""
-                            end,
-                        },
-                        command = {
-                            type = "input",
-                            order = 11,
-                            width = "full",
-                            name = "聊天指令",
-                            desc = "例如 /2 /4 /rw /w 玩家名字",
-                            get = function()
-                                return pendingCommand
-                            end,
-                            set = function(_, value)
-                                pendingCommand = value or ""
-                            end,
-                        },
-                        add = {
-                            type = "execute",
-                            order = 12,
-                            width = 0.9,
-                            name = "添加按钮",
-                            func = function()
-                                local label = tostring(pendingLabel or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                                local command = tostring(pendingCommand or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                                if label == "" or command == "" then
-                                    return
-                                end
+                            name = "",
+                            layout = "row",
+                            args = {
+                                label = {
+                                    type = "input",
+                                    order = 1,
+                                    width = 1.0,
+                                    name = "按钮文字",
+                                    get = function()
+                                        return pendingLabel
+                                    end,
+                                    set = function(_, value)
+                                        pendingLabel = value or ""
+                                    end,
+                                },
+                                command = {
+                                    type = "input",
+                                    order = 2,
+                                    width = 1.6,
+                                    name = "聊天指令",
+                                    get = function()
+                                        return pendingCommand
+                                    end,
+                                    set = function(_, value)
+                                        pendingCommand = value or ""
+                                    end,
+                                },
+                                add = {
+                                    type = "execute",
+                                    order = 3,
+                                    width = 0.8,
+                                    name = "添加按钮",
+                                    func = function()
+                                        local label = tostring(pendingLabel or ""):gsub("^%s+", ""):gsub("%s+$", "")
+                                        local command = tostring(pendingCommand or ""):gsub("^%s+", ""):gsub("%s+$", "")
+                                        if label == "" or command == "" then
+                                            return
+                                        end
 
-                                local config = GetConfig()
-                                local newID = config.nextCustomId or 1
-                                config.nextCustomId = newID + 1
-                                table.insert(config.customButtons, {
-                                    id = newID,
-                                    label = label,
-                                    command = command,
-                                })
-                                table.insert(config.buttonOrder, "CUSTOM_" .. tostring(newID))
-                                config.buttonColors["CUSTOM_" .. tostring(newID)] = { r = 1.00, g = 0.82, b = 0.00 }
+                                        local config = GetConfig()
+                                        local newID = config.nextCustomId or 1
+                                        config.nextCustomId = newID + 1
+                                        table.insert(config.customButtons, {
+                                            id = newID,
+                                            label = label,
+                                            command = command,
+                                        })
+                                        table.insert(config.buttonOrder, "CUSTOM_" .. tostring(newID))
+                                        config.buttonColors["CUSTOM_" .. tostring(newID)] = { r = 1.00, g = 0.82, b = 0.00 }
 
-                                pendingLabel = ""
-                                pendingCommand = ""
-                                RefreshQuickChat(true)
-                            end,
+                                        pendingLabel = ""
+                                        pendingCommand = ""
+                                        RefreshQuickChat(true)
+                                    end,
+                                },
+                            },
                         },
                         restoreBuiltin = {
                             type = "execute",
-                            order = 13,
+                            order = 20,
                             width = 1.1,
                             name = "恢复内置按钮",
                             func = function()

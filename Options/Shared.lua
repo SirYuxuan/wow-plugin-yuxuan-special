@@ -465,15 +465,22 @@ function Private.EnsureDropdownHelper()
         return Options.dropdownHelper
     end
 
+    local function clearDropdownState(self)
+        if self._yxsAnchor then
+            self._yxsAnchor._yxsDropdownOpen = nil
+        end
+        self._yxsAnchor = nil
+        self._yxsIsOpen = nil
+    end
+
     Options.dropdownHelper = CreateFrame(
         "Frame",
         Private.Constants.DROPDOWN_HELPER_NAME,
         UIParent,
         "UIDropDownMenuTemplate"
     )
-    Options.dropdownHelper:SetScript("OnHide", function(self)
-        self._yxsAnchor = nil
-    end)
+    Options.dropdownHelper._yxsClearState = clearDropdownState
+    Options.dropdownHelper:SetScript("OnHide", clearDropdownState)
     return Options.dropdownHelper
 end
 
@@ -494,9 +501,23 @@ function Private.ShowDropdownMenu(anchor, items)
 
     local dropdown = Private.EnsureDropdownHelper()
     local levelOneList = _G["DropDownList1"]
-    if dropdown._yxsAnchor == anchor and levelOneList and levelOneList:IsShown() then
+    if levelOneList and not levelOneList._yxsHooked then
+        levelOneList:HookScript("OnHide", function()
+            if dropdown._yxsClearState then
+                dropdown:_yxsClearState()
+            end
+        end)
+        levelOneList._yxsHooked = true
+    end
+
+    local isOpenForAnchor = (dropdown._yxsAnchor == anchor or anchor._yxsDropdownOpen)
+        and levelOneList
+        and levelOneList:IsShown()
+    if isOpenForAnchor then
         CloseDropDownMenus()
-        dropdown._yxsAnchor = nil
+        if dropdown._yxsClearState then
+            dropdown:_yxsClearState()
+        end
         return true
     end
 
@@ -525,6 +546,8 @@ function Private.ShowDropdownMenu(anchor, items)
     CloseDropDownMenus()
     ToggleDropDownMenu(1, nil, dropdown, anchor, 0, 2)
     dropdown._yxsAnchor = anchor
+    dropdown._yxsIsOpen = true
+    anchor._yxsDropdownOpen = true
 
     for level = 1, 2 do
         local backdrop = _G["DropDownList" .. level .. "Backdrop"]

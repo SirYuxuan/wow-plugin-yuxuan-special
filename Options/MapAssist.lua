@@ -89,81 +89,97 @@ function NS.BuildMapAssistOptions()
                             RefreshWidget()
                         end,
                     },
-                    offsetX = {
-                        type = "range",
-                        name = "X 偏移",
+                    offsetRow = {
+                        type = "group",
                         order = 20,
-                        width = 1.1,
-                        min = -1000,
-                        max = 1000,
-                        step = 1,
-                        disabled = function()
-                            return not GetConfig().enabled
-                        end,
-                        get = function()
-                            return GetConfig().offsetX
-                        end,
-                        set = function(_, value)
-                            GetConfig().offsetX = value
-                            RefreshWidget(false)
-                        end,
+                        name = "",
+                        layout = "row",
+                        args = {
+                            offsetX = {
+                                type = "range",
+                                name = "X 偏移",
+                                order = 1,
+                                width = 1.0,
+                                min = -1000,
+                                max = 1000,
+                                step = 1,
+                                disabled = function()
+                                    return not GetConfig().enabled
+                                end,
+                                get = function()
+                                    return GetConfig().offsetX
+                                end,
+                                set = function(_, value)
+                                    GetConfig().offsetX = value
+                                    RefreshWidget(false)
+                                end,
+                            },
+                            offsetY = {
+                                type = "range",
+                                name = "Y 偏移",
+                                order = 2,
+                                width = 1.0,
+                                min = -1000,
+                                max = 1000,
+                                step = 1,
+                                disabled = function()
+                                    return not GetConfig().enabled
+                                end,
+                                get = function()
+                                    return GetConfig().offsetY
+                                end,
+                                set = function(_, value)
+                                    GetConfig().offsetY = value
+                                    RefreshWidget(false)
+                                end,
+                            },
+                        },
                     },
-                    offsetY = {
-                        type = "range",
-                        name = "Y 偏移",
-                        order = 21,
-                        width = 1.1,
-                        min = -1000,
-                        max = 1000,
-                        step = 1,
-                        disabled = function()
-                            return not GetConfig().enabled
-                        end,
-                        get = function()
-                            return GetConfig().offsetY
-                        end,
-                        set = function(_, value)
-                            GetConfig().offsetY = value
-                            RefreshWidget(false)
-                        end,
-                    },
-                    fontSize = {
-                        type = "range",
-                        name = "字体大小",
+                    styleRow = {
+                        type = "group",
                         order = 22,
-                        width = 1.1,
-                        min = 10,
-                        max = 24,
-                        step = 1,
-                        disabled = function()
-                            return not GetConfig().enabled
-                        end,
-                        get = function()
-                            return GetConfig().fontSize
-                        end,
-                        set = function(_, value)
-                            GetConfig().fontSize = value
-                            RefreshWidget(false)
-                        end,
-                    },
-                    bgAlpha = {
-                        type = "range",
-                        name = "背景透明度",
-                        order = 23,
-                        width = 1.1,
-                        min = 0,
-                        max = 100,
-                        step = 1,
-                        disabled = function()
-                            return not GetConfig().enabled
-                        end,
-                        get = function()
-                            return GetConfig().bgAlpha
-                        end,
-                        set = function(_, value)
-                            GetConfig().bgAlpha = value
-                            RefreshWidget(false)
-                        end,
+                        name = "",
+                        layout = "row",
+                        args = {
+                            fontSize = {
+                                type = "range",
+                                name = "字体大小",
+                                order = 1,
+                                width = 1.0,
+                                min = 10,
+                                max = 24,
+                                step = 1,
+                                disabled = function()
+                                    return not GetConfig().enabled
+                                end,
+                                get = function()
+                                    return GetConfig().fontSize
+                                end,
+                                set = function(_, value)
+                                    GetConfig().fontSize = value
+                                    RefreshWidget(false)
+                                end,
+                            },
+                            bgAlpha = {
+                                type = "range",
+                                name = "背景透明度",
+                                order = 2,
+                                width = 1.0,
+                                min = 0,
+                                max = 100,
+                                step = 1,
+                                disabled = function()
+                                    return not GetConfig().enabled
+                                end,
+                                get = function()
+                                    return GetConfig().bgAlpha
+                                end,
+                                set = function(_, value)
+                                    GetConfig().bgAlpha = value
+                                    RefreshWidget(false)
+                                end,
+                            },
+                        },
                     },
                     spacer3 = {
                         type = "description",

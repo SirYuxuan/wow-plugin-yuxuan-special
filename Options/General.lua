@@ -190,44 +190,54 @@ function NS.BuildGeneralOptions()
                             RefreshAllSettings(true)
                         end,
                     },
-                    colorMode = {
-                        type = "select",
-                        name = "主题颜色",
+                    themeRow = {
+                        type = "group",
                         order = 11,
-                        values = function()
-                            return {
-                                CLASS = "跟随职业",
-                                CUSTOM = "自定义颜色",
-                            }
-                        end,
-                        get = function()
-                            return GetAppearanceConfig().colorMode
-                        end,
-                        set = function(_, value)
-                            GetAppearanceConfig().colorMode = value
-                            RefreshAllSettings(true)
-                        end,
-                    },
-                    customColor = {
-                        type = "color",
-                        name = "自定义主题色",
-                        order = 12,
-                        hasAlpha = false,
-                        disabled = function()
-                            return GetAppearanceConfig().colorMode ~= "CUSTOM"
-                        end,
-                        get = function()
-                            local color = GetAppearanceConfig().customColor or {}
-                            return color.r or 1, color.g or 1, color.b or 1, color.a or 1
-                        end,
-                        set = function(_, r, g, b, a)
-                            local color = GetAppearanceConfig().customColor
-                            color.r = r
-                            color.g = g
-                            color.b = b
-                            color.a = a or 1
-                            RefreshAllSettings(true)
-                        end,
+                        name = "",
+                        layout = "row",
+                        args = {
+                            colorMode = {
+                                type = "select",
+                                name = "主题颜色",
+                                order = 1,
+                                width = 1.1,
+                                values = function()
+                                    return {
+                                        CLASS = "跟随职业",
+                                        CUSTOM = "自定义颜色",
+                                    }
+                                end,
+                                get = function()
+                                    return GetAppearanceConfig().colorMode
+                                end,
+                                set = function(_, value)
+                                    GetAppearanceConfig().colorMode = value
+                                    RefreshAllSettings(true)
+                                end,
+                            },
+                            customColor = {
+                                type = "color",
+                                name = "自定义主题色",
+                                order = 2,
+                                width = 1.0,
+                                hasAlpha = false,
+                                disabled = function()
+                                    return GetAppearanceConfig().colorMode ~= "CUSTOM"
+                                end,
+                                get = function()
+                                    local color = GetAppearanceConfig().customColor or {}
+                                    return color.r or 1, color.g or 1, color.b or 1, color.a or 1
+                                end,
+                                set = function(_, r, g, b, a)
+                                    local color = GetAppearanceConfig().customColor
+                                    color.r = r
+                                    color.g = g
+                                    color.b = b
+                                    color.a = a or 1
+                                    RefreshAllSettings(true)
+                                end,
+                            },
+                        },
                     },
                     reset = {
                         type = "execute",
@@ -278,11 +288,13 @@ function NS.BuildGeneralOptions()
                         type = "group",
                         order = 20,
                         name = "新建配置",
-                        inline = true,
+                        layout = "row",
                         args = {
                             createSource = {
                                 type = "select",
                                 order = 1,
+                                width = 1.2,
+                                inlineLabelWidth = 72,
                                 name = "复制来源",
                                 values = function()
                                     return GetProfileChoices()
@@ -300,7 +312,7 @@ function NS.BuildGeneralOptions()
                             createName = {
                                 type = "input",
                                 order = 2,
-                                width = "full",
+                                width = 1.5,
                                 name = "新配置名称",
                                 get = function()
                                     return createProfileName
@@ -312,7 +324,7 @@ function NS.BuildGeneralOptions()
                             createAction = {
                                 type = "execute",
                                 order = 3,
-                                width = 1.0,
+                                width = 0.8,
                                 name = "新建配置",
                                 disabled = function()
                                     return TrimText(createProfileName) == ""
@@ -342,22 +354,97 @@ function NS.BuildGeneralOptions()
                         name = "编辑配置",
                         inline = true,
                         args = {
-                            editTarget = {
-                                type = "select",
+                            editRow = {
+                                type = "group",
                                 order = 1,
-                                name = "编辑目标",
-                                values = function()
-                                    return GetProfileChoices()
-                                end,
-                                get = function()
-                                    return EnsureSelectableProfileKey(editTargetKey)
-                                end,
-                                set = function(_, value)
-                                    SetEditTargetKey(value)
-                                    if NS.Options and NS.Options.NotifyChanged then
-                                        NS.Options:NotifyChanged()
-                                    end
-                                end,
+                                name = "",
+                                layout = "row",
+                                args = {
+                                    editTarget = {
+                                        type = "select",
+                                        order = 1,
+                                        width = 1.2,
+                                        inlineLabelWidth = 72,
+                                        name = "编辑目标",
+                                        values = function()
+                                            return GetProfileChoices()
+                                        end,
+                                        get = function()
+                                            return EnsureSelectableProfileKey(editTargetKey)
+                                        end,
+                                        set = function(_, value)
+                                            SetEditTargetKey(value)
+                                            if NS.Options and NS.Options.NotifyChanged then
+                                                NS.Options:NotifyChanged()
+                                            end
+                                        end,
+                                    },
+                                    renameName = {
+                                        type = "input",
+                                        order = 2,
+                                        width = 1.5,
+                                        name = "重命名为",
+                                        disabled = function()
+                                            return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
+                                        end,
+                                        get = function()
+                                            return renameProfileName
+                                        end,
+                                        set = function(_, value)
+                                            renameProfileName = value or ""
+                                        end,
+                                    },
+                                    renameAction = {
+                                        type = "execute",
+                                        order = 3,
+                                        width = 0.8,
+                                        name = "保存名称",
+                                        disabled = function()
+                                            return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
+                                                or TrimText(renameProfileName) == ""
+                                        end,
+                                        func = function()
+                                            local renamed, errorMessage = Core:RenameNamedProfile(
+                                                EnsureSelectableProfileKey(editTargetKey),
+                                                renameProfileName
+                                            )
+                                            if not renamed then
+                                                Core:Print(errorMessage or "配置重命名失败。")
+                                                return
+                                            end
+
+                                            SetEditTargetKey(renamed)
+                                            SetTransferTargetKey(renamed)
+                                            Core:Print("已重命名配置：" .. renamed)
+                                            RefreshAllSettings(true)
+                                        end,
+                                    },
+                                    deleteAction = {
+                                        type = "execute",
+                                        order = 4,
+                                        width = 0.8,
+                                        name = "删除配置",
+                                        disabled = function()
+                                            return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
+                                        end,
+                                        confirm = true,
+                                        confirmText = "确认删除当前编辑目标配置吗？所有使用这份配置的角色会自动切回全局配置。",
+                                        func = function()
+                                            local deleted, errorMessage = Core:DeleteNamedProfile(
+                                                EnsureSelectableProfileKey(editTargetKey)
+                                            )
+                                            if not deleted then
+                                                Core:Print(errorMessage or "配置删除失败。")
+                                                return
+                                            end
+
+                                            SetEditTargetKey(PROFILE_KEY_GLOBAL)
+                                            SetTransferTargetKey(PROFILE_KEY_GLOBAL)
+                                            Core:Print("已删除目标配置。")
+                                            RefreshAllSettings(true)
+                                        end,
+                                    },
+                                },
                             },
                             editTip = {
                                 type = "description",
@@ -365,71 +452,6 @@ function NS.BuildGeneralOptions()
                                 fontSize = "medium",
                                 name = function()
                                     return GetEditTargetTip()
-                                end,
-                            },
-                            renameName = {
-                                type = "input",
-                                order = 3,
-                                width = "full",
-                                name = "重命名为",
-                                disabled = function()
-                                    return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
-                                end,
-                                get = function()
-                                    return renameProfileName
-                                end,
-                                set = function(_, value)
-                                    renameProfileName = value or ""
-                                end,
-                            },
-                            renameAction = {
-                                type = "execute",
-                                order = 4,
-                                width = 1.0,
-                                name = "保存名称",
-                                disabled = function()
-                                    return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
-                                        or TrimText(renameProfileName) == ""
-                                end,
-                                func = function()
-                                    local renamed, errorMessage = Core:RenameNamedProfile(
-                                        EnsureSelectableProfileKey(editTargetKey),
-                                        renameProfileName
-                                    )
-                                    if not renamed then
-                                        Core:Print(errorMessage or "配置重命名失败。")
-                                        return
-                                    end
-
-                                    SetEditTargetKey(renamed)
-                                    SetTransferTargetKey(renamed)
-                                    Core:Print("已重命名配置：" .. renamed)
-                                    RefreshAllSettings(true)
-                                end,
-                            },
-                            deleteAction = {
-                                type = "execute",
-                                order = 5,
-                                width = 1.0,
-                                name = "删除配置",
-                                disabled = function()
-                                    return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
-                                end,
-                                confirm = true,
-                                confirmText = "确认删除当前编辑目标配置吗？所有使用这份配置的角色会自动切回全局配置。",
-                                func = function()
-                                    local deleted, errorMessage = Core:DeleteNamedProfile(
-                                        EnsureSelectableProfileKey(editTargetKey)
-                                    )
-                                    if not deleted then
-                                        Core:Print(errorMessage or "配置删除失败。")
-                                        return
-                                    end
-
-                                    SetEditTargetKey(PROFILE_KEY_GLOBAL)
-                                    SetTransferTargetKey(PROFILE_KEY_GLOBAL)
-                                    Core:Print("已删除目标配置。")
-                                    RefreshAllSettings(true)
                                 end,
                             },
                         },
@@ -440,22 +462,72 @@ function NS.BuildGeneralOptions()
                         name = "导入导出",
                         inline = true,
                         args = {
-                            transferTarget = {
-                                type = "select",
+                            transferRow = {
+                                type = "group",
                                 order = 1,
-                                name = "导入导出目标",
-                                values = function()
-                                    return GetProfileChoices()
-                                end,
-                                get = function()
-                                    return EnsureSelectableProfileKey(transferTargetKey)
-                                end,
-                                set = function(_, value)
-                                    SetTransferTargetKey(value)
-                                    if NS.Options and NS.Options.NotifyChanged then
-                                        NS.Options:NotifyChanged()
-                                    end
-                                end,
+                                name = "",
+                                layout = "row",
+                                args = {
+                                    transferTarget = {
+                                        type = "select",
+                                        order = 1,
+                                        width = 1.3,
+                                        inlineLabelWidth = 72,
+                                        name = "导入导出目标",
+                                        values = function()
+                                            return GetProfileChoices()
+                                        end,
+                                        get = function()
+                                            return EnsureSelectableProfileKey(transferTargetKey)
+                                        end,
+                                        set = function(_, value)
+                                            SetTransferTargetKey(value)
+                                            if NS.Options and NS.Options.NotifyChanged then
+                                                NS.Options:NotifyChanged()
+                                            end
+                                        end,
+                                    },
+                                    exportAction = {
+                                        type = "execute",
+                                        order = 2,
+                                        width = 0.8,
+                                        name = "导出配置",
+                                        func = function()
+                                            profileTransferText = Core:ExportProfile(
+                                                EnsureSelectableProfileKey(transferTargetKey)
+                                            )
+                                            Core:Print("已生成编码后的配置文本。")
+                                            if NS.Options and NS.Options.NotifyChanged then
+                                                NS.Options:NotifyChanged()
+                                            end
+                                        end,
+                                    },
+                                    importAction = {
+                                        type = "execute",
+                                        order = 3,
+                                        width = 0.8,
+                                        name = "导入配置",
+                                        disabled = function()
+                                            return EnsureSelectableProfileKey(transferTargetKey) == PROFILE_KEY_GLOBAL
+                                                or TrimText(profileTransferText) == ""
+                                        end,
+                                        confirm = true,
+                                        confirmText = "确认将文本内容导入到当前导入导出目标吗？这会覆盖目标配置。",
+                                        func = function()
+                                            local ok, errorMessage = Core:ImportProfile(
+                                                EnsureSelectableProfileKey(transferTargetKey),
+                                                profileTransferText
+                                            )
+                                            if not ok then
+                                                Core:Print(errorMessage or "配置导入失败。")
+                                                return
+                                            end
+
+                                            Core:Print("已导入目标配置。")
+                                            RefreshAllSettings(true)
+                                        end,
+                                    },
+                                },
                             },
                             transferTip = {
                                 type = "description",
@@ -465,49 +537,9 @@ function NS.BuildGeneralOptions()
                                     return GetTransferTargetTip()
                                 end,
                             },
-                            exportAction = {
-                                type = "execute",
-                                order = 3,
-                                width = 1.0,
-                                name = "导出配置",
-                                func = function()
-                                    profileTransferText = Core:ExportProfile(
-                                        EnsureSelectableProfileKey(transferTargetKey)
-                                    )
-                                    Core:Print("已生成编码后的配置文本。")
-                                    if NS.Options and NS.Options.NotifyChanged then
-                                        NS.Options:NotifyChanged()
-                                    end
-                                end,
-                            },
-                            importAction = {
-                                type = "execute",
-                                order = 4,
-                                width = 1.0,
-                                name = "导入配置",
-                                disabled = function()
-                                    return EnsureSelectableProfileKey(transferTargetKey) == PROFILE_KEY_GLOBAL
-                                        or TrimText(profileTransferText) == ""
-                                end,
-                                confirm = true,
-                                confirmText = "确认将文本内容导入到当前导入导出目标吗？这会覆盖目标配置。",
-                                func = function()
-                                    local ok, errorMessage = Core:ImportProfile(
-                                        EnsureSelectableProfileKey(transferTargetKey),
-                                        profileTransferText
-                                    )
-                                    if not ok then
-                                        Core:Print(errorMessage or "配置导入失败。")
-                                        return
-                                    end
-
-                                    Core:Print("已导入目标配置。")
-                                    RefreshAllSettings(true)
-                                end,
-                            },
                             transferBox = {
                                 type = "input",
-                                order = 5,
+                                order = 3,
                                 width = "full",
                                 multiline = 10,
                                 name = "配置文本",

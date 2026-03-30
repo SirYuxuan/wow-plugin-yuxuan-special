@@ -274,6 +274,99 @@ function Options:RenderRange(parent, option, top)
     return height + Sizes.rowGap
 end
 
+local function GetInlineOptionUnits(option)
+    if option.width == "full" then
+        return 3
+    end
+
+    local width = tonumber(option.width)
+    if width and width > 0 then
+        return width
+    end
+
+    return 1
+end
+
+local function GetInlineOptionMinWidth(option)
+    if option.type == "execute" then
+        return 92
+    end
+    if option.type == "select" then
+        return 160
+    end
+    if option.type == "input" then
+        return 180
+    end
+    if option.type == "toggle" then
+        return 140
+    end
+    if option.type == "color" then
+        return 170
+    end
+    if option.type == "range" then
+        return 200
+    end
+
+    return 180
+end
+
+local function GetInlineOptionContentHeight(option)
+    if option.type == "range" then
+        return 28
+    end
+    return 28
+end
+
+function Options:BindSelectDropdown(button, option, values)
+    button:SetScript("OnMouseDown", function(anchor)
+        local dropdown = Private.EnsureDropdownHelper()
+        local levelOneList = _G["DropDownList1"]
+        local isOpenForAnchor = dropdown
+            and (
+                anchor._yxsDropdownOpen
+                or (dropdown._yxsAnchor == anchor and levelOneList and levelOneList:IsShown())
+            )
+
+        if isOpenForAnchor then
+            anchor._yxsSuppressNextDropdownOpen = true
+            anchor._yxsDropdownOpen = nil
+            CloseDropDownMenus()
+            if dropdown._yxsClearState then
+                dropdown:_yxsClearState()
+            else
+                dropdown._yxsAnchor = nil
+                dropdown._yxsIsOpen = nil
+            end
+        end
+    end)
+
+    button:SetScript("OnClick", function(anchor)
+        if Private.IsDisabled(option) then
+            return
+        end
+        if anchor._yxsSuppressNextDropdownOpen then
+            anchor._yxsSuppressNextDropdownOpen = nil
+            return
+        end
+
+        local menu = {}
+        for _, entry in ipairs(values) do
+            local entryValue = entry.value
+            local entryLabel = entry.label
+            menu[#menu + 1] = {
+                text = entryLabel,
+                checked = entryValue == Private.GetOptionValue(option),
+                func = function()
+                    Private.SetOptionValue(option, entryValue)
+                    self:NotifyChanged()
+                end,
+            }
+        end
+
+        Private.ShowDropdownMenu(anchor, menu)
+    end)
+end
+
 function Options:RenderSelect(parent, option, top)
     local descText = Private.ResolveText(option.desc)
     local height = Private.TrimText(descText) ~= "" and 60 or 44
@@ -314,27 +407,7 @@ function Options:RenderSelect(parent, option, top)
         button:SetAlpha(0.45)
     end
 
-    button:SetScript("OnClick", function(anchor)
-        if Private.IsDisabled(option) then
-            return
-        end
-
-        local menu = {}
-        for _, entry in ipairs(values) do
-            local entryValue = entry.value
-            local entryLabel = entry.label
-            menu[#menu + 1] = {
-                text = entryLabel,
-                checked = entryValue == Private.GetOptionValue(option),
-                func = function()
-                    Private.SetOptionValue(option, entryValue)
-                    self:NotifyChanged()
-                end,
-            }
-        end
-
-        Private.ShowDropdownMenu(anchor, menu)
-    end)
+    self:BindSelectDropdown(button, option, values)
 
     return height + Sizes.rowGap
 end
@@ -515,30 +588,12 @@ function Options:OpenColorPicker(option)
     b = tonumber(b) or 1
     a = tonumber(a) or 1
 
-    local function applyColor(restoreValues)
-        local nr, ng, nb, na
-        if restoreValues then
-            nr = restoreValues.r or restoreValues[1]
-            ng = restoreValues.g or restoreValues[2]
-            nb = restoreValues.b or restoreValues[3]
-            na = restoreValues.a or restoreValues[4]
-        else
-            if ColorPickerFrame.GetColorRGB then
-                nr, ng, nb = ColorPickerFrame:GetColorRGB()
-            else
-                nr, ng, nb = r, g, b
-            end
-
-            if option.hasAlpha and OpacitySliderFrame then
-                na = 1 - OpacitySliderFrame:GetValue()
-            else
-                na = 1
-            end
-        end
-
-        Private.SetOptionValue(option, nr, ng, nb, na)
+    local function applyColor(nr, ng, nb, na)
+        Private.SetOptionValue(option, nr or r, ng or g, nb or b, na or a)
         self:NotifyChanged()
     end
+
+    ColorPickerFrame:Hide()
 
     -- 新版客户端优先走 SetupColorPickerAndShow，旧版再回退到传统接口。
     if ColorPickerFrame.SetupColorPickerAndShow then
@@ -548,15 +603,18 @@ function Options:OpenColorPicker(option)
             b = b,
             opacity = 1 - a,
             hasOpacity = option.hasAlpha and true or false,
-            previousValues = { r = r, g = g, b = b, a = a, [1] = r, [2] = g, [3] = b, [4] = a },
             swatchFunc = function()
-                applyColor()
+                local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+                local na = option.hasAlpha and (ColorPickerFrame:GetColorAlpha() or 1) or 1
+                applyColor(nr, ng, nb, na)
             end,
             opacityFunc = function()
-                applyColor()
+                local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+                local na = option.hasAlpha and (ColorPickerFrame:GetColorAlpha() or 1) or 1
+                applyColor(nr, ng, nb, na)
             end,
-            cancelFunc = function(previousValues)
-                applyColor(previousValues)
+            cancelFunc = function()
+                applyColor(r, g, b, a)
             end,
         })
         return
@@ -564,18 +622,19 @@ function Options:OpenColorPicker(option)
 
     ColorPickerFrame.hasOpacity = option.hasAlpha and true or false
     ColorPickerFrame.opacity = 1 - a
-    ColorPickerFrame.previousValues = { r = r, g = g, b = b, a = a, [1] = r, [2] = g, [3] = b, [4] = a }
     ColorPickerFrame.func = function()
-        applyColor()
+        local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+        applyColor(nr, ng, nb, option.hasAlpha and a or 1)
     end
     ColorPickerFrame.opacityFunc = function()
-        applyColor()
+        local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+        local na = option.hasAlpha and (1 - OpacitySliderFrame:GetValue()) or 1
+        applyColor(nr, ng, nb, na)
     end
-    ColorPickerFrame.cancelFunc = function(previousValues)
-        applyColor(previousValues)
+    ColorPickerFrame.cancelFunc = function()
+        applyColor(r, g, b, a)
     end
     ColorPickerFrame:SetColorRGB(r, g, b)
-    ColorPickerFrame:Hide()
     ColorPickerFrame:Show()
 end
 
@@ -739,8 +798,399 @@ function Options:RenderOption(parent, option, top)
     return 0
 end
 
+function Options:RenderInlineOption(parent, option, width, refreshInlineStates)
+    local optionType = option.type
+
+    if optionType == "execute" then
+        local button = UI.CreateButton(parent, Private.ResolveText(option.name), width, 28, "accent")
+        button:SetPoint("LEFT", 0, 0)
+        local function refreshState()
+            local disabled = Private.IsDisabled(option)
+            button:SetEnabled(not disabled)
+            button:SetAlpha(disabled and 0.45 or 1)
+        end
+        refreshState()
+        parent._yxsRefreshState = refreshState
+        button:SetScript("OnClick", function()
+            if Private.IsDisabled(option) then
+                return
+            end
+
+            local run = function()
+                Private.RunOption(option)
+                self:NotifyChanged()
+            end
+
+            if option.confirm then
+                self:ShowConfirm(Private.ResolveText(option.confirmText, "确认执行这个操作吗？"), run)
+            else
+                run()
+            end
+        end)
+        return
+    end
+
+    if optionType == "toggle" then
+        local title = UI.CreateText(parent, 12)
+        title:SetPoint("LEFT", 0, 0)
+        title:SetPoint("RIGHT", -76, 0)
+        title:SetJustifyV("MIDDLE")
+        title:SetText(Private.ResolveText(option.name))
+
+        local switch = UI.CreateSwitch(parent)
+        switch:SetPoint("RIGHT", 0, 0)
+
+        local function refreshState()
+            local disabled = Private.IsDisabled(option)
+            local value = Private.IsTruthy(Private.GetOptionValue(option))
+            switch:SetValue(value, disabled)
+            if disabled then
+                title:SetTextColor(Private.UnpackColor(Colors.muted))
+            else
+                title:SetTextColor(Private.UnpackColor(Colors.text))
+            end
+        end
+
+        refreshState()
+        parent._yxsRefreshState = refreshState
+        switch:SetScript("OnClick", function()
+            if Private.IsDisabled(option) then
+                return
+            end
+            Private.SetOptionValue(option, not Private.IsTruthy(Private.GetOptionValue(option)))
+            self:NotifyChanged()
+        end)
+        return
+    end
+
+    local labelText = Private.ResolveText(option.name)
+    local labelWidth = 0
+    if Private.TrimText(labelText) ~= "" then
+        local label = UI.CreateText(parent, 12)
+        label:SetPoint("LEFT", 0, 0)
+        label:SetJustifyV("MIDDLE")
+        label:SetText(labelText)
+        labelWidth = tonumber(option.inlineLabelWidth) or math.min(
+            math.max(label:GetStringWidth() + 10, 56),
+            math.max(72, math.floor(width * 0.36))
+        )
+        label:SetWidth(labelWidth)
+        parent._yxsLabel = label
+    end
+
+    local controlLeft = labelWidth > 0 and (labelWidth + 6) or 0
+
+    if optionType == "select" then
+        local currentValue = Private.GetOptionValue(option)
+        local values = Private.NormalizeDropdownValues(option.values)
+        local currentLabel = tostring(currentValue or "")
+
+        for _, entry in ipairs(values) do
+            if entry.value == currentValue then
+                currentLabel = entry.label
+                break
+            end
+        end
+
+        local button = UI.CreateDropdownButton(parent, math.max(80, width - controlLeft), 28)
+        button:SetPoint("LEFT", controlLeft, 0)
+        button:SetPoint("RIGHT", 0, 0)
+        button:SetValue(currentLabel)
+        local function refreshState()
+            local disabled = Private.IsDisabled(option)
+            button:SetEnabled(not disabled)
+            button:SetAlpha(disabled and 0.45 or 1)
+            if parent._yxsLabel then
+                if disabled then
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.muted))
+                else
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.text))
+                end
+            end
+        end
+        refreshState()
+        parent._yxsRefreshState = refreshState
+        self:BindSelectDropdown(button, option, values)
+        return
+    end
+
+    if optionType == "color" then
+        local swatch = CreateFrame("Button", nil, parent, "BackdropTemplate")
+        swatch:SetPoint("RIGHT", 0, 0)
+        swatch:SetSize(math.min(138, math.max(88, width - controlLeft)), 28)
+        UI.CreateBackdrop(swatch, Colors.bg, Colors.borderSoft or Colors.border)
+
+        local preview = swatch:CreateTexture(nil, "ARTWORK")
+        preview:SetPoint("LEFT", 5, 0)
+        preview:SetSize(18, 18)
+
+        local valueText = UI.CreateText(swatch, 12)
+        valueText:SetPoint("LEFT", preview, "RIGHT", 8, 0)
+        valueText:SetPoint("RIGHT", -8, 0)
+        valueText:SetJustifyV("MIDDLE")
+
+        local function updateColorDisplay()
+            local r, g, b, a = Private.SafeCall(option.get)
+            preview:SetColorTexture(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1, tonumber(a) or 1)
+            valueText:SetText(Private.FormatHexColor(r, g, b))
+        end
+
+        local function refreshState()
+            local disabled = Private.IsDisabled(option)
+            updateColorDisplay()
+            swatch:SetEnabled(not disabled)
+            swatch:SetAlpha(disabled and 0.45 or 1)
+            if parent._yxsLabel then
+                if disabled then
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.muted))
+                else
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.text))
+                end
+            end
+        end
+
+        refreshState()
+        parent._yxsRefreshState = refreshState
+        swatch:SetScript("OnClick", function()
+            if Private.IsDisabled(option) then
+                return
+            end
+            self:OpenColorPicker(option)
+        end)
+        swatch:SetScript("OnEnter", function(selfButton)
+            selfButton:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+        end)
+        swatch:SetScript("OnLeave", function(selfButton)
+            selfButton:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
+        end)
+        return
+    end
+
+    if optionType == "input" then
+        local editBox = UI.CreateEditBox(parent, false)
+        editBox:SetPoint("LEFT", controlLeft, 0)
+        editBox:SetPoint("RIGHT", 0, 0)
+        editBox:SetHeight(28)
+        editBox:SetText(tostring(Private.GetOptionValue(option) or ""))
+        local function refreshState()
+            local disabled = Private.IsDisabled(option)
+            if parent._yxsLabel then
+                if disabled then
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.muted))
+                else
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.text))
+                end
+            end
+            if disabled then
+                editBox:EnableMouse(false)
+                editBox:SetTextColor(Private.UnpackColor(Colors.muted))
+            else
+                editBox:EnableMouse(true)
+                editBox:SetTextColor(Private.UnpackColor(Colors.text))
+            end
+        end
+        parent._yxsRefreshState = refreshState
+        refreshState()
+        local function commitText(selfBox)
+            Private.SetOptionValue(option, selfBox:GetText())
+            if refreshInlineStates then
+                refreshInlineStates()
+            end
+        end
+        editBox:SetScript("OnTextChanged", function(selfBox, userInput)
+            if not userInput then
+                return
+            end
+            commitText(selfBox)
+        end)
+        editBox:SetScript("OnEnterPressed", function(selfBox)
+            commitText(selfBox)
+            selfBox:ClearFocus()
+        end)
+        editBox:SetScript("OnEscapePressed", function(selfBox)
+            selfBox:SetText(tostring(Private.GetOptionValue(option) or ""))
+            selfBox:ClearFocus()
+        end)
+        editBox:SetScript("OnEditFocusLost", function(selfBox)
+            selfBox:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
+            commitText(selfBox)
+        end)
+        editBox:SetScript("OnEditFocusGained", function(selfBox)
+            selfBox:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+        end)
+        return
+    end
+
+    if optionType == "range" then
+        local sliderHolder = UI.CreateSlider(parent)
+        sliderHolder:SetPoint("LEFT", controlLeft, 0)
+        sliderHolder:SetPoint("RIGHT", 0, 0)
+
+        local slider = sliderHolder.slider
+        local minValue = tonumber(option.min) or 0
+        local maxValue = tonumber(option.max) or 100
+        local step = tonumber(option.step) or 1
+
+        local function refreshState()
+            local disabled = Private.IsDisabled(option)
+            local settingValue = tonumber(Private.GetOptionValue(option)) or minValue
+            slider:SetMinMaxValues(minValue, maxValue)
+            slider:SetValueStep(step)
+            slider:SetValue(settingValue)
+            sliderHolder.valueBox:SetText(Private.FormatNumber(settingValue, step))
+            slider:EnableMouse(not disabled)
+            sliderHolder.valueBox:EnableMouse(not disabled)
+            if parent._yxsLabel then
+                if disabled then
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.muted))
+                else
+                    parent._yxsLabel:SetTextColor(Private.UnpackColor(Colors.text))
+                end
+            end
+            sliderHolder.valueBox:SetTextColor(
+                Private.UnpackColor(disabled and Colors.muted or Colors.text)
+            )
+            parent:SetAlpha(disabled and 0.60 or 1)
+        end
+
+        local updating = false
+        slider:SetScript("OnValueChanged", function(_, value)
+            if updating then
+                return
+            end
+            updating = true
+            sliderHolder.valueBox:SetText(Private.FormatNumber(value, step))
+            Private.SetOptionValue(option, value)
+            updating = false
+        end)
+        slider:SetScript("OnMouseUp", function()
+            self:NotifyChanged()
+        end)
+        sliderHolder.valueBox:SetScript("OnEnterPressed", function(editBox)
+            local value = tonumber(editBox:GetText())
+            if value then
+                if value < minValue then
+                    value = minValue
+                elseif value > maxValue then
+                    value = maxValue
+                end
+                slider:SetValue(value)
+                Private.SetOptionValue(option, value)
+                self:NotifyChanged()
+            else
+                editBox:SetText(Private.FormatNumber(slider:GetValue(), step))
+            end
+            editBox:ClearFocus()
+        end)
+        sliderHolder.valueBox:SetScript("OnEscapePressed", function(editBox)
+            editBox:SetText(Private.FormatNumber(slider:GetValue(), step))
+            editBox:ClearFocus()
+        end)
+
+        refreshState()
+        parent._yxsRefreshState = refreshState
+        return
+    end
+
+    self:RenderOption(parent, option, 0)
+end
+
+function Options:RenderInlineOptionRows(parent, group, path, top)
+    local width = GetParentContentWidth(self, parent)
+    local yOffset = top
+    local pending = {}
+    local pendingMinWidth = 0
+
+    local function flushRow()
+        if #pending == 0 then
+            return
+        end
+
+        local rowContentHeight = 28
+        for _, entry in ipairs(pending) do
+            rowContentHeight = math.max(rowContentHeight, GetInlineOptionContentHeight(entry.value))
+        end
+
+        local rowHeight = rowContentHeight + 14
+        local row = self:CreateCard(parent, yOffset, rowHeight)
+        local holders = {}
+        local function refreshInlineStates()
+            for _, holder in ipairs(holders) do
+                if holder._yxsRefreshState then
+                    holder._yxsRefreshState()
+                end
+            end
+        end
+        local gap = 10
+        local innerWidth = width - 24 - math.max(0, (#pending - 1) * gap)
+        local totalUnits = 0
+        for _, entry in ipairs(pending) do
+            totalUnits = totalUnits + entry.units
+        end
+
+        local xOffset = 12
+        for index, entry in ipairs(pending) do
+            local itemWidth
+            if index == #pending then
+                itemWidth = math.max(80, width - xOffset - 12)
+            else
+                itemWidth = math.max(80, math.floor(innerWidth * entry.units / math.max(totalUnits, 1)))
+            end
+
+            local holder = CreateFrame("Frame", nil, row)
+            holder:SetPoint("TOPLEFT", xOffset, -7)
+            holder:SetSize(itemWidth, rowContentHeight)
+            holders[#holders + 1] = holder
+            self:RenderInlineOption(holder, entry.value, itemWidth, refreshInlineStates)
+            xOffset = xOffset + itemWidth + gap
+        end
+
+        refreshInlineStates()
+        yOffset = yOffset - (rowHeight + Sizes.rowGap)
+        pending = {}
+        pendingMinWidth = 0
+    end
+
+    for _, entry in ipairs(Private.SortArgs(group.args or {})) do
+        if not Private.IsHidden(entry.value) then
+            if entry.value.type == "description" then
+                flushRow()
+                yOffset = yOffset - self:RenderOption(parent, entry.value, yOffset)
+            elseif entry.value.type == "group" then
+                flushRow()
+                yOffset = yOffset - self:RenderGroupSection(
+                    parent,
+                    entry.value,
+                    Private.AppendPath(path, entry.key),
+                    yOffset,
+                    false
+                )
+            else
+                local minWidth = GetInlineOptionMinWidth(entry.value)
+                local nextWidth = pendingMinWidth + (#pending > 0 and 10 or 0) + minWidth
+                if #pending > 0 and nextWidth > (width - 24) then
+                    flushRow()
+                end
+
+                pending[#pending + 1] = {
+                    value = entry.value,
+                    units = GetInlineOptionUnits(entry.value),
+                }
+                pendingMinWidth = pendingMinWidth + (#pending > 1 and 10 or 0) + minWidth
+            end
+        end
+    end
+
+    flushRow()
+    return top - yOffset
+end
+
 function Options:RenderGroupBody(parent, group, path, top)
     local yOffset = top
+
+    if group.layout == "row" then
+        return self:RenderInlineOptionRows(parent, group, path, top)
+    end
 
     -- tab 模式下，当前层只负责切换标签，不直接平铺所有子 group。
     if group.childGroups == "tab" then
@@ -833,19 +1283,70 @@ function Options:RenderGroupBody(parent, group, path, top)
     end
 
     local items = Private.SortArgs(group.args or {})
-    for _, entry in ipairs(items) do
+    local index = 1
+    while index <= #items do
+        local entry = items[index]
         if entry.value.type == "group" then
             if not Private.IsHidden(entry.value) then
-                yOffset = yOffset - self:RenderGroupSection(
-                    parent,
-                    entry.value,
-                    Private.AppendPath(path, entry.key),
-                    yOffset,
-                    false
-                )
+                local inlinePairWidth = GetParentContentWidth(self, parent)
+                local nextEntry = items[index + 1]
+                local canRenderInlinePair = entry.value.inline
+                    and inlinePairWidth >= 700
+                    and nextEntry
+                    and nextEntry.value
+                    and nextEntry.value.type == "group"
+                    and nextEntry.value.inline
+                    and not Private.IsHidden(nextEntry.value)
+
+                if canRenderInlinePair then
+                    local pairRow = CreateFrame("Frame", nil, parent)
+                    pairRow:SetPoint("TOPLEFT", 0, yOffset)
+                    pairRow:SetWidth(inlinePairWidth)
+
+                    local gap = Sizes.sectionGap
+                    local columnWidth = math.floor((inlinePairWidth - gap) / 2)
+                    local leftColumn = CreateFrame("Frame", nil, pairRow)
+                    leftColumn:SetPoint("TOPLEFT", 0, 0)
+                    leftColumn:SetWidth(columnWidth)
+
+                    local rightColumn = CreateFrame("Frame", nil, pairRow)
+                    rightColumn:SetPoint("TOPLEFT", columnWidth + gap, 0)
+                    rightColumn:SetWidth(inlinePairWidth - columnWidth - gap)
+
+                    local leftHeight = self:RenderGroupSection(
+                        leftColumn,
+                        entry.value,
+                        Private.AppendPath(path, entry.key),
+                        0,
+                        false
+                    )
+                    local rightHeight = self:RenderGroupSection(
+                        rightColumn,
+                        nextEntry.value,
+                        Private.AppendPath(path, nextEntry.key),
+                        0,
+                        false
+                    )
+                    local pairHeight = math.max(leftHeight, rightHeight)
+                    pairRow:SetHeight(pairHeight)
+                    yOffset = yOffset - pairHeight
+                    index = index + 2
+                else
+                    yOffset = yOffset - self:RenderGroupSection(
+                        parent,
+                        entry.value,
+                        Private.AppendPath(path, entry.key),
+                        yOffset,
+                        false
+                    )
+                    index = index + 1
+                end
+            else
+                index = index + 1
             end
         else
             yOffset = yOffset - self:RenderOption(parent, entry.value, yOffset)
+            index = index + 1
         end
     end
 
