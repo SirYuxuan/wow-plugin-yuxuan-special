@@ -11,7 +11,7 @@ local Core = NS.Core
 
 local QuickChat = {}
 NS.Modules.InterfaceEnhance.QuickChat = QuickChat
-local DICE_ICON_PATH = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Icons\\dice.svg"
+local DICE_ICON_PATH = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Icons\\dice.png"
 
 local BUILTIN_BUTTONS = {
     { key = "SAY", label = "说", action = "switch", slash = "/s " },
