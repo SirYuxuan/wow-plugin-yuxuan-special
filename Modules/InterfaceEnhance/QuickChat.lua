@@ -11,6 +11,7 @@ local Core = NS.Core
 
 local QuickChat = {}
 NS.Modules.InterfaceEnhance.QuickChat = QuickChat
+local DICE_ICON_PATH = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Icons\\dice.svg"
 
 local BUILTIN_BUTTONS = {
     { key = "SAY", label = "说", action = "switch", slash = "/s " },
@@ -319,10 +320,17 @@ function QuickChat:BuildOrReuseButtons()
             button:RegisterForClicks("AnyUp")
             button.textFS = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             button.textFS:SetPoint("CENTER")
+            button.icon = button:CreateTexture(nil, "OVERLAY")
+            button.icon:SetPoint("CENTER")
+            button.icon:SetSize(18, 18)
+            button.icon:Hide()
             button:SetScript("OnClick", function(frame, mouseButton)
                 QuickChat:HandleButtonClick(frame.def, mouseButton)
             end)
             button:SetScript("OnEnter", function(frame)
+                if frame.icon then
+                    frame.icon:SetAlpha(0.72)
+                end
                 frame.textFS:SetAlpha(0.72)
                 if frame.def and frame.def.action == "world" then
                     GameTooltip:SetOwner(frame, "ANCHOR_TOP")
@@ -338,9 +346,16 @@ function QuickChat:BuildOrReuseButtons()
                         GameTooltip:AddLine("未加入", 0.65, 0.65, 0.65)
                     end
                     GameTooltip:Show()
+                elseif frame.def and frame.def.action == "dice" then
+                    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+                    GameTooltip:AddLine(frame.def.label or "骰子", 1, 0.82, 0)
+                    GameTooltip:Show()
                 end
             end)
             button:SetScript("OnLeave", function(frame)
+                if frame.icon then
+                    frame.icon:SetAlpha(1)
+                end
                 frame.textFS:SetAlpha(1)
                 GameTooltip:Hide()
             end)
@@ -348,7 +363,14 @@ function QuickChat:BuildOrReuseButtons()
         end
 
         button.def = def
-        button.textFS:SetText(def.label)
+        if def.key == "DICE" then
+            button.textFS:SetText("")
+            button.icon:SetTexture(DICE_ICON_PATH)
+            button.icon:Show()
+        else
+            button.textFS:SetText(def.label)
+            button.icon:Hide()
+        end
         button:Show()
     end
 
@@ -382,6 +404,12 @@ function QuickChat:LayoutButtons()
 
             local width = math.ceil(button.textFS:GetStringWidth() + 14)
             local height = math.ceil(button.textFS:GetStringHeight() + 10)
+            if button.def.key == "DICE" and button.icon then
+                button.icon:SetTexture(DICE_ICON_PATH)
+                button.icon:SetVertexColor(color.r or 1, color.g or 1, color.b or 1, 1)
+                width = 26
+                height = 26
+            end
             button:SetSize(width, height)
 
             button:ClearAllPoints()
