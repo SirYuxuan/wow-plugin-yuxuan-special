@@ -881,9 +881,14 @@ function Options:RenderGroupSection(parent, group, path, top, suppressTitle)
     return totalHeight + Sizes.sectionGap
 end
 
-function Options:Render()
+function Options:Render(preserveScroll)
     if not self:EnsureRegistered() then
         return false
+    end
+
+    local previousScroll = 0
+    if preserveScroll and self.frame and self.frame.scrollFrame and self.frame.scrollFrame.GetVerticalScroll then
+        previousScroll = self.frame.scrollFrame:GetVerticalScroll() or 0
     end
 
     self:GetRootOptions()
@@ -940,13 +945,22 @@ function Options:Render()
     self.frame.scrollChild:SetWidth(self:GetScrollWidth())
     local usedHeight = self:RenderGroupBody(self.frame.scrollChild, renderGroup, renderPath, topOffset)
     self.frame.scrollChild:SetHeight(math.max(usedHeight + 24, self.frame.scrollFrame:GetHeight()))
-    self.frame.scrollFrame:SetVerticalScroll(0)
+
+    local scrollTarget = 0
+    if preserveScroll then
+        local maxScroll = self.frame.scrollFrame:GetVerticalScrollRange() or 0
+        scrollTarget = math.max(0, math.min(previousScroll, maxScroll))
+    end
+    self.frame.scrollFrame:SetVerticalScroll(scrollTarget)
+    if self.frame.scrollBar and self.frame.scrollBar.UpdateScrollBar then
+        self.frame.scrollBar:UpdateScrollBar()
+    end
 
     return true
 end
 
 function Options:NotifyChanged()
     if self:IsOpen() then
-        self:Render()
+        self:Render(true)
     end
 end

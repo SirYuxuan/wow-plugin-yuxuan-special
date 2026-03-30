@@ -47,7 +47,7 @@ function Options:RefreshAppearance()
     end
 
     if self:IsOpen() then
-        self:Render()
+        self:Render(true)
     elseif self.frame then
         self:RefreshNavigation()
     end

@@ -471,6 +471,9 @@ function Private.EnsureDropdownHelper()
         UIParent,
         "UIDropDownMenuTemplate"
     )
+    Options.dropdownHelper:SetScript("OnHide", function(self)
+        self._yxsAnchor = nil
+    end)
     return Options.dropdownHelper
 end
 
@@ -490,6 +493,13 @@ function Private.ShowDropdownMenu(anchor, items)
     end
 
     local dropdown = Private.EnsureDropdownHelper()
+    local levelOneList = _G["DropDownList1"]
+    if dropdown._yxsAnchor == anchor and levelOneList and levelOneList:IsShown() then
+        CloseDropDownMenus()
+        dropdown._yxsAnchor = nil
+        return true
+    end
+
     dropdown.displayMode = "MENU"
     if UIDropDownMenu_SetWidth and anchor.GetWidth then
         UIDropDownMenu_SetWidth(dropdown, math.max(120, anchor:GetWidth()))
@@ -514,6 +524,7 @@ function Private.ShowDropdownMenu(anchor, items)
 
     CloseDropDownMenus()
     ToggleDropDownMenu(1, nil, dropdown, anchor, 0, 2)
+    dropdown._yxsAnchor = anchor
 
     for level = 1, 2 do
         local backdrop = _G["DropDownList" .. level .. "Backdrop"]
