@@ -4,7 +4,7 @@
 ## Author: Codex
 ## Version: 0.3.0
 ## SavedVariables: YuXuanSpecialDB
-## OptionalDeps: Ace3, ClickableRaidBuffs
+## OptionalDeps: ClickableRaidBuffs
 
 Core\Init.lua
 Core\Database.lua
@@ -18,4 +18,9 @@ Options\CombatAssist.lua
 Options\ClassAssist.lua
 Options\Mage.lua
 Options\MapAssist.lua
+Options\Shared.lua
+Options\Widgets.lua
+Options\Schema.lua
+Options\Layout.lua
+Options\Renderer.lua
 Options\Main.lua

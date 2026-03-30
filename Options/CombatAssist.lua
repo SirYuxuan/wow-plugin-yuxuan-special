@@ -1,6 +1,17 @@
 local _, NS = ...
 local Core = NS.Core
 
+--[[
+战斗辅助设置页。
+
+这个文件只负责“描述有哪些配置项”，不负责真正创建界面控件。
+界面长什么样、怎么渲染，已经统一交给自定义设置系统处理。
+
+继续保留这种 options-table 写法，后面扩展新配置会很省事：
+1. 模块层只需要关心 get / set / desc / values。
+2. 渲染层可以独立替换，不会反过来污染业务逻辑。
+]]
+
 local DEFAULT_READY_TEXT = "饰品好了！"
 local DEFAULT_SOUND_PATH = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Audio\\SP.mp3"
 
@@ -17,6 +28,8 @@ local function IsDisabled()
 end
 
 local function RefreshMonitor(notifyOptions)
+    -- 先刷新运行时模块，再按需让设置界面重绘，
+    -- 这样配置改动能够即时反馈到屏幕上的监控效果。
     local monitor = GetMonitor()
     if monitor and monitor.RefreshFromSettings then
         monitor:RefreshFromSettings()

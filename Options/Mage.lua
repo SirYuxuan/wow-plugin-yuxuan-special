@@ -1,6 +1,17 @@
 local _, NS = ...
 local Core = NS.Core
 
+--[[
+法师职业辅助设置页。
+
+当前只真正实现了冰霜专精的碎冰监控，
+但文件结构故意保留了“职业 -> 专精 -> 具体功能”这条层级。
+
+这样做的目的是：
+1. 后续加奥术、火法时，不需要推翻现有页面结构。
+2. 自定义设置系统可以直接把这些 group / tab 渲染成导航与标签页。
+]]
+
 local pendingMonitorCount = 6
 local pendingMonitorColor = { r = 1.00, g = 0.82, b = 0.20, a = 1.00 }
 local MAGE_CLASS_FILE = "MAGE"
@@ -20,6 +31,8 @@ local function NotifyChanged()
 end
 
 local function RefreshIndicator(notifyOptions)
+    -- 运行中的碎冰指示器要先吃到最新配置，
+    -- 如果当前设置窗口也开着，再通知 UI 重新计算和重绘。
     local indicator = GetIndicator()
     if indicator and indicator.RefreshFromSettings then
         indicator:RefreshFromSettings()

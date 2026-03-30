@@ -48,7 +48,7 @@ local function OpenSettingsByCommand(message)
         return
     end
 
-    Core:Print("无法打开配置窗口 请确认 Ace3 已安装并启用")
+    Core:Print("无法打开配置窗口")
 end
 
 function Core:RegisterSlashCommands()
