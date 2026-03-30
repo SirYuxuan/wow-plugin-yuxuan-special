@@ -175,6 +175,30 @@ local function SetButtonBorderColor(button, r, g, b, a)
     end
 end
 
+local function SetFrameMouseEnabled(frame, enabled)
+    if not frame then
+        return
+    end
+
+    if InCombatLockdown() then
+        frame._pendingMouseEnabled = enabled and true or false
+        return
+    end
+
+    frame._pendingMouseEnabled = nil
+    frame:EnableMouse(enabled and true or false)
+end
+
+local function ApplyPendingFrameMouseEnabled(frame)
+    if not frame or frame._pendingMouseEnabled == nil or InCombatLockdown() then
+        return
+    end
+
+    local enabled = frame._pendingMouseEnabled
+    frame._pendingMouseEnabled = nil
+    frame:EnableMouse(enabled)
+end
+
 local function SetReadyDashColor(button, color)
     if not button or not button._readyDashes then
         return
@@ -637,7 +661,7 @@ function TrinketMonitor:RefreshLayout()
     self._alertFrame:SetSize(math.max(240, readyTextSize * 10), readyTextSize + 20)
 
     local unlocked = config.unlocked == true
-    self._mainFrame:EnableMouse(unlocked)
+    SetFrameMouseEnabled(self._mainFrame, unlocked)
     self._mainFrame:SetAlpha(1)
     if not self._mainFrame:IsShown() and not InCombatLockdown() then
         self._mainFrame:Show()
@@ -878,13 +902,13 @@ function TrinketMonitor:UpdateDisplay()
             SetButtonVisualVisible(button, false)
         end
         self._mainFrame:SetAlpha(0)
-        self._mainFrame:EnableMouse(false)
+        SetFrameMouseEnabled(self._mainFrame, false)
         if self._interactionBlocker then
             self._interactionBlocker:Show()
         end
     elseif anyVisible then
         self._mainFrame:SetAlpha(1)
-        self._mainFrame:EnableMouse(config.unlocked == true)
+        SetFrameMouseEnabled(self._mainFrame, config.unlocked == true)
         if self._interactionBlocker then
             self._interactionBlocker:Hide()
         end
@@ -893,7 +917,7 @@ function TrinketMonitor:UpdateDisplay()
             SetButtonVisualVisible(button, false)
         end
         self._mainFrame:SetAlpha(0)
-        self._mainFrame:EnableMouse(false)
+        SetFrameMouseEnabled(self._mainFrame, false)
         if self._interactionBlocker then
             self._interactionBlocker:Show()
         end
@@ -990,6 +1014,9 @@ function TrinketMonitor:OnEvent(event, ...)
             self:UpdateDisplay()
         end
     elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+        if event == "PLAYER_REGEN_ENABLED" then
+            ApplyPendingFrameMouseEnabled(self._mainFrame)
+        end
         if self._active then
             self:UpdateDisplay()
         end
