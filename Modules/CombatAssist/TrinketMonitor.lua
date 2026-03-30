@@ -36,8 +36,18 @@ local function RoundOffset(value)
     return math.ceil(number - 0.5)
 end
 
+local function GetOptionsPrivate()
+    return NS.Options and NS.Options.Private
+end
+
 local function ApplyChatLikeFont(fontString, size, outline)
     if not fontString then
+        return
+    end
+
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.ApplyFont then
+        optionsPrivate.ApplyFont(fontString, size or 12, outline or "OUTLINE")
         return
     end
 

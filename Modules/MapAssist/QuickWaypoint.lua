@@ -4,6 +4,10 @@ local Core = NS.Core
 local QuickWaypoint = {}
 NS.Modules.MapAssist.QuickWaypoint = QuickWaypoint
 
+local function GetOptionsPrivate()
+    return NS.Options and NS.Options.Private
+end
+
 --[[
 地图辅助 / 快捷导航
 1. 在世界地图左上或下方内嵌一个坐标输入框
@@ -24,10 +28,10 @@ QuickWaypoint.ANCHOR_PRESETS = {
     },
     MAP_BOTTOM = {
         label = "地图下方",
-        point = "TOPLEFT",
+        point = "BOTTOMLEFT",
         relativePoint = "BOTTOMLEFT",
         x = 14,
-        y = -8,
+        y = 10,
     },
 }
 
@@ -164,18 +168,33 @@ function QuickWaypoint:ApplyFontSize()
 
     if self.inputBox then
         self.inputBox:SetHeight(inputHeight)
-        self.inputBox:SetFont(STANDARD_TEXT_FONT, fontSize, "")
+        local optionsPrivate = GetOptionsPrivate()
+        if optionsPrivate and optionsPrivate.ApplyFont then
+            optionsPrivate.ApplyFont(self.inputBox, fontSize, "")
+        else
+            self.inputBox:SetFont(STANDARD_TEXT_FONT, fontSize, "")
+        end
     end
 
     if self.inputBox and self.inputBox.hint then
-        self.inputBox.hint:SetFont(STANDARD_TEXT_FONT, fontSize, "")
+        local optionsPrivate = GetOptionsPrivate()
+        if optionsPrivate and optionsPrivate.ApplyFont then
+            optionsPrivate.ApplyFont(self.inputBox.hint, fontSize, "")
+        else
+            self.inputBox.hint:SetFont(STANDARD_TEXT_FONT, fontSize, "")
+        end
     end
 
     if self.actionButton then
         self.actionButton:SetHeight(inputHeight)
         local buttonFont = self.actionButton.Text or self.actionButton:GetFontString()
         if buttonFont then
-            buttonFont:SetFont(STANDARD_TEXT_FONT, fontSize, "")
+            local optionsPrivate = GetOptionsPrivate()
+            if optionsPrivate and optionsPrivate.ApplyFont then
+                optionsPrivate.ApplyFont(buttonFont, fontSize, "")
+            else
+                buttonFont:SetFont(STANDARD_TEXT_FONT, fontSize, "")
+            end
         end
     end
 end

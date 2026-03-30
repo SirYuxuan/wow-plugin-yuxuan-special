@@ -1,11 +1,49 @@
 local _, NS = ...
 local Core = NS.Core
 
+--[[
+战斗辅助设置页。
+
+这个文件只负责“描述有哪些配置项”，不负责真正创建界面控件。
+界面长什么样、怎么渲染，已经统一交给自定义设置系统处理。
+
+继续保留这种 options-table 写法，后面扩展新配置会很省事：
+1. 模块层只需要关心 get / set / desc / values。
+2. 渲染层可以独立替换，不会反过来污染业务逻辑。
+]]
+
 local DEFAULT_READY_TEXT = "饰品好了！"
 local DEFAULT_SOUND_PATH = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Audio\\SP.mp3"
 
 local function GetMonitor()
     return NS.Modules.CombatAssist and NS.Modules.CombatAssist.TrinketMonitor
+end
+
+local function GetQuickFocus()
+    return NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
+end
+
+local function GetQuickFocusText(key, fallback)
+    local quickFocus = GetQuickFocus()
+    if quickFocus and quickFocus.GetOptionText then
+        return quickFocus:GetOptionText(key) or fallback
+    end
+    return fallback
+end
+
+local function GetQuickFocusConfig()
+    return Core:GetConfig("combatAssist", "quickFocus")
+end
+
+local function RefreshQuickFocus(notifyOptions)
+    local quickFocus = GetQuickFocus()
+    if quickFocus and quickFocus.RefreshFromSettings then
+        quickFocus:RefreshFromSettings()
+    end
+
+    if notifyOptions and NS.Options and NS.Options.NotifyChanged then
+        NS.Options:NotifyChanged()
+    end
 end
 
 local function GetConfig()
@@ -17,6 +55,8 @@ local function IsDisabled()
 end
 
 local function RefreshMonitor(notifyOptions)
+    -- 先刷新运行时模块，再按需让设置界面重绘，
+    -- 这样配置改动能够即时反馈到屏幕上的监控效果。
     local monitor = GetMonitor()
     if monitor and monitor.RefreshFromSettings then
         monitor:RefreshFromSettings()
@@ -42,6 +82,163 @@ function NS.BuildCombatAssistOptions()
         name = "战斗辅助",
         order = 15,
         args = {
+            quickFocus = {
+                type = "group",
+                name = function()
+                    return GetQuickFocusText("groupName", "Quick Focus")
+                end,
+                order = 5,
+                childGroups = "tab",
+                args = {
+                    basic = BuildTab(function()
+                        return GetQuickFocusText("basicTab", "Basic")
+                    end, 10, {
+                        intro = {
+                            type = "description",
+                            order = 1,
+                            fontSize = "medium",
+                            name = function()
+                                return GetQuickFocusText("intro", "Hold modifier + mouse button to focus mouseover target.")
+                            end,
+                            width = "full",
+                        },
+                        enabled = {
+                            type = "toggle",
+                            order = 10,
+                            width = 1.0,
+                            name = function()
+                                return GetQuickFocusText("enabled", "Enable Quick Focus")
+                            end,
+                            get = function()
+                                return GetQuickFocusConfig().enabled
+                            end,
+                            set = function(_, value)
+                                GetQuickFocusConfig().enabled = value and true or false
+                                RefreshQuickFocus(false)
+                            end,
+                        },
+                        modifier = {
+                            type = "select",
+                            order = 11,
+                            width = 1.0,
+                            name = function()
+                                return GetQuickFocusText("modifier", "Modifier")
+                            end,
+                            disabled = function()
+                                return not GetQuickFocusConfig().enabled
+                            end,
+                            values = function()
+                                local quickFocus = GetQuickFocus()
+                                return quickFocus and quickFocus.GetModifierChoices and quickFocus:GetModifierChoices() or {}
+                            end,
+                            get = function()
+                                return GetQuickFocusConfig().modifier
+                            end,
+                            set = function(_, value)
+                                GetQuickFocusConfig().modifier = value
+                                RefreshQuickFocus(false)
+                            end,
+                        },
+                        mouseButton = {
+                            type = "select",
+                            order = 12,
+                            width = 1.1,
+                            name = function()
+                                return GetQuickFocusText("mouseButton", "Mouse Button")
+                            end,
+                            disabled = function()
+                                return not GetQuickFocusConfig().enabled
+                            end,
+                            values = function()
+                                local quickFocus = GetQuickFocus()
+                                return quickFocus and quickFocus.GetButtonChoices and quickFocus:GetButtonChoices() or {}
+                            end,
+                            get = function()
+                                return GetQuickFocusConfig().mouseButton
+                            end,
+                            set = function(_, value)
+                                GetQuickFocusConfig().mouseButton = value
+                                RefreshQuickFocus(false)
+                            end,
+                        },
+                        allowClearFocus = {
+                            type = "toggle",
+                            order = 13,
+                            width = 1.2,
+                            name = function()
+                                return GetQuickFocusText("allowClearFocus", "Clear focus when mouseover is empty")
+                            end,
+                            disabled = function()
+                                return not GetQuickFocusConfig().enabled
+                            end,
+                            get = function()
+                                return GetQuickFocusConfig().allowClearFocus
+                            end,
+                            set = function(_, value)
+                                GetQuickFocusConfig().allowClearFocus = value and true or false
+                                RefreshQuickFocus(false)
+                            end,
+                        },
+                        reset = {
+                            type = "execute",
+                            order = 90,
+                            width = 1.0,
+                            name = function()
+                                return GetQuickFocusText("reset", "Reset")
+                            end,
+                            func = function()
+                                Core:ResetQuickFocusConfig()
+                                RefreshQuickFocus(true)
+                            end,
+                        },
+                    }),
+                    marker = BuildTab(function()
+                        return GetQuickFocusText("markerTab", "Marking")
+                    end, 20, {
+                        enableMarking = {
+                            type = "toggle",
+                            order = 10,
+                            width = 1.0,
+                            name = function()
+                                return GetQuickFocusText("enableMarking", "Mark target on focus")
+                            end,
+                            disabled = function()
+                                return not GetQuickFocusConfig().enabled
+                            end,
+                            get = function()
+                                return GetQuickFocusConfig().enableMarking
+                            end,
+                            set = function(_, value)
+                                GetQuickFocusConfig().enableMarking = value and true or false
+                                RefreshQuickFocus(false)
+                            end,
+                        },
+                        selectedMarker = {
+                            type = "select",
+                            order = 11,
+                            width = "full",
+                            name = function()
+                                return GetQuickFocusText("selectedMarker", "Marker")
+                            end,
+                            disabled = function()
+                                local config = GetQuickFocusConfig()
+                                return (not config.enabled) or (not config.enableMarking)
+                            end,
+                            values = function()
+                                local quickFocus = GetQuickFocus()
+                                return quickFocus and quickFocus.GetMarkerChoices and quickFocus:GetMarkerChoices() or {}
+                            end,
+                            get = function()
+                                return GetQuickFocusConfig().selectedMarker
+                            end,
+                            set = function(_, value)
+                                GetQuickFocusConfig().selectedMarker = value
+                                RefreshQuickFocus(false)
+                            end,
+                        },
+                    }),
+                },
+            },
             trinketMonitor = {
                 type = "group",
                 name = "饰品监控",
@@ -112,6 +309,7 @@ function NS.BuildCombatAssistOptions()
                             end,
                         },
                         testSound = {
+                            hidden = true,
                             type = "execute",
                             order = 14,
                             width = 0.9,
@@ -361,9 +559,22 @@ function NS.BuildCombatAssistOptions()
                                 RefreshMonitor(false)
                             end,
                         },
+                        testSound = {
+                            type = "execute",
+                            order = 16,
+                            width = 0.9,
+                            name = "试听音效",
+                            disabled = IsDisabled,
+                            func = function()
+                                local monitor = GetMonitor()
+                                if monitor and monitor.TestReadySound then
+                                    monitor:TestReadySound()
+                                end
+                            end,
+                        },
                         readyTextSize = {
                             type = "range",
-                            order = 16,
+                            order = 17,
                             width = 1.1,
                             name = "提示字号",
                             min = 10,
@@ -380,7 +591,7 @@ function NS.BuildCombatAssistOptions()
                         },
                         readyTextColor = {
                             type = "color",
-                            order = 17,
+                            order = 18,
                             width = 0.8,
                             name = "提示颜色",
                             hasAlpha = true,
@@ -396,7 +607,7 @@ function NS.BuildCombatAssistOptions()
                         },
                         readyOffsetX = {
                             type = "range",
-                            order = 18,
+                            order = 19,
                             width = 1.1,
                             name = "提示 X 偏移",
                             min = -1200,
@@ -413,7 +624,7 @@ function NS.BuildCombatAssistOptions()
                         },
                         readyOffsetY = {
                             type = "range",
-                            order = 19,
+                            order = 20,
                             width = 1.1,
                             name = "提示 Y 偏移",
                             min = -1200,
@@ -430,7 +641,7 @@ function NS.BuildCombatAssistOptions()
                         },
                         alertDuration = {
                             type = "range",
-                            order = 20,
+                            order = 21,
                             width = 1.1,
                             name = "提示时长",
                             min = 0.5,
@@ -451,7 +662,7 @@ function NS.BuildCombatAssistOptions()
                             type = "input",
                             order = 10,
                             width = "full",
-                            multiline = 4,
+                            multiline = 6,
                             name = "屏蔽饰品 ID",
                             desc = "填入不想显示的饰品 ID，支持逗号、空格或换行分隔，例如：230027, 219308",
                             disabled = IsDisabled,

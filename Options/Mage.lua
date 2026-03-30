@@ -1,6 +1,17 @@
 local _, NS = ...
 local Core = NS.Core
 
+--[[
+法师职业辅助设置页。
+
+当前只真正实现了冰霜专精的碎冰监控，
+但文件结构故意保留了“职业 -> 专精 -> 具体功能”这条层级。
+
+这样做的目的是：
+1. 后续加奥术、火法时，不需要推翻现有页面结构。
+2. 自定义设置系统可以直接把这些 group / tab 渲染成导航与标签页。
+]]
+
 local pendingMonitorCount = 6
 local pendingMonitorColor = { r = 1.00, g = 0.82, b = 0.20, a = 1.00 }
 local MAGE_CLASS_FILE = "MAGE"
@@ -20,6 +31,8 @@ local function NotifyChanged()
 end
 
 local function RefreshIndicator(notifyOptions)
+    -- 运行中的碎冰指示器要先吃到最新配置，
+    -- 如果当前设置窗口也开着，再通知 UI 重新计算和重绘。
     local indicator = GetIndicator()
     if indicator and indicator.RefreshFromSettings then
         indicator:RefreshFromSettings()
@@ -57,6 +70,30 @@ local function GetSpecTabName(label, specID)
         return label
     end
     return "|cFF7F7F7F" .. label .. "|r"
+end
+
+local function GetAutoSpecTabKey()
+    if not IsMagePlayer() then
+        return nil
+    end
+
+    local currentSpecIndex = GetSpecialization and GetSpecialization()
+    if not currentSpecIndex then
+        return "frost"
+    end
+
+    local currentSpecID = GetSpecializationInfo and GetSpecializationInfo(currentSpecIndex)
+    if currentSpecID == 62 then
+        return "arcane"
+    end
+    if currentSpecID == 63 then
+        return "fire"
+    end
+    if currentSpecID == 64 then
+        return "frost"
+    end
+
+    return "frost"
 end
 
 local function UpsertMonitorEntry(count, color)
@@ -113,10 +150,13 @@ local function BuildMonitorListArgs()
 
     local order = 10
     for index, entry in ipairs(list) do
-        args["entry_" .. index] = {
+        local entryIndex = index
+        local monitorEntry = entry
+
+        args["entry_" .. entryIndex] = {
             type = "group",
             order = order,
-            name = string.format("监控 %d", index),
+            name = string.format("监控 %d", entryIndex),
             inline = true,
             args = {
                 count = {
@@ -128,10 +168,10 @@ local function BuildMonitorListArgs()
                     step = 1,
                     width = 1.0,
                     get = function()
-                        return entry.count or 1
+                        return monitorEntry.count or 1
                     end,
                     set = function(_, value)
-                        entry.count = value
+                        monitorEntry.count = value
                         RefreshIndicator(false)
                     end,
                 },
@@ -142,11 +182,11 @@ local function BuildMonitorListArgs()
                     hasAlpha = true,
                     width = 0.8,
                     get = function()
-                        local color = entry.color or { r = 1, g = 1, b = 1, a = 1 }
+                        local color = monitorEntry.color or { r = 1, g = 1, b = 1, a = 1 }
                         return color.r, color.g, color.b, color.a or 1
                     end,
                     set = function(_, r, g, b, a)
-                        entry.color = { r = r, g = g, b = b, a = a }
+                        monitorEntry.color = { r = r, g = g, b = b, a = a }
                         RefreshIndicator(false)
                     end,
                 },
@@ -158,8 +198,11 @@ local function BuildMonitorListArgs()
                     confirm = true,
                     confirmText = "确认删除这个监控阈值吗？",
                     func = function()
-                        RemoveMonitorEntry(index)
+                        RemoveMonitorEntry(entryIndex)
                         RefreshIndicator(true)
+                        C_Timer.After(0, function()
+                            RefreshIndicator(true)
+                        end)
                     end,
                 },
             },
@@ -180,6 +223,7 @@ local function BuildUnavailableSpecTab(label, order, specID)
         disabled = function()
             return not IsCurrentSpec(specID)
         end,
+        disabledTip = "请切换到对应专精后查看",
         args = {
             desc = {
                 type = "description",
@@ -202,9 +246,11 @@ local function BuildFrostSpecTab()
         disabled = function()
             return not IsCurrentSpec(64)
         end,
+        disabledTip = "请切换到冰霜专精后查看",
         args = {
             intro = {
                 type = "description",
+                hidden = true,
                 order = 1,
                 fontSize = "medium",
                 name = "碎冰指示会实时监控当前目标身上的冻结层数。",
@@ -452,6 +498,9 @@ local function BuildFrostSpecTab()
                         func = function()
                             UpsertMonitorEntry(pendingMonitorCount, pendingMonitorColor)
                             RefreshIndicator(true)
+                            C_Timer.After(0, function()
+                                RefreshIndicator(true)
+                            end)
                         end,
                     },
                     resetButton = {
@@ -476,6 +525,7 @@ function NS.BuildMageAssistOptions()
         name = "法师",
         order = 10,
         childGroups = "tab",
+        autoSelectChild = GetAutoSpecTabKey,
         args = {
             arcane = BuildUnavailableSpecTab("奥术专精", 10, 62),
             fire = BuildUnavailableSpecTab("火焰专精", 20, 63),
