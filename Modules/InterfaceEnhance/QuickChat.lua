@@ -406,7 +406,7 @@ function QuickChat:LayoutButtons()
             local height = math.ceil(button.textFS:GetStringHeight() + 10)
             if button.def.key == "DICE" and button.icon then
                 button.icon:SetTexture(DICE_ICON_PATH)
-                button.icon:SetVertexColor(color.r or 1, color.g or 1, color.b or 1, 1)
+                button.icon:SetVertexColor(1, 1, 1, 1)
                 width = 26
                 height = 26
             end
