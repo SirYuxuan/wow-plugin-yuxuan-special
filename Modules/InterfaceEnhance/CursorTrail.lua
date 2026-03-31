@@ -1091,7 +1091,6 @@ function CursorTrail:Start()
     local x, y = GetCursorXY()
     lastX, lastY = x, y
     lastSampleX, lastSampleY = x, y
-    EnsurePoints(ElementCap, x, y)
     RMBLook:Enable(1)
 
     local accumulated = 0

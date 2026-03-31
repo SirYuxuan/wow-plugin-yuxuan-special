@@ -88,12 +88,6 @@ end
 
 local function BuildCursorTrailArgs()
     return {
-        intro = {
-            type = "description",
-            order = 1,
-            fontSize = "medium",
-            name = "参考 FrogskisCursorTrail 的拖尾效果，支持调色板、纹理、RMB 高亮和性能节流。",
-        },
         stateRow = {
             type = "group",
             order = 10,
