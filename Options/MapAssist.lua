@@ -5,6 +5,10 @@ local function GetConfig()
     return Core:GetConfig("mapAssist", "quickWaypoint")
 end
 
+local function GetQuartermasterConfig()
+    return Core:GetConfig("mapAssist", "quartermasterPins")
+end
+
 local ANCHOR_OPTIONS = {
     { value = "MAP_TOP", label = "地图上方" },
     { value = "MAP_BOTTOM", label = "地图下方" },
@@ -15,6 +19,12 @@ local function RefreshWidget(notifyOptions)
     if quickWaypoint and quickWaypoint.RefreshFromSettings then
         quickWaypoint:RefreshFromSettings()
     end
+
+    local quartermasterPins = NS.Modules.MapAssist and NS.Modules.MapAssist.QuartermasterPins
+    if quartermasterPins and quartermasterPins.RefreshFromSettings then
+        quartermasterPins:RefreshFromSettings()
+    end
+
     if notifyOptions and NS.Options and NS.Options.NotifyChanged then
         NS.Options:NotifyChanged()
     end
@@ -194,6 +204,103 @@ function NS.BuildMapAssistOptions()
                         width = 1.1,
                         func = function()
                             Core:ResetQuickWaypointConfig()
+                            RefreshWidget(true)
+                        end,
+                    },
+                },
+            },
+            quartermasterPins = {
+                type = "group",
+                name = "军需官标记",
+                order = 2,
+                args = {
+                    intro = {
+                        type = "description",
+                        order = 1,
+                        fontSize = "medium",
+                        name = "勾选后会在对应地图显示军需官标记，点击标记可直接设置导航。",
+                    },
+                    row1 = {
+                        type = "group",
+                        order = 10,
+                        name = "",
+                        layout = "row",
+                        args = {
+                            silvermoonCourt = {
+                                type = "toggle",
+                                name = "银月宫廷",
+                                order = 1,
+                                width = 1.0,
+                                get = function()
+                                    return GetQuartermasterConfig().silvermoonCourt
+                                end,
+                                set = function(_, value)
+                                    GetQuartermasterConfig().silvermoonCourt = value and true or false
+                                    RefreshWidget()
+                                end,
+                            },
+                            amaniTribe = {
+                                type = "toggle",
+                                name = "阿曼尼部族",
+                                order = 2,
+                                width = 1.0,
+                                get = function()
+                                    return GetQuartermasterConfig().amaniTribe
+                                end,
+                                set = function(_, value)
+                                    GetQuartermasterConfig().amaniTribe = value and true or false
+                                    RefreshWidget()
+                                end,
+                            },
+                        },
+                    },
+                    row2 = {
+                        type = "group",
+                        order = 11,
+                        name = "",
+                        layout = "row",
+                        args = {
+                            halaiti = {
+                                type = "toggle",
+                                name = "哈籁提",
+                                order = 1,
+                                width = 1.0,
+                                get = function()
+                                    return GetQuartermasterConfig().halaiti
+                                end,
+                                set = function(_, value)
+                                    GetQuartermasterConfig().halaiti = value and true or false
+                                    RefreshWidget()
+                                end,
+                            },
+                            singularity = {
+                                type = "toggle",
+                                name = "奇点特勤",
+                                order = 2,
+                                width = 1.0,
+                                get = function()
+                                    return GetQuartermasterConfig().singularity
+                                end,
+                                set = function(_, value)
+                                    GetQuartermasterConfig().singularity = value and true or false
+                                    RefreshWidget()
+                                end,
+                            },
+                        },
+                    },
+                    spacer = {
+                        type = "description",
+                        order = 20,
+                        name = " ",
+                        width = "full",
+                    },
+                    reset = {
+                        type = "execute",
+                        name = "恢复默认设置",
+                        order = 30,
+                        width = 1.1,
+                        func = function()
+                            Core:ResetQuartermasterPinsConfig()
                             RefreshWidget(true)
                         end,
                     },
