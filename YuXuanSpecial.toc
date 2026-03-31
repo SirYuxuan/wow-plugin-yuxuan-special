@@ -10,7 +10,6 @@ Core\Init.lua
 Core\Database.lua
 Core\Commands.lua
 
-Modules\MapAssist\QuartermasterPins.lua
 Modules\MapAssist\QuickWaypoint.lua
 Modules\InterfaceEnhance\QuickChat.lua
 Modules\CombatAssist\QuickFocus.lua

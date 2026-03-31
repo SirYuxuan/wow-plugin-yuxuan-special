@@ -41,11 +41,6 @@ local function RefreshAllSettings(notifyOptions)
         quickWaypoint:RefreshFromSettings()
     end
 
-    local quartermasterPins = NS.Modules.MapAssist and NS.Modules.MapAssist.QuartermasterPins
-    if quartermasterPins and quartermasterPins.RefreshFromSettings then
-        quartermasterPins:RefreshFromSettings()
-    end
-
     local quickChat = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuickChat
     if quickChat and quickChat.RefreshFromSettings then
         quickChat:RefreshFromSettings()

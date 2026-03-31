@@ -38,11 +38,6 @@ function Core:OnPlayerLogin()
         quickWaypoint:OnPlayerLogin()
     end
 
-    local quartermasterPins = NS.Modules.MapAssist and NS.Modules.MapAssist.QuartermasterPins
-    if quartermasterPins and quartermasterPins.OnPlayerLogin then
-        quartermasterPins:OnPlayerLogin()
-    end
-
     local quickChat = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuickChat
     if quickChat and quickChat.OnPlayerLogin then
         quickChat:OnPlayerLogin()
@@ -70,11 +65,6 @@ function Core:OnWorldMapLoaded()
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.OnWorldMapLoaded then
         quickWaypoint:OnWorldMapLoaded()
-    end
-
-    local quartermasterPins = NS.Modules.MapAssist and NS.Modules.MapAssist.QuartermasterPins
-    if quartermasterPins and quartermasterPins.OnWorldMapLoaded then
-        quartermasterPins:OnWorldMapLoaded()
     end
 end
 

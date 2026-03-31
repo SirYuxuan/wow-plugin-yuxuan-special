@@ -46,12 +46,6 @@ NS.DEFAULTS = {
             fontSize = 12,
             bgAlpha = 35,
         },
-        quartermasterPins = {
-            silvermoonCourt = false,
-            amaniTribe = false,
-            halaiti = false,
-            singularity = false,
-        },
     },
     interfaceEnhance = {
         quickChat = {
@@ -741,12 +735,6 @@ function Core:ResetQuickWaypointConfig()
     self.db.mapAssist = self.db.mapAssist or {}
     self.db.mapAssist.quickWaypoint = CloneTable(NS.DEFAULTS.mapAssist.quickWaypoint)
     return self.db.mapAssist.quickWaypoint
-end
-
-function Core:ResetQuartermasterPinsConfig()
-    self.db.mapAssist = self.db.mapAssist or {}
-    self.db.mapAssist.quartermasterPins = CloneTable(NS.DEFAULTS.mapAssist.quartermasterPins)
-    return self.db.mapAssist.quartermasterPins
 end
 
 function Core:ResetAppearanceConfig()
