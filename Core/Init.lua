@@ -38,6 +38,11 @@ function Core:OnPlayerLogin()
         quickWaypoint:OnPlayerLogin()
     end
 
+    local mapIDDisplay = NS.Modules.MapAssist and NS.Modules.MapAssist.MapIDDisplay
+    if mapIDDisplay and mapIDDisplay.OnPlayerLogin then
+        mapIDDisplay:OnPlayerLogin()
+    end
+
     local quickChat = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuickChat
     if quickChat and quickChat.OnPlayerLogin then
         quickChat:OnPlayerLogin()
@@ -65,6 +70,11 @@ function Core:OnWorldMapLoaded()
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.OnWorldMapLoaded then
         quickWaypoint:OnWorldMapLoaded()
+    end
+
+    local mapIDDisplay = NS.Modules.MapAssist and NS.Modules.MapAssist.MapIDDisplay
+    if mapIDDisplay and mapIDDisplay.OnWorldMapLoaded then
+        mapIDDisplay:OnWorldMapLoaded()
     end
 end
 

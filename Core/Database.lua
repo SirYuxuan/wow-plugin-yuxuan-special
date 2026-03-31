@@ -46,6 +46,22 @@ NS.DEFAULTS = {
             fontSize = 12,
             bgAlpha = 35,
         },
+        mapIDDisplay = {
+            enabled = false,
+            anchorPreset = "MAP_TOP",
+            offsetX = 260,
+            offsetY = 0,
+            fontPreset = "CHAT",
+            fontSize = 12,
+            scale = 1.0,
+            bgAlpha = 30,
+            textColor = {
+                r = 1.00,
+                g = 0.82,
+                b = 0.20,
+                a = 1.00,
+            },
+        },
     },
     interfaceEnhance = {
         quickChat = {
@@ -735,6 +751,12 @@ function Core:ResetQuickWaypointConfig()
     self.db.mapAssist = self.db.mapAssist or {}
     self.db.mapAssist.quickWaypoint = CloneTable(NS.DEFAULTS.mapAssist.quickWaypoint)
     return self.db.mapAssist.quickWaypoint
+end
+
+function Core:ResetMapIDDisplayConfig()
+    self.db.mapAssist = self.db.mapAssist or {}
+    self.db.mapAssist.mapIDDisplay = CloneTable(NS.DEFAULTS.mapAssist.mapIDDisplay)
+    return self.db.mapAssist.mapIDDisplay
 end
 
 function Core:ResetAppearanceConfig()
