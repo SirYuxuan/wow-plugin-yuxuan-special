@@ -100,6 +100,45 @@ NS.DEFAULTS = {
                 y = -180,
             },
         },
+        cursorTrail = {
+            enabled = false,
+            combatOnly = false,
+            changeWithTime = true,
+            useClassColor = false,
+            shrinkWithTime = true,
+            shrinkWithDistance = true,
+            dotDistance = 3,
+            lifetime = 0.35,
+            maxDots = 300,
+            dotWidth = 50,
+            dotHeight = 50,
+            alpha = 1.00,
+            colorSpeed = 0.5,
+            phaseCount = 6,
+            cursorLayer = 1,
+            blendMode = 1,
+            textureInput = "bags-glow-flash",
+            fallbackTexture = "bags-glow-flash",
+            offsetX = 20,
+            offsetY = -18,
+            adaptiveUpdate = true,
+            adaptiveTargetFPS = 90,
+            enableLook = false,
+            enableCombatLook = false,
+            enableIndicator = true,
+            cursorFrameSize = 40,
+            debugEnabled = false,
+            color1 = { 1.00, 0.00, 0.00 },
+            color2 = { 0.76, 0.35, 0.00 },
+            color3 = { 0.08, 0.73, 0.00 },
+            color4 = { 0.00, 0.54, 1.00 },
+            color5 = { 0.00, 0.00, 1.00 },
+            color6 = { 0.58, 0.00, 1.00 },
+            color7 = { 0.00, 0.00, 0.00 },
+            color8 = { 0.00, 0.00, 0.00 },
+            color9 = { 0.00, 0.00, 0.00 },
+            color10 = { 0.00, 0.00, 0.00 },
+        },
     },
     combatAssist = {
         quickFocus = {
@@ -769,6 +808,12 @@ function Core:ResetQuickChatConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.quickChat = CloneTable(NS.DEFAULTS.interfaceEnhance.quickChat)
     return self.db.interfaceEnhance.quickChat
+end
+
+function Core:ResetCursorTrailConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.cursorTrail = CloneTable(NS.DEFAULTS.interfaceEnhance.cursorTrail)
+    return self.db.interfaceEnhance.cursorTrail
 end
 
 function Core:ResetTrinketMonitorConfig()

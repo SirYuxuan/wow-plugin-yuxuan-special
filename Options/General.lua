@@ -51,6 +51,11 @@ local function RefreshAllSettings(notifyOptions)
         quickChat:RefreshFromSettings()
     end
 
+    local cursorTrail = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CursorTrail
+    if cursorTrail and cursorTrail.RefreshFromSettings then
+        cursorTrail:RefreshFromSettings()
+    end
+
     local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
     if quickFocus and quickFocus.RefreshFromSettings then
         quickFocus:RefreshFromSettings()

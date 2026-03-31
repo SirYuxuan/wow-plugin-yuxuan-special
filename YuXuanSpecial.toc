@@ -12,6 +12,7 @@ Core\Commands.lua
 
 Modules\MapAssist\MapIDDisplay.lua
 Modules\MapAssist\QuickWaypoint.lua
+Modules\InterfaceEnhance\CursorTrail.lua
 Modules\InterfaceEnhance\QuickChat.lua
 Modules\CombatAssist\QuickFocus.lua
 Modules\CombatAssist\TrinketMonitor.lua

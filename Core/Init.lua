@@ -48,6 +48,11 @@ function Core:OnPlayerLogin()
         quickChat:OnPlayerLogin()
     end
 
+    local cursorTrail = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CursorTrail
+    if cursorTrail and cursorTrail.OnPlayerLogin then
+        cursorTrail:OnPlayerLogin()
+    end
+
     local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
     if quickFocus and quickFocus.OnPlayerLogin then
         quickFocus:OnPlayerLogin()
