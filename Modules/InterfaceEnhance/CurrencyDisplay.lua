@@ -9,6 +9,8 @@ local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "currencyDisplay")
 end
 local LibSharedMedia = LibStub("LibSharedMedia-3.0")
+local ShowCurrencyTooltip
+local HideCurrencyTooltip
 
 local DEFAULT_MONEY_ICON = 133784
 
@@ -20,6 +22,30 @@ local DEFAULT_MONEY_ICON = 133784
 local function EnsureSelected(cfg)
     cfg.selected = cfg.selected or {}
     return cfg.selected
+end
+
+local function GetOptionsPrivate()
+    return NS.Options and NS.Options.Private
+end
+
+local function GetFontPreset(config)
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.NormalizeFontPreset then
+        return optionsPrivate.NormalizeFontPreset(config, "font")
+    end
+
+    return (config and config.fontPreset) or "CHAT"
+end
+
+local function ApplyConfiguredFont(target, size, outline, config)
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.ApplyFont then
+        optionsPrivate.ApplyFont(target, size, outline, GetFontPreset(config))
+        return
+    end
+
+    local fontPath = LibSharedMedia:Fetch("font", config and config.font) or STANDARD_TEXT_FONT
+    target:SetFont(fontPath, size or 12, outline or "")
 end
 
 ---@param currencyID number
@@ -269,6 +295,38 @@ local function FormatMoneyShort(copper)
     return tostring(gold) .. "G"
 end
 
+local function SaveCurrencyFramePosition(frame)
+    local cfg = GetConfig()
+    if not (cfg and frame) then
+        return
+    end
+
+    local point, relativeTo, relativePoint, x, y = frame:GetPoint(1)
+    cfg.pos = {
+        point = point,
+        relativeTo = relativeTo and relativeTo:GetName() or "UIParent",
+        relativePoint = relativePoint,
+        x = x,
+        y = y,
+    }
+end
+
+local function StartCurrencyFrameDrag(frame)
+    local cfg = GetConfig()
+    if frame and cfg and not cfg.locked then
+        frame:StartMoving()
+    end
+end
+
+local function StopCurrencyFrameDrag(frame)
+    if not frame then
+        return
+    end
+
+    frame:StopMovingOrSizing()
+    SaveCurrencyFramePosition(frame)
+end
+
 function Core:CreateCurrencyFrame()
     if self.currencyFrame then
         return
@@ -284,27 +342,11 @@ function Core:CreateCurrencyFrame()
     frame:RegisterForDrag("LeftButton")
 
     frame:SetScript("OnDragStart", function(self)
-        local cfg = GetConfig()
-        if cfg and not cfg.locked then
-            self:StartMoving()
-        end
+        StartCurrencyFrameDrag(self)
     end)
 
     frame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        local cfg = GetConfig()
-        if not cfg then
-            return
-        end
-
-        local point, relativeTo, relativePoint, x, y = self:GetPoint(1)
-        cfg.pos = {
-            point = point,
-            relativeTo = relativeTo and relativeTo:GetName() or "UIParent",
-            relativePoint = relativePoint,
-            x = x,
-            y = y,
-        }
+        StopCurrencyFrameDrag(self)
     end)
 
     frame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -334,6 +376,7 @@ function Core:AcquireCurrencyItem(index)
     local item = CreateFrame("Frame", nil, self.currencyFrame)
     item:SetSize(1, 1)
     item:EnableMouse(true)
+    item:RegisterForDrag("LeftButton")
 
     item.icon = item:CreateTexture(nil, "ARTWORK")
     item.icon:SetPoint("LEFT", item, "LEFT", 0, 0)
@@ -348,6 +391,12 @@ function Core:AcquireCurrencyItem(index)
     end)
     item:SetScript("OnLeave", function()
         HideCurrencyTooltip(Core.currencyFrame)
+    end)
+    item:SetScript("OnDragStart", function()
+        StartCurrencyFrameDrag(Core.currencyFrame)
+    end)
+    item:SetScript("OnDragStop", function()
+        StopCurrencyFrameDrag(Core.currencyFrame)
     end)
 
     self.currencyItems[index] = item
@@ -448,7 +497,7 @@ local function BuildTooltipLabel(data)
     return iconMarkup .. " " .. (data.name or ("ID " .. tostring(data.id or ""))), countText
 end
 
-local function ShowCurrencyTooltip(frame)
+ShowCurrencyTooltip = function(frame)
     if not frame or not Core.db or not GetConfig().enabled then
         return
     end
@@ -467,7 +516,7 @@ local function ShowCurrencyTooltip(frame)
     GameTooltip:Show()
 end
 
-local function HideCurrencyTooltip(frame)
+HideCurrencyTooltip = function(frame)
     if GameTooltip:IsOwned(frame) then
         GameTooltip:Hide()
     end
@@ -487,7 +536,6 @@ function Core:UpdateCurrencyDisplay()
     end
 
     local frame = self.currencyFrame
-    local fontPath = LibSharedMedia:Fetch("font", cfg.font) or STANDARD_TEXT_FONT
     local entries = self:GetCurrencyDisplayEntries()
 
     local isVertical = (cfg.orientation == "VERTICAL")
@@ -510,7 +558,7 @@ function Core:UpdateCurrencyDisplay()
         item.icon:ClearAllPoints()
         item.text:ClearAllPoints()
 
-        item.text:SetFont(fontPath, cfg.fontSize, cfg.fontOutline and "OUTLINE" or "")
+        ApplyConfiguredFont(item.text, cfg.fontSize, cfg.fontOutline and "OUTLINE" or "", cfg)
         item.text:SetText(textToShow)
 
         local iconSize = cfg.iconSize or 16

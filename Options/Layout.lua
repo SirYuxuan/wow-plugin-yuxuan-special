@@ -9,6 +9,17 @@ local Constants = Private.Constants
 local Meta = Private.Meta
 local Assets = Private.Assets
 
+local WINDOW_SCALE_MIN = 0.7
+local WINDOW_SCALE_MAX = 3.0
+local WINDOW_SCALE_STEP = 0.05
+
+local function ClampWindowScale(value)
+    local scale = tonumber(value) or 1
+    scale = math.max(WINDOW_SCALE_MIN, math.min(WINDOW_SCALE_MAX, scale))
+    scale = WINDOW_SCALE_MIN + math.floor(((scale - WINDOW_SCALE_MIN) / WINDOW_SCALE_STEP) + 0.5) * WINDOW_SCALE_STEP
+    return tonumber(string.format("%.2f", scale))
+end
+
 --[[
 这个文件负责“主窗口骨架和页面容器”。
 
@@ -200,6 +211,24 @@ function Options:UpdateBodyLayout(showSecondNav)
     detailPanel:SetPoint("BOTTOMRIGHT", self.frame.body, "BOTTOMRIGHT", 0, 0)
 end
 
+function Options:RefreshWindowScaleControl()
+    if not (self.frame and self.frame.header and self.frame.header.scaleSliderHolder) then
+        return
+    end
+
+    local sliderHolder = self.frame.header.scaleSliderHolder
+    local slider = sliderHolder.slider
+    if not slider then
+        return
+    end
+
+    local scale = ClampWindowScale(Private.GetWindowScale and Private.GetWindowScale() or 1)
+    self._yxsUpdatingWindowScale = true
+    slider:SetValue(scale)
+    sliderHolder.valueBox:SetText(Private.FormatNumber(scale, WINDOW_SCALE_STEP))
+    self._yxsUpdatingWindowScale = false
+end
+
 function Options:CreateMainFrame()
     if self.frame then
         return
@@ -312,13 +341,11 @@ function Options:CreateMainFrame()
 
     local title = UI.CreateText(header, 15, "OUTLINE")
     title:SetPoint("TOPLEFT", 12, -8)
-    title:SetPoint("TOPRIGHT", -220, -10)
     title:SetText(NS.DISPLAY_NAME)
     header.title = title
 
     local breadcrumb = UI.CreateText(header, 11)
     breadcrumb:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
-    breadcrumb:SetPoint("TOPRIGHT", -220, 0)
     breadcrumb:SetTextColor(Private.UnpackColor(Colors.muted))
     header.breadcrumb = breadcrumb
 
@@ -332,6 +359,63 @@ function Options:CreateMainFrame()
         Options:ShowCopyPopup("复制 QQ 群号", Meta.qqGroup)
     end)
     header.qqButton = qqButton
+
+    local scaleSliderHolder = UI.CreateSlider(header)
+    scaleSliderHolder:SetSize(172, 26)
+    scaleSliderHolder:SetPoint("RIGHT", qqButton, "LEFT", -12, 0)
+    header.scaleSliderHolder = scaleSliderHolder
+
+    local scaleLabel = UI.CreateText(header, 11)
+    scaleLabel:SetPoint("RIGHT", scaleSliderHolder, "LEFT", -8, 0)
+    scaleLabel:SetJustifyV("MIDDLE")
+    scaleLabel:SetText("缩放")
+    header.scaleLabel = scaleLabel
+
+    title:SetPoint("TOPRIGHT", scaleLabel, "TOPLEFT", -16, 0)
+    breadcrumb:SetPoint("TOPRIGHT", scaleLabel, "TOPLEFT", -16, 0)
+
+    local scaleSlider = scaleSliderHolder.slider
+    scaleSlider:SetMinMaxValues(WINDOW_SCALE_MIN, WINDOW_SCALE_MAX)
+    scaleSlider:SetValueStep(WINDOW_SCALE_STEP)
+    scaleSlider:SetObeyStepOnDrag(true)
+    scaleSlider:SetValue(ClampWindowScale(Private.GetWindowScale and Private.GetWindowScale() or 1))
+
+    local function ApplyWindowScaleValue(value)
+        local scale = ClampWindowScale(value)
+        local config = Private.GetAppearanceConfig and Private.GetAppearanceConfig()
+        if config then
+            config.windowScale = scale
+        end
+
+        Options:ApplyWindowScale()
+        return scale
+    end
+
+    scaleSlider:SetScript("OnValueChanged", function(_, value)
+        if Options._yxsUpdatingWindowScale then
+            return
+        end
+
+        local scale = ApplyWindowScaleValue(value)
+        scaleSliderHolder.valueBox:SetText(Private.FormatNumber(scale, WINDOW_SCALE_STEP))
+    end)
+    scaleSliderHolder.valueBox:SetScript("OnEnterPressed", function(editBox)
+        local scale = ApplyWindowScaleValue(editBox:GetText())
+        editBox:SetText(Private.FormatNumber(scale, WINDOW_SCALE_STEP))
+        editBox:ClearFocus()
+    end)
+    scaleSliderHolder.valueBox:SetScript("OnEscapePressed", function(editBox)
+        Options:RefreshWindowScaleControl()
+        editBox:ClearFocus()
+    end)
+    scaleSliderHolder.valueBox:SetScript("OnEditFocusLost", function(editBox)
+        editBox:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
+        local scale = ApplyWindowScaleValue(editBox:GetText())
+        editBox:SetText(Private.FormatNumber(scale, WINDOW_SCALE_STEP))
+    end)
+    scaleSliderHolder.valueBox:SetScript("OnEditFocusGained", function(editBox)
+        editBox:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+    end)
 
     local closeButton = UI.CreateCloseButton(header)
     closeButton:SetPoint("TOPRIGHT", -4, -4)
@@ -525,6 +609,12 @@ function Options:UpdateHeader(title, breadcrumb)
     self.frame.header.breadcrumb:SetText(breadcrumb or "")
     if self.frame.header.qqButton then
         self.frame.header.qqButton:SetPoint("RIGHT", self.frame.closeButton, "LEFT", -14, -1)
+    end
+    if self.frame.header.scaleSliderHolder and self.frame.header.qqButton then
+        self.frame.header.scaleSliderHolder:SetPoint("RIGHT", self.frame.header.qqButton, "LEFT", -12, 0)
+    end
+    if self.frame.header.scaleLabel and self.frame.header.scaleSliderHolder then
+        self.frame.header.scaleLabel:SetPoint("RIGHT", self.frame.header.scaleSliderHolder, "LEFT", -8, 0)
     end
 end
 

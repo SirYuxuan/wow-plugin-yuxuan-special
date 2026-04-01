@@ -4,10 +4,12 @@ local Core = NS.Core
 local PerformanceMonitor = {}
 NS.Modules.InterfaceEnhance.PerformanceMonitor = PerformanceMonitor
 
-local LibSharedMedia = LibStub("LibSharedMedia-3.0")
-
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "performanceMonitor")
+end
+
+local function GetOptionsPrivate()
+    return NS.Options and NS.Options.Private
 end
 
 local function CreateSimpleOutline(parent, layer, thickness)
@@ -47,8 +49,13 @@ local function SetSimpleOutlineColor(border, r, g, b, a)
     end
 end
 
-local function FetchFont(fontName)
-    return LibSharedMedia:Fetch("font", fontName) or STANDARD_TEXT_FONT
+local function GetFontPreset(config)
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.NormalizeFontPreset then
+        return optionsPrivate.NormalizeFontPreset(config, "font")
+    end
+
+    return (config and config.fontPreset) or "CHAT"
 end
 
 local function GetNumAddOnsCompat()
@@ -157,8 +164,10 @@ local function ApplyPerformanceMonitorFont(frame)
         return
     end
 
-    local fontPath = FetchFont(config.font)
-    if not frame.text:SetFont(fontPath, config.fontSize or 14, "OUTLINE") then
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.ApplyFont then
+        optionsPrivate.ApplyFont(frame.text, config.fontSize or 14, "OUTLINE", GetFontPreset(config))
+    elseif not frame.text:SetFont(STANDARD_TEXT_FONT, config.fontSize or 14, "OUTLINE") then
         frame.text:SetFont(STANDARD_TEXT_FONT, config.fontSize or 14, "OUTLINE")
     end
 end

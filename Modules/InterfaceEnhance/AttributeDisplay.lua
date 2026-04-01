@@ -53,8 +53,27 @@ local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "attributeDisplay")
 end
 
-local function FetchFont(fontName)
-    return LibSharedMedia:Fetch("font", fontName) or STANDARD_TEXT_FONT
+local function GetOptionsPrivate()
+    return NS.Options and NS.Options.Private
+end
+
+local function GetFontPreset(config)
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.NormalizeFontPreset then
+        return optionsPrivate.NormalizeFontPreset(config, "font")
+    end
+
+    return (config and config.fontPreset) or "CHAT"
+end
+
+local function ApplyConfiguredFont(target, size, outline, config)
+    local optionsPrivate = GetOptionsPrivate()
+    if optionsPrivate and optionsPrivate.ApplyFont then
+        optionsPrivate.ApplyFont(target, size, outline, GetFontPreset(config))
+        return
+    end
+
+    target:SetFont(STANDARD_TEXT_FONT, size or 12, outline or "")
 end
 
 local function FetchStatusBar(textureName)
@@ -252,9 +271,8 @@ function Core:UpdateAttributeDisplay()
     local config = GetConfig()
     local frame = self.attributeFrame
 
-    local fontPath = FetchFont(config.font)
     for _, fontString in pairs(self.attributeLines) do
-        fontString:SetFont(fontPath, config.fontSize, config.fontOutline and "OUTLINE" or "")
+        ApplyConfiguredFont(fontString, config.fontSize, config.fontOutline and "OUTLINE" or "", config)
         fontString:SetJustifyH(config.align)
         fontString:SetWidth(frame:GetWidth() - 16)
     end

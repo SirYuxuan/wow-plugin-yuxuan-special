@@ -84,6 +84,18 @@ Private.FontPresets = {
     },
 }
 
+local LEGACY_FONT_PRESET_MAP = {
+    CHAT = "CHAT",
+    DEFAULT = "DEFAULT",
+    FRIZQT = "FRIZQT",
+    MORPHEUS = "MORPHEUS",
+    SKURRI = "SKURRI",
+    ["Friz Quadrata TT"] = "FRIZQT",
+    ["Fonts\\FRIZQT__.TTF"] = "FRIZQT",
+    ["Fonts\\MORPHEUS.ttf"] = "MORPHEUS",
+    ["Fonts\\skurri.ttf"] = "SKURRI",
+}
+
 function Private.UnpackColor(color)
     return color[1], color[2], color[3], color[4] or 1
 end
@@ -163,9 +175,52 @@ function Private.GetFontOptions()
     return values
 end
 
+function Private.ResolveFontPresetKey(fontPresetKey, legacyValue)
+    local candidates = {
+        fontPresetKey,
+        legacyValue,
+    }
+
+    for _, candidate in ipairs(candidates) do
+        if type(candidate) == "string" and candidate ~= "" then
+            if Private.FontPresets[candidate] then
+                return candidate
+            end
+
+            local upperCandidate = string.upper(candidate)
+            if Private.FontPresets[upperCandidate] then
+                return upperCandidate
+            end
+
+            local mapped = LEGACY_FONT_PRESET_MAP[candidate] or LEGACY_FONT_PRESET_MAP[upperCandidate]
+            if mapped then
+                return mapped
+            end
+
+            for key, info in pairs(Private.FontPresets) do
+                if info.label == candidate or info.path == candidate then
+                    return key
+                end
+            end
+        end
+    end
+
+    return "CHAT"
+end
+
+function Private.NormalizeFontPreset(config, legacyFontKey)
+    if type(config) ~= "table" then
+        return "CHAT"
+    end
+
+    local presetKey = Private.ResolveFontPresetKey(config.fontPreset, legacyFontKey and config[legacyFontKey])
+    config.fontPreset = presetKey
+    return presetKey
+end
+
 function Private.GetFontPathAndFlags(outline, fontPresetKey)
     local config = Private.GetAppearanceConfig()
-    local presetKey = fontPresetKey or ((config and config.fontPreset) or "CHAT")
+    local presetKey = Private.ResolveFontPresetKey(fontPresetKey, config and config.fontPreset)
     local preset = Private.FontPresets[presetKey] or Private.FontPresets.CHAT
     local fontPath = preset.path
     local fontFlags = outline or ""
@@ -183,6 +238,18 @@ function Private.GetFontPathAndFlags(outline, fontPresetKey)
     end
 
     return fontPath, fontFlags
+end
+
+function Private.GetWindowScale()
+    local config = Private.GetAppearanceConfig()
+    local scale = tonumber(config and config.windowScale) or 1
+    scale = math.max(0.7, math.min(3, scale))
+
+    if config then
+        config.windowScale = scale
+    end
+
+    return scale
 end
 
 function Private.ApplyFont(target, size, outline, fontPresetKey)

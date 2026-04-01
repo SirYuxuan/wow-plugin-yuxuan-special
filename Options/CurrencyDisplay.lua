@@ -1,7 +1,5 @@
 local _, NS = ...
 local Core = NS.Core
-local LibSharedMedia = LibStub("LibSharedMedia-3.0")
-
 local function GetModule()
     return NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CurrencyDisplay
 end
@@ -373,12 +371,14 @@ function NS.BuildCurrencyDisplayOptions()
                                 disabled = function()
                                     return not GetConfig().enabled
                                 end,
-                                values = LibSharedMedia:HashTable("font"),
+                                values = function()
+                                    return NS.Options.Private.GetFontOptions()
+                                end,
                                 get = function()
-                                    return GetConfig().font
+                                    return NS.Options.Private.NormalizeFontPreset(GetConfig(), "font")
                                 end,
                                 set = function(_, value)
-                                    GetConfig().font = value
+                                    GetConfig().fontPreset = value
                                     RefreshModule(false)
                                 end,
                             },

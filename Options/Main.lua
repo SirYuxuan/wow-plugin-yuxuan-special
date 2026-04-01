@@ -23,13 +23,15 @@ function Options:EnsureRegistered()
         Private.RefreshThemeColors()
     end
     self:CreateMainFrame()
-    self.frame:SetScale(1)
+    self:ApplyWindowScale()
     return self.frame ~= nil
 end
 
 function Options:ApplyWindowScale()
     if self.frame then
-        self.frame:SetScale(1)
+        local scale = Private and Private.GetWindowScale and Private.GetWindowScale() or 1
+        self.frame:SetScale(scale)
+        self:RefreshWindowScaleControl()
     end
 end
 
@@ -41,6 +43,8 @@ function Options:RefreshAppearance()
     if self.frame and Private and Private.RefreshFonts then
         Private.RefreshFonts(self.frame)
     end
+
+    self:ApplyWindowScale()
 
     if self.frame and self.frame.header and self.frame.header.qqButton and self.frame.header.qqButton.label then
         Private.ApplyStoredFont(self.frame.header.qqButton.label)
@@ -66,6 +70,7 @@ function Options:Open(...)
     self:GetRootOptions()
     self:ApplyPathSelection(path)
     self:RefreshAppearance()
+    self:ApplyWindowScale()
     self.frame:Show()
     self:RestoreWindowPlacement()
     self:Render()
