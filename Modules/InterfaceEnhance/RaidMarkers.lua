@@ -397,7 +397,6 @@ function RaidMarkers:CreateFrame()
         local button = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate")
         button:RegisterForClicks("AnyDown", "AnyUp")
         button:RegisterForDrag("LeftButton")
-        button:SetHighlightTexture(nil)
         button:SetScale(1)
         button._hoverScale = 1
         button._hoverTargetScale = 1
