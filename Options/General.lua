@@ -51,6 +51,21 @@ local function RefreshAllSettings(notifyOptions)
         quickChat:RefreshFromSettings()
     end
 
+    local distanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.DistanceMonitor
+    if distanceMonitor and distanceMonitor.RefreshFromSettings then
+        distanceMonitor:RefreshFromSettings()
+    end
+
+    local raidMarkers = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.RaidMarkers
+    if raidMarkers and raidMarkers.RefreshFromSettings then
+        raidMarkers:RefreshFromSettings()
+    end
+
+    local gameBar = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.GameBar
+    if gameBar and gameBar.RefreshFromSettings then
+        gameBar:RefreshFromSettings()
+    end
+
     local mouseTooltip = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.MouseTooltip
     if mouseTooltip and mouseTooltip.RefreshFromSettings then
         mouseTooltip:RefreshFromSettings()

@@ -48,6 +48,16 @@ function Core:OnPlayerLogin()
         quickChat:OnPlayerLogin()
     end
 
+    local distanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.DistanceMonitor
+    if distanceMonitor and distanceMonitor.OnPlayerLogin then
+        distanceMonitor:OnPlayerLogin()
+    end
+
+    local raidMarkers = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.RaidMarkers
+    if raidMarkers and raidMarkers.OnPlayerLogin then
+        raidMarkers:OnPlayerLogin()
+    end
+
     local gameBar = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.GameBar
     if gameBar and gameBar.OnPlayerLogin then
         gameBar:OnPlayerLogin()

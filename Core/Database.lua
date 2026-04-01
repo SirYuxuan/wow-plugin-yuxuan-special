@@ -112,6 +112,64 @@ NS.DEFAULTS = {
             npcTimeShowNPCID = false,
             npcTimeUseModifier = false,
         },
+        distanceMonitor = {
+            enabled = false,
+            locked = true,
+            fontPreset = "CHAT",
+            fontSize = 14,
+            updateInterval = 0.2,
+            rangeSeparator = " - ",
+            showBackground = true,
+            showBorder = true,
+            backgroundColor = {
+                r = 0,
+                g = 0,
+                b = 0,
+                a = 0.32,
+            },
+            borderColor = {
+                r = 0,
+                g = 0.6,
+                b = 1,
+                a = 0.45,
+            },
+            point = {
+                point = "CENTER",
+                relativePoint = "CENTER",
+                x = -220,
+                y = -20,
+            },
+        },
+        raidMarkers = {
+            enabled = false,
+            locked = true,
+            showWhenSolo = false,
+            orientation = "HORIZONTAL",
+            spacing = 6,
+            iconSize = 28,
+            countdown = 6,
+            showBackground = true,
+            showBorder = true,
+            fontPreset = "CHAT",
+            backgroundColor = {
+                r = 0,
+                g = 0,
+                b = 0,
+                a = 0.35,
+            },
+            borderColor = {
+                r = 0,
+                g = 0.6,
+                b = 1,
+                a = 0.45,
+            },
+            point = {
+                point = "CENTER",
+                relativePoint = "CENTER",
+                x = 0,
+                y = -30,
+            },
+        },
         gameBar = {
             enabled = false,
             locked = true,
@@ -853,6 +911,18 @@ function Core:ResetMouseTooltipConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.mouseTooltip = CloneTable(NS.DEFAULTS.interfaceEnhance.mouseTooltip)
     return self.db.interfaceEnhance.mouseTooltip
+end
+
+function Core:ResetDistanceMonitorConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.distanceMonitor = CloneTable(NS.DEFAULTS.interfaceEnhance.distanceMonitor)
+    return self.db.interfaceEnhance.distanceMonitor
+end
+
+function Core:ResetRaidMarkersConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.raidMarkers = CloneTable(NS.DEFAULTS.interfaceEnhance.raidMarkers)
+    return self.db.interfaceEnhance.raidMarkers
 end
 
 function Core:ResetGameBarConfig()

@@ -1258,6 +1258,8 @@ function NS.BuildInterfaceEnhanceOptions()
                     mouseTooltip = BuildTab("鼠标提示", 20, BuildMouseTooltipArgs()),
                 },
             },
+            distanceMonitor = NS.BuildDistanceMonitorOptions(),
+            raidMarkers = NS.BuildRaidMarkersOptions(),
             quickChat = {
                 type = "group",
                 name = "快捷频道",
