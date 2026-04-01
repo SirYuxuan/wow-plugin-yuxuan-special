@@ -26,12 +26,6 @@ function NS.BuildDistanceMonitorOptions()
         name = "距离监控",
         order = 6,
         args = {
-            intro = {
-                type = "description",
-                order = 1,
-                fontSize = "medium",
-                name = "Show target range with the same runtime behavior as YuXuanToolbox.",
-            },
             stateRow = {
                 type = "group",
                 order = 10,
@@ -144,7 +138,7 @@ function NS.BuildDistanceMonitorOptions()
                         type = "input",
                         order = 1,
                         width = 1.0,
-                        name = "Range Separator",
+                        name = "区间分隔符",
                         disabled = function()
                             return not GetConfig().enabled
                         end,

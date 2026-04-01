@@ -31,12 +31,6 @@ function NS.BuildRaidMarkersOptions()
         name = "团队标记",
         order = 7,
         args = {
-            intro = {
-                type = "description",
-                order = 1,
-                fontSize = "medium",
-                name = "Copy the YuXuanToolbox raid marker bar with mark, clear, ready check and countdown buttons.",
-            },
             stateRow = {
                 type = "group",
                 order = 10,
@@ -184,7 +178,7 @@ function NS.BuildRaidMarkersOptions()
                         type = "range",
                         order = 2,
                         width = 1.0,
-                        name = "Countdown Seconds",
+                        name = "倒计时秒数",
                         min = 3,
                         max = 15,
                         step = 1,

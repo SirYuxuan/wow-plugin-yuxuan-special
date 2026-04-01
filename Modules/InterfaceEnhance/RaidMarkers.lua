@@ -26,24 +26,24 @@ local RAID_TARGET_BUTTONS = {
 local RAID_ACTION_BUTTONS = {
     {
         key = "CLEAR",
-        label = "X",
+        label = "清",
         texture = "Interface\\Buttons\\UI-GroupLoot-Pass-Up",
-        tooltipTitle = "Clear Marker",
-        tooltipText = "Clear the current target raid marker.",
+        tooltipTitle = "清除标记",
+        tooltipText = "清除当前目标的团队标记。",
     },
     {
         key = "READY",
-        label = "R",
+        label = "就",
         texture = "Interface\\RaidFrame\\ReadyCheck-Ready",
-        tooltipTitle = "Ready Check",
-        tooltipText = "Start a ready check.",
+        tooltipTitle = "团队就位",
+        tooltipText = "发起就位确认。",
     },
     {
         key = "COUNTDOWN",
-        label = "C",
+        label = "倒",
         texture = "Interface\\Icons\\INV_Misc_PocketWatch_01",
-        tooltipTitle = "Countdown",
-        tooltipText = "Start a raid countdown.",
+        tooltipTitle = "倒计时",
+        tooltipText = "按设定秒数发起团队倒计时。",
     },
 }
 
@@ -121,7 +121,7 @@ local function SetRaidMarkerButtonHoverTarget(button, targetScale)
     button:SetScript("OnUpdate", function(selfButton, elapsed)
         local current = selfButton._hoverScale or 1
         local target = selfButton._hoverTargetScale or 1
-        local nextScale = current + (target - current) * math.min(1, elapsed * 7)
+        local nextScale = current + (target - current) * math.min(1, elapsed * 4.5)
 
         if math.abs(target - nextScale) < 0.01 then
             nextScale = target
@@ -194,14 +194,14 @@ end
 
 local function CanUseRaidLeaderAction()
     if not IsInHomeOrInstanceGroup() then
-        return false, "Need to join a party or raid first."
+        return false, "需要先加入队伍或团队。"
     end
 
     if type(IsInRaid) == "function" and IsInRaid() then
         local isLeader = type(UnitIsGroupLeader) == "function" and UnitIsGroupLeader("player")
         local isAssistant = type(UnitIsGroupAssistant) == "function" and UnitIsGroupAssistant("player")
         if not isLeader and not isAssistant then
-            return false, "Raid leader or assistant permission is required."
+            return false, "团队中需要队长或助理权限。"
         end
     end
 
@@ -427,7 +427,7 @@ function RaidMarkers:CreateFrame()
         end)
 
         button:HookScript("OnEnter", function(selfButton)
-            SetRaidMarkerButtonHoverTarget(selfButton, 1.12)
+            SetRaidMarkerButtonHoverTarget(selfButton, 1.18)
         end)
         button:HookScript("OnLeave", function(selfButton)
             SetRaidMarkerButtonHoverTarget(selfButton, 1)
@@ -442,7 +442,7 @@ function RaidMarkers:CreateFrame()
         local button = CreateMarkerButton(frame)
         button.buttonInfo = info
         button.tooltipTitle = info.label
-        button.tooltipText = "Set raid marker on current target."
+        button.tooltipText = "给当前目标设置团队标记。"
         button.iconTexture = info.texture
         button.textValue = nil
         button.icon:SetTexture(info.texture)
@@ -451,9 +451,9 @@ function RaidMarkers:CreateFrame()
 
         button:SetScript("OnEnter", function(selfButton)
             GameTooltip:SetOwner(selfButton, "ANCHOR_BOTTOM", 0, -8)
-            GameTooltip:AddLine(selfButton.tooltipTitle or "Raid Marker", 1, 0.82, 0)
+            GameTooltip:AddLine(selfButton.tooltipTitle or "团队标记", 1, 0.82, 0)
             GameTooltip:AddLine(selfButton.tooltipText or "", 1, 1, 1)
-            GameTooltip:AddLine("Left click to set, right click to clear.", 0.75, 1, 0.75)
+            GameTooltip:AddLine("左键设置，右键清除。", 0.75, 1, 0.75)
             GameTooltip:Show()
         end)
         button:SetScript("OnLeave", function()
@@ -487,13 +487,13 @@ function RaidMarkers:CreateFrame()
 
         button:SetScript("OnEnter", function(selfButton)
             GameTooltip:SetOwner(selfButton, "ANCHOR_BOTTOM", 0, -8)
-            GameTooltip:AddLine(selfButton.tooltipTitle or "Raid Tools", 1, 0.82, 0)
+            GameTooltip:AddLine(selfButton.tooltipTitle or "团队功能", 1, 0.82, 0)
             GameTooltip:AddLine(selfButton.tooltipText or "", 1, 1, 1)
             if info.key == "COUNTDOWN" then
-                GameTooltip:AddLine(string.format("Countdown: %d sec",
+                GameTooltip:AddLine(string.format("当前秒数：%d 秒",
                     math.max(3, math.min(15, tonumber(GetConfig().countdown) or RAID_MARKERS_DEFAULT_COUNTDOWN))), 0.75, 1, 0.75)
             elseif info.key == "CLEAR" then
-                GameTooltip:AddLine("Right click on marker buttons can clear too.", 0.75, 1, 0.75)
+                GameTooltip:AddLine("右键团队标记按钮也能直接清除。", 0.75, 1, 0.75)
             end
             GameTooltip:Show()
         end)
@@ -570,6 +570,6 @@ function RaidMarkers:StartReadyCheck()
     if type(DoReadyCheck) == "function" then
         DoReadyCheck()
     else
-        PrintMessage("Ready check is not supported on this client.")
+        PrintMessage("当前版本不支持团队就位。")
     end
 end

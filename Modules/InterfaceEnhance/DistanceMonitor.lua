@@ -158,6 +158,8 @@ function DistanceMonitor:ApplyLayout()
 
     frame:SetMovable(not config.locked)
     ApplyConfiguredFont(frame.text, config.fontSize or 14)
+    frame.text:SetJustifyH("CENTER")
+    frame.text:ClearAllPoints()
     frame.text:SetPoint("LEFT", frame, "LEFT", 10, 0)
     frame.text:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
 
@@ -188,7 +190,7 @@ function DistanceMonitor:Refresh()
         local minRange, _, rangeText = GetDistanceInfo("target")
         local r, g, b = GetDistanceColor(minRange)
         if not LibRangeCheck then
-            rangeText = "LibRangeCheck missing"
+            rangeText = "缺少 LibRangeCheck"
             r, g, b = 1.00, 0.35, 0.35
         end
         self.frame.text:SetText(rangeText)
@@ -220,7 +222,7 @@ function DistanceMonitor:CreateFrame()
     frame.border = CreateSimpleOutline(frame, "BORDER", 1)
 
     frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.text:SetJustifyH("LEFT")
+    frame.text:SetJustifyH("CENTER")
     frame.text:SetPoint("LEFT", frame, "LEFT", 10, 0)
     frame.text:SetPoint("RIGHT", frame, "RIGHT", -10, 0)
 
