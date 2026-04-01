@@ -1,14 +1,18 @@
-local _, NS = ...
+﻿local _, NS = ...
 local Core = NS.Core
 
 local pendingLabel = ""
 local pendingCommand = ""
 
-local function GetModule()
+local function TrimText(value)
+    return tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
+local function GetQuickChatModule()
     return NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuickChat
 end
 
-local function GetConfig()
+local function GetQuickChatConfig()
     return Core:GetConfig("interfaceEnhance", "quickChat")
 end
 
@@ -21,7 +25,7 @@ local function GetCursorTrailConfig()
 end
 
 local function RefreshQuickChat(notifyOptions)
-    local quickChat = GetModule()
+    local quickChat = GetQuickChatModule()
     if quickChat and quickChat.RefreshFromSettings then
         quickChat:RefreshFromSettings()
     end
@@ -56,15 +60,15 @@ local function BuildCursorTrailColorOption(colorIndex, order)
         type = "color",
         order = order,
         width = 1.0,
-        name = "棰滆壊 " .. tostring(colorIndex),
+        name = "颜色 " .. tostring(colorIndex),
         hasAlpha = false,
         disabled = function()
             local config = GetCursorTrailConfig()
             return not config.enabled or config.useClassColor
         end,
         get = function()
-            local color = GetCursorTrailConfig()["color" .. tostring(colorIndex)]
-            return color[1], color[2], color[3], 1
+            local color = GetCursorTrailConfig()["color" .. tostring(colorIndex)] or { 1, 1, 1 }
+            return color[1] or 1, color[2] or 1, color[3] or 1, 1
         end,
         set = function(_, r, g, b)
             GetCursorTrailConfig()["color" .. tostring(colorIndex)] = { r, g, b }
@@ -88,7 +92,7 @@ end
 
 local function BuildCursorTrailArgs()
     return {
-        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鍩虹寮€鍏?鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        stateRow = {
+        stateRow = {
             type = "group",
             order = 10,
             name = "",
@@ -98,7 +102,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "鍚敤榧犳爣鎷栧熬",
+                    name = "启用鼠标拖尾",
                     get = function()
                         return GetCursorTrailConfig().enabled
                     end,
@@ -111,7 +115,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 2,
                     width = 1.0,
-                    name = "浠呮垬鏂椾腑鏄剧ず",
+                    name = "仅战斗中显示",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -125,11 +129,11 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
-        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鎷栧熬琛屼负 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        behaviorTitle = {
+        behaviorTitle = {
             type = "description",
             order = 15,
             fontSize = "medium",
-            name = "|cFFFFD200鎷栧熬琛屼负|r",
+            name = "|cFFFFD200拖尾行为|r",
         },
         behaviorRow = {
             type = "group",
@@ -141,7 +145,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "褰╄櫣娴佸姩",
+                    name = "颜色随时间变化",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -157,7 +161,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 2,
                     width = 1.0,
-                    name = "闅忔椂闂寸缉鏀?,
+                    name = "随时间缩小",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -173,7 +177,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 3,
                     width = 1.0,
-                    name = "闅忚窛绂荤缉鏀?,
+                    name = "随距离缩小",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -187,7 +191,7 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
-        spacingRow = {
+        motionRow = {
             type = "group",
             order = 30,
             name = "",
@@ -197,7 +201,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "鐐归棿璺?,
+                    name = "点间距",
                     min = 1,
                     max = 10,
                     step = 1,
@@ -216,7 +220,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "瀛樻椿鏃堕棿",
+                    name = "存活时间",
                     min = 0.1,
                     max = 5.0,
                     step = 0.05,
@@ -235,7 +239,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 3,
                     width = 1.0,
-                    name = "鏈€澶х偣鏁?,
+                    name = "最大粒子数",
                     min = 1,
                     max = 800,
                     step = 5,
@@ -252,11 +256,11 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
-        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?澶栬灏哄 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        sizeTitle = {
+        sizeTitle = {
             type = "description",
             order = 35,
             fontSize = "medium",
-            name = "|cFFFFD200澶栬灏哄|r",
+            name = "|cFFFFD200尺寸与渲染|r",
         },
         sizeRow = {
             type = "group",
@@ -268,7 +272,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "鐐瑰搴?,
+                    name = "宽度",
                     min = 1,
                     max = 256,
                     step = 1,
@@ -287,7 +291,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "鐐归珮搴?,
+                    name = "高度",
                     min = 1,
                     max = 256,
                     step = 1,
@@ -306,7 +310,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 3,
                     width = 1.0,
-                    name = "閫忔槑搴?,
+                    name = "透明度",
                     min = 0.0,
                     max = 1.0,
                     step = 0.05,
@@ -333,14 +337,14 @@ local function BuildCursorTrailArgs()
                     type = "select",
                     order = 1,
                     width = 1.0,
-                    name = "灞傜骇",
+                    name = "显示层级",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
                     values = function()
                         return {
-                            [1] = "TOOLTIP (鍓嶆櫙)",
-                            [2] = "BACKGROUND (鑳屾櫙)",
+                            [1] = "前景层",
+                            [2] = "背景层",
                         }
                     end,
                     get = function()
@@ -355,14 +359,14 @@ local function BuildCursorTrailArgs()
                     type = "select",
                     order = 2,
                     width = 1.0,
-                    name = "娣峰悎妯″紡",
+                    name = "混合模式",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
                     values = function()
                         return {
-                            [1] = "鍙戝厜 (ADD)",
-                            [2] = "鏅€?(BLEND)",
+                            [1] = "ADD",
+                            [2] = "BLEND",
                         }
                     end,
                     get = function()
@@ -385,7 +389,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "X 鍋忕Щ",
+                    name = "X 偏移",
                     min = -256,
                     max = 256,
                     step = 1,
@@ -404,7 +408,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "Y 鍋忕Щ",
+                    name = "Y 偏移",
                     min = -256,
                     max = 256,
                     step = 1,
@@ -421,7 +425,7 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
-        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?绾圭悊涓庨鑹?鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        colorTitle = {
+        colorTitle = {
             type = "description",
             order = 49,
             fontSize = "medium",
@@ -437,7 +441,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "浣跨敤鑱屼笟鑹茶鐩?,
+                    name = "使用职业颜色",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -453,7 +457,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "棰滆壊閫熷害",
+                    name = "颜色变化速度",
                     min = 0.1,
                     max = 10.0,
                     step = 0.1,
@@ -472,7 +476,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 3,
                     width = 1.0,
-                    name = "浣跨敤棰滆壊鏁?,
+                    name = "颜色阶段数",
                     min = 1,
                     max = 10,
                     step = 1,
@@ -494,11 +498,11 @@ local function BuildCursorTrailArgs()
         paletteRow3 = BuildCursorTrailColorRow(62, 5, 6),
         paletteRow4 = BuildCursorTrailColorRow(63, 7, 8),
         paletteRow5 = BuildCursorTrailColorRow(64, 9, 10),
-        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鍙抽敭瑙傚療 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        lookTitle = {
+        lookTitle = {
             type = "description",
             order = 100,
             fontSize = "medium",
-            name = "|cFFFFD200鍙抽敭瑙傚療|r",
+            name = "|cFFFFD200鼠标观察|r",
         },
         lookRow = {
             type = "group",
@@ -510,7 +514,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "鍏佽瓒婅繃 UI 杞瑙?,
+                    name = "右键穿过 UI 转视角",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -526,7 +530,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 2,
                     width = 1.0,
-                    name = "浠呮垬鏂椾腑鍏佽杞瑙?,
+                    name = "仅战斗时允许转视角",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -542,7 +546,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 3,
                     width = 1.0,
-                    name = "鍙抽敭鏃堕珮浜紶鏍?,
+                    name = "显示鼠标高亮",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -566,7 +570,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "楂樹寒灏哄",
+                    name = "高亮尺寸",
                     min = 10,
                     max = 128,
                     step = 1,
@@ -583,11 +587,11 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
-        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鎬ц兘涓庤皟璇?鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        perfTitle = {
+        perfTitle = {
             type = "description",
             order = 130,
             fontSize = "medium",
-            name = "|cFFFFD200鎬ц兘涓庤皟璇晐r",
+            name = "|cFFFFD200性能设置|r",
         },
         perfRow = {
             type = "group",
@@ -599,7 +603,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "鑷€傚簲鏇存柊棰戠巼",
+                    name = "启用自适应更新",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -615,7 +619,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "鐩爣鏇存柊 Hz",
+                    name = "目标更新频率",
                     min = 1,
                     max = 240,
                     step = 1,
@@ -634,7 +638,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 3,
                     width = 0.9,
-                    name = "鏄剧ず FPS",
+                    name = "显示 FPS",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -652,7 +656,7 @@ local function BuildCursorTrailArgs()
             type = "execute",
             order = 200,
             width = 1.0,
-            name = "鎭㈠榛樿璁剧疆",
+            name = "恢复默认设置",
             func = function()
                 Core:ResetCursorTrailConfig()
                 RefreshCursorTrail(true)
@@ -663,25 +667,24 @@ end
 
 local function BuildButtonManagementArgs()
     local args = {}
-    local quickChat = GetModule()
+    local quickChat = GetQuickChatModule()
     local defs = quickChat and quickChat.GetAllButtonDefs and quickChat:GetAllButtonDefs() or {}
-    local config = GetConfig()
+    local config = GetQuickChatConfig()
 
     if #defs == 0 then
         args.empty = {
             type = "description",
             order = 1,
             fontSize = "medium",
-            name = "|cFF888888褰撳墠娌℃湁鍙樉绀虹殑棰戦亾鎸夐挳銆倈r",
+            name = "|cFF888888当前没有可管理的频道按钮。|r",
         }
         return args
     end
-
     for index, def in ipairs(defs) do
         local entryIndex = index
         local key = def.key
         local isCustom = def.action == "custom"
-        local rowName = (isCustom and "[鑷畾涔塢 " or "[鍐呯疆] ") .. def.label
+        local rowName = (isCustom and "[自定义] " or "[内置] ") .. tostring(def.label or key)
 
         args["button_" .. key] = {
             type = "actionRow",
@@ -690,7 +693,7 @@ local function BuildButtonManagementArgs()
             color = {
                 get = function()
                     local color = quickChat:GetColorForKey(key)
-                    return color.r, color.g, color.b
+                    return color.r or 1, color.g or 1, color.b or 1
                 end,
                 set = function(_, r, g, b)
                     local color = quickChat:GetColorForKey(key)
@@ -700,7 +703,7 @@ local function BuildButtonManagementArgs()
             },
             actions = {
                 {
-                    label = "涓婄Щ",
+                    label = "上移",
                     width = 46,
                     disabled = function()
                         return entryIndex == 1
@@ -714,7 +717,7 @@ local function BuildButtonManagementArgs()
                     end,
                 },
                 {
-                    label = "涓嬬Щ",
+                    label = "下移",
                     width = 46,
                     disabled = function()
                         return entryIndex == #defs
@@ -728,10 +731,10 @@ local function BuildButtonManagementArgs()
                     end,
                 },
                 {
-                    label = isCustom and "鍒犻櫎" or "绉婚櫎",
+                    label = isCustom and "删除" or "隐藏",
                     width = 50,
                     confirm = true,
-                    confirmText = "纭绉婚櫎杩欎釜鎸夐挳鍚楋紵",
+                    confirmText = "确认要移除这个频道按钮吗？",
                     func = function()
                         for orderIndex, orderKey in ipairs(config.buttonOrder) do
                             if orderKey == key then
@@ -758,253 +761,268 @@ local function BuildButtonManagementArgs()
     return args
 end
 
+local function BuildQuickChatBasicArgs()
+    return {
+        stateRow = {
+            type = "group",
+            order = 10,
+            name = "",
+            layout = "row",
+            args = {
+                enabled = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "启用快捷频道",
+                    get = function()
+                        return GetQuickChatConfig().enabled
+                    end,
+                    set = function(_, value)
+                        GetQuickChatConfig().enabled = value and true or false
+                        RefreshQuickChat(true)
+                    end,
+                },
+                unlocked = {
+                    type = "toggle",
+                    order = 2,
+                    width = 1.0,
+                    name = "解锁位置拖动",
+                    disabled = function()
+                        return not GetQuickChatConfig().enabled
+                    end,
+                    get = function()
+                        return GetQuickChatConfig().unlocked
+                    end,
+                    set = function(_, value)
+                        GetQuickChatConfig().unlocked = value and true or false
+                        RefreshQuickChat(false)
+                    end,
+                },
+            },
+        },
+        worldChannelRow = {
+            type = "group",
+            order = 12,
+            name = "",
+            layout = "row",
+            args = {
+                worldChannelName = {
+                    type = "input",
+                    order = 1,
+                    width = 1.8,
+                    name = "世界频道名称",
+                    disabled = function()
+                        return not GetQuickChatConfig().enabled
+                    end,
+                    get = function()
+                        return GetQuickChatConfig().worldChannelName or ""
+                    end,
+                    set = function(_, value)
+                        local text = TrimText(value)
+                        GetQuickChatConfig().worldChannelName = text ~= "" and text or "大脚世界频道"
+                        RefreshQuickChat(false)
+                    end,
+                },
+            },
+        },
+        styleRow = {
+            type = "group",
+            order = 20,
+            name = "",
+            layout = "row",
+            args = {
+                spacing = {
+                    type = "range",
+                    order = 1,
+                    width = 1.0,
+                    name = "按钮间距",
+                    min = 0,
+                    max = 30,
+                    step = 1,
+                    disabled = function()
+                        return not GetQuickChatConfig().enabled
+                    end,
+                    get = function()
+                        return GetQuickChatConfig().spacing
+                    end,
+                    set = function(_, value)
+                        GetQuickChatConfig().spacing = value
+                        RefreshQuickChat(false)
+                    end,
+                },
+                fontSize = {
+                    type = "range",
+                    order = 2,
+                    width = 1.0,
+                    name = "字体大小",
+                    min = 10,
+                    max = 32,
+                    step = 1,
+                    disabled = function()
+                        return not GetQuickChatConfig().enabled
+                    end,
+                    get = function()
+                        return GetQuickChatConfig().fontSize
+                    end,
+                    set = function(_, value)
+                        GetQuickChatConfig().fontSize = value
+                        RefreshQuickChat(false)
+                    end,
+                },
+                fontPreset = {
+                    type = "select",
+                    order = 3,
+                    width = 1.1,
+                    name = "字体预设",
+                    disabled = function()
+                        return not GetQuickChatConfig().enabled
+                    end,
+                    values = function()
+                        return NS.Options.Private.GetFontOptions()
+                    end,
+                    get = function()
+                        return GetQuickChatConfig().fontPreset
+                    end,
+                    set = function(_, value)
+                        GetQuickChatConfig().fontPreset = value
+                        RefreshQuickChat(false)
+                    end,
+                },
+            },
+        },
+        reset = {
+            type = "execute",
+            order = 90,
+            width = 1.0,
+            name = "恢复默认设置",
+            func = function()
+                Core:ResetQuickChatConfig()
+                RefreshQuickChat(true)
+            end,
+        },
+    }
+end
+
+local function BuildQuickChatAddCustomArgs()
+    return {
+        addRow = {
+            type = "group",
+            order = 10,
+            name = "",
+            layout = "row",
+            args = {
+                label = {
+                    type = "input",
+                    order = 1,
+                    width = 1.0,
+                    name = "按钮名称",
+                    get = function()
+                        return pendingLabel
+                    end,
+                    set = function(_, value)
+                        pendingLabel = value or ""
+                    end,
+                },
+                command = {
+                    type = "input",
+                    order = 2,
+                    width = 1.6,
+                    name = "指令内容",
+                    get = function()
+                        return pendingCommand
+                    end,
+                    set = function(_, value)
+                        pendingCommand = value or ""
+                    end,
+                },
+                add = {
+                    type = "execute",
+                    order = 3,
+                    width = 0.8,
+                    name = "添加按钮",
+                    func = function()
+                        local label = TrimText(pendingLabel)
+                        local command = TrimText(pendingCommand)
+                        if label == "" or command == "" then
+                            return
+                        end
+
+                        local config = GetQuickChatConfig()
+                        local newID = config.nextCustomId or 1
+                        config.nextCustomId = newID + 1
+                        table.insert(config.customButtons, {
+                            id = newID,
+                            label = label,
+                            command = command,
+                        })
+                        table.insert(config.buttonOrder, "CUSTOM_" .. tostring(newID))
+                        config.buttonColors["CUSTOM_" .. tostring(newID)] = { r = 1.00, g = 0.82, b = 0.00 }
+
+                        pendingLabel = ""
+                        pendingCommand = ""
+                        RefreshQuickChat(true)
+                    end,
+                },
+            },
+        },
+        restoreBuiltin = {
+            type = "execute",
+            order = 20,
+            width = 1.1,
+            name = "恢复内置按钮",
+            func = function()
+                local config = GetQuickChatConfig()
+                local quickChat = GetQuickChatModule()
+                if not quickChat then
+                    return
+                end
+
+                for _, button in ipairs(quickChat:GetBuiltinButtons()) do
+                    quickChat:GetColorForKey(button.key)
+
+                    local exists = false
+                    for _, key in ipairs(config.buttonOrder) do
+                        if key == button.key then
+                            exists = true
+                            break
+                        end
+                    end
+
+                    if not exists then
+                        table.insert(config.buttonOrder, button.key)
+                    end
+                end
+
+                RefreshQuickChat(true)
+            end,
+        },
+    }
+end
+
 function NS.BuildInterfaceEnhanceOptions()
     return {
         type = "group",
-        name = "鐣岄潰澧炲己",
+        name = "界面增强",
         order = 12,
         args = {
             mouseCursor = {
                 type = "group",
-                name = "榧犳爣鎸囬拡",
+                name = "鼠标指针",
                 order = 5,
                 childGroups = "tab",
                 args = {
-                    cursorTrail = BuildTab("榧犳爣鎷栧熬", 10, BuildCursorTrailArgs()),
+                    cursorTrail = BuildTab("鼠标拖尾", 10, BuildCursorTrailArgs()),
                 },
             },
             quickChat = {
                 type = "group",
-                name = "蹇嵎棰戦亾",
+                name = "快捷频道",
                 order = 10,
                 childGroups = "tab",
                 args = {
-                    basic = BuildTab("鍩虹璁剧疆", 10, {
-                        stateRow = {
-                            type = "group",
-                            order = 10,
-                            name = "",
-                            layout = "row",
-                            args = {
-                                enabled = {
-                                    type = "toggle",
-                                    order = 1,
-                                    width = 1.0,
-                                    name = "鍚敤蹇嵎棰戦亾",
-                                    get = function()
-                                        return GetConfig().enabled
-                                    end,
-                                    set = function(_, value)
-                                        GetConfig().enabled = value and true or false
-                                        RefreshQuickChat(true)
-                                    end,
-                                },
-                                unlocked = {
-                                    type = "toggle",
-                                    order = 2,
-                                    width = 1.0,
-                                    name = "瑙ｉ攣浣嶇疆鎷栧姩",
-                                    disabled = function()
-                                        return not GetConfig().enabled
-                                    end,
-                                    get = function()
-                                        return GetConfig().unlocked
-                                    end,
-                                    set = function(_, value)
-                                        GetConfig().unlocked = value and true or false
-                                        RefreshQuickChat(false)
-                                    end,
-                                },
-                            },
-                        },
-                        worldChannelRow = {
-                            type = "group",
-                            order = 12,
-                            name = "",
-                            layout = "row",
-                            args = {
-                                worldChannelName = {
-                                    type = "input",
-                                    order = 1,
-                                    width = 1.8,
-                                    name = "涓栫晫棰戦亾鍚嶇О",
-                                    disabled = function()
-                                        return not GetConfig().enabled
-                                    end,
-                                    get = function()
-                                        return GetConfig().worldChannelName or ""
-                                    end,
-                                    set = function(_, value)
-                                        local text = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                                        GetConfig().worldChannelName = text ~= "" and text or "澶ц剼涓栫晫棰戦亾"
-                                        RefreshQuickChat(false)
-                                    end,
-                                },
-                            },
-                        },
-                        styleRow = {
-                            type = "group",
-                            order = 20,
-                            name = "",
-                            layout = "row",
-                            args = {
-                                spacing = {
-                                    type = "range",
-                                    order = 1,
-                                    width = 1.0,
-                                    name = "鎸夐挳闂撮殧",
-                                    min = 0,
-                                    max = 30,
-                                    step = 1,
-                                    disabled = function()
-                                        return not GetConfig().enabled
-                                    end,
-                                    get = function()
-                                        return GetConfig().spacing
-                                    end,
-                                    set = function(_, value)
-                                        GetConfig().spacing = value
-                                        RefreshQuickChat(false)
-                                    end,
-                                },
-                                fontSize = {
-                                    type = "range",
-                                    order = 2,
-                                    width = 1.0,
-                                    name = "鏂囧瓧澶у皬",
-                                    min = 10,
-                                    max = 32,
-                                    step = 1,
-                                    disabled = function()
-                                        return not GetConfig().enabled
-                                    end,
-                                    get = function()
-                                        return GetConfig().fontSize
-                                    end,
-                                    set = function(_, value)
-                                        GetConfig().fontSize = value
-                                        RefreshQuickChat(false)
-                                    end,
-                                },
-                                fontPreset = {
-                                    type = "select",
-                                    order = 3,
-                                    width = 1.1,
-                                    name = "蹇嵎鏉″瓧浣?,
-                                    disabled = function()
-                                        return not GetConfig().enabled
-                                    end,
-                                    values = function()
-                                        return NS.Options.Private.GetFontOptions()
-                                    end,
-                                    get = function()
-                                        return GetConfig().fontPreset
-                                    end,
-                                    set = function(_, value)
-                                        GetConfig().fontPreset = value
-                                        RefreshQuickChat(false)
-                                    end,
-                                },
-                            },
-                        },
-                        reset = {
-                            type = "execute",
-                            order = 90,
-                            width = 1.0,
-                            name = "鎭㈠榛樿璁剧疆",
-                            func = function()
-                                Core:ResetQuickChatConfig()
-                                RefreshQuickChat(true)
-                            end,
-                        },
-                    }),
-                    buttonManagement = BuildTab("鎸夐挳绠＄悊", 20, BuildButtonManagementArgs()),
-                    addCustom = BuildTab("鑷畾涔夋寜閽?, 30, {
-                        addRow = {
-                            type = "group",
-                            order = 10,
-                            name = "",
-                            layout = "row",
-                            args = {
-                                label = {
-                                    type = "input",
-                                    order = 1,
-                                    width = 1.0,
-                                    name = "鎸夐挳鏂囧瓧",
-                                    get = function()
-                                        return pendingLabel
-                                    end,
-                                    set = function(_, value)
-                                        pendingLabel = value or ""
-                                    end,
-                                },
-                                command = {
-                                    type = "input",
-                                    order = 2,
-                                    width = 1.6,
-                                    name = "鑱婂ぉ鎸囦护",
-                                    get = function()
-                                        return pendingCommand
-                                    end,
-                                    set = function(_, value)
-                                        pendingCommand = value or ""
-                                    end,
-                                },
-                                add = {
-                                    type = "execute",
-                                    order = 3,
-                                    width = 0.8,
-                                    name = "娣诲姞鎸夐挳",
-                                    func = function()
-                                        local label = tostring(pendingLabel or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                                        local command = tostring(pendingCommand or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                                        if label == "" or command == "" then
-                                            return
-                                        end
-
-                                        local config = GetConfig()
-                                        local newID = config.nextCustomId or 1
-                                        config.nextCustomId = newID + 1
-                                        table.insert(config.customButtons, {
-                                            id = newID,
-                                            label = label,
-                                            command = command,
-                                        })
-                                        table.insert(config.buttonOrder, "CUSTOM_" .. tostring(newID))
-                                        config.buttonColors["CUSTOM_" .. tostring(newID)] = { r = 1.00, g = 0.82, b = 0.00 }
-
-                                        pendingLabel = ""
-                                        pendingCommand = ""
-                                        RefreshQuickChat(true)
-                                    end,
-                                },
-                            },
-                        },
-                        restoreBuiltin = {
-                            type = "execute",
-                            order = 20,
-                            width = 1.1,
-                            name = "鎭㈠鍐呯疆鎸夐挳",
-                            func = function()
-                                local config = GetConfig()
-                                local quickChat = GetModule()
-                                for _, button in ipairs(quickChat:GetBuiltinButtons()) do
-                                    quickChat:GetColorForKey(button.key)
-                                    local exists = false
-                                    for _, key in ipairs(config.buttonOrder) do
-                                        if key == button.key then
-                                            exists = true
-                                            break
-                                        end
-                                    end
-                                    if not exists then
-                                        table.insert(config.buttonOrder, button.key)
-                                    end
-                                end
-                                RefreshQuickChat(true)
-                            end,
-                        },
-                    }),
+                    basic = BuildTab("基础设置", 10, BuildQuickChatBasicArgs()),
+                    buttonManagement = BuildTab("按钮管理", 20, BuildButtonManagementArgs()),
+                    addCustom = BuildTab("新增按钮", 30, BuildQuickChatAddCustomArgs()),
                 },
             },
             gameBar = NS.BuildGameBarOptions(),
