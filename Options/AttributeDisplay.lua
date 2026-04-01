@@ -1,5 +1,7 @@
 local _, NS = ...
 local Core = NS.Core
+local LibSharedMedia = LibStub("LibSharedMedia-3.0")
+
 local ATTRIBUTE_STATS = {
     { key = "showIlvl", color = "colorIlvl", label = "装等" },
     { key = "showPrimary", color = "colorPrimary", label = "主属性" },
