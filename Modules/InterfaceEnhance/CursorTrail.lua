@@ -104,6 +104,87 @@ local function GetEffectiveConfig()
     return CursorTrail:GetConfig()
 end
 
+local function SanitizeConfig(config)
+    if type(config) ~= "table" then
+        return
+    end
+
+    if type(config.shrinkWithTime) ~= "boolean" then
+        config.shrinkWithTime = true
+    end
+    if type(config.shrinkWithDistance) ~= "boolean" then
+        config.shrinkWithDistance = true
+    end
+
+    if config.cursorLayer == "TOOLTIP" then
+        config.cursorLayer = 1
+    end
+    if config.cursorLayer == "BACKGROUND" then
+        config.cursorLayer = 2
+    end
+    if type(config.cursorLayer) ~= "number" or (config.cursorLayer ~= 1 and config.cursorLayer ~= 2) then
+        config.cursorLayer = 1
+    end
+
+    if config.blendMode == "ADD" then
+        config.blendMode = 1
+    end
+    if config.blendMode == "DISABLE" or config.blendMode == "BLEND" then
+        config.blendMode = 2
+    end
+    if type(config.blendMode) ~= "number" or (config.blendMode ~= 1 and config.blendMode ~= 2) then
+        config.blendMode = 1
+    end
+
+    if type(config.adaptiveUpdate) ~= "boolean" then
+        config.adaptiveUpdate = true
+    end
+    if type(config.phaseCount) ~= "number" then
+        config.phaseCount = 6
+    end
+    config.phaseCount = math.max(1, math.min(10, math.floor(config.phaseCount)))
+
+    if type(config.dotDistance) ~= "number" then
+        config.dotDistance = 3
+    end
+    if type(config.lifetime) ~= "number" then
+        config.lifetime = 0.35
+    end
+    if type(config.maxDots) ~= "number" then
+        config.maxDots = 300
+    end
+    config.maxDots = math.floor(Clamp(config.maxDots, 1, 800))
+
+    if type(config.adaptiveTargetFPS) ~= "number" then
+        config.adaptiveTargetFPS = 90
+    end
+    config.adaptiveTargetFPS = math.floor(Clamp(config.adaptiveTargetFPS, 1, 240))
+
+    if type(config.dotWidth) ~= "number" then
+        config.dotWidth = 50
+    end
+    if type(config.dotHeight) ~= "number" then
+        config.dotHeight = 50
+    end
+    if type(config.alpha) ~= "number" then
+        config.alpha = 1.0
+    end
+    if type(config.colorSpeed) ~= "number" then
+        config.colorSpeed = 0.5
+    end
+
+    if type(config.offsetX) ~= "number" then
+        config.offsetX = 20
+    end
+    if type(config.offsetY) ~= "number" then
+        config.offsetY = -18
+    end
+
+    if type(config.cursorFrameSize) ~= "number" then
+        config.cursorFrameSize = 40
+    end
+end
+
 local function HideTrailTextures()
     if headTex then
         headTex:Hide()
@@ -745,6 +826,7 @@ local function ApplyConfig()
         return
     end
 
+    SanitizeConfig(config)
     EnsureAnchor()
     shrinkWithTime = (config.shrinkWithTime ~= false)
     shrinkWithDistance = (config.shrinkWithDistance ~= false)
