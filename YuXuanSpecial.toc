@@ -1,8 +1,8 @@
 ﻿## Interface: 120000, 120001
 ## Title: 雨轩工具箱
 ## Notes: 提供地图辅助、界面增强、战斗辅助与法师冰霜相关功能
-## Author: Codex
-## Version: 0.0.1
+## Author: Sir丶雨轩
+## Version: 1.0.0
 ## SavedVariables: YuXuanSpecialDB
 ## OptionalDeps: ClickableRaidBuffs
 
