@@ -55,8 +55,8 @@ end
 
 local function GetHearthstoneChoices()
     return NS.GetGameBarHearthstoneChoices and NS.GetGameBarHearthstoneChoices() or {
-        AUTO = "Auto",
-        RANDOM = "Random",
+        AUTO = "自动",
+        RANDOM = "随机",
     }
 end
 
@@ -65,7 +65,7 @@ local function MakeSlotOption(sideKey, index)
         type = "select",
         order = 10 + index,
         width = 1.0,
-        name = "Button " .. tostring(index),
+        name = "按钮 " .. tostring(index),
         hidden = function()
             return index > #EnsureButtonSlots(sideKey)
         end,
@@ -100,7 +100,7 @@ local function BuildSideSlotArgs(sideKey)
                 type = "execute",
                 order = 1,
                 width = 0.8,
-                name = "Add Slot",
+                name = "新增槽位",
                 disabled = function()
                     return not GetGameBarConfig().enabled or #EnsureButtonSlots(sideKey) >= 7
                 end,
@@ -116,12 +116,12 @@ local function BuildSideSlotArgs(sideKey)
                 type = "execute",
                 order = 2,
                 width = 0.8,
-                name = "Remove Slot",
+                name = "移除槽位",
                 disabled = function()
                     return not GetGameBarConfig().enabled or #EnsureButtonSlots(sideKey) <= 1
                 end,
                 confirm = true,
-                confirmText = "Remove the last button slot?",
+                confirmText = "确认移除最后一个按钮槽位吗？",
                 func = function()
                     local slots = EnsureButtonSlots(sideKey)
                     if #slots > 1 then
@@ -148,7 +148,7 @@ local function BuildBasicArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "Enable Bar",
+                    name = "启用动作条",
                     get = function()
                         return GetGameBarConfig().enabled
                     end,
@@ -161,7 +161,7 @@ local function BuildBasicArgs()
                     type = "toggle",
                     order = 2,
                     width = 1.0,
-                    name = "Lock Position",
+                    name = "锁定位置",
                     disabled = function()
                         return not GetGameBarConfig().enabled
                     end,
@@ -177,7 +177,7 @@ local function BuildBasicArgs()
                     type = "toggle",
                     order = 3,
                     width = 1.0,
-                    name = "Mouseover Only",
+                    name = "仅鼠标悬停显示",
                     disabled = function()
                         return not GetGameBarConfig().enabled
                     end,
@@ -201,7 +201,7 @@ local function BuildBasicArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "Button Size",
+                    name = "按钮大小",
                     min = 16,
                     max = 64,
                     step = 2,
@@ -220,7 +220,7 @@ local function BuildBasicArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "Spacing",
+                    name = "按钮间距",
                     min = 0,
                     max = 20,
                     step = 1,
@@ -239,7 +239,7 @@ local function BuildBasicArgs()
                     type = "range",
                     order = 3,
                     width = 1.0,
-                    name = "Middle Width",
+                    name = "中间区域宽度",
                     min = 50,
                     max = 160,
                     step = 2,
@@ -266,7 +266,7 @@ local function BuildBasicArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "Time Font",
+                    name = "时间字体大小",
                     min = 10,
                     max = 36,
                     step = 1,
@@ -285,7 +285,7 @@ local function BuildBasicArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "Hover Anim",
+                    name = "悬停动画时长",
                     min = 0,
                     max = 1,
                     step = 0.01,
@@ -304,7 +304,7 @@ local function BuildBasicArgs()
                     type = "toggle",
                     order = 3,
                     width = 1.0,
-                    name = "Show Background",
+                    name = "显示背景",
                     disabled = function()
                         return not GetGameBarConfig().enabled
                     end,
@@ -322,7 +322,7 @@ local function BuildBasicArgs()
             type = "color",
             order = 40,
             width = 1.0,
-            name = "Background Color",
+            name = "背景颜色",
             hasAlpha = true,
             disabled = function()
                 local config = GetGameBarConfig()
@@ -341,7 +341,7 @@ local function BuildBasicArgs()
             type = "execute",
             order = 100,
             width = 1.0,
-            name = "Reset Defaults",
+            name = "恢复默认设置",
             func = function()
                 Core:ResetGameBarConfig()
                 RefreshGameBar(true)
@@ -353,19 +353,19 @@ end
 function NS.BuildGameBarOptions()
     return {
         type = "group",
-        name = "Action Bar",
+        name = "动作条",
         order = 8,
         childGroups = "tab",
         args = {
-            basic = BuildTab("Basic", 10, BuildBasicArgs()),
-            leftSlots = BuildTab("Left Buttons", 20, BuildSideSlotArgs("leftButtons")),
-            rightSlots = BuildTab("Right Buttons", 30, BuildSideSlotArgs("rightButtons")),
-            hearthstone = BuildTab("Hearthstone", 40, {
+            basic = BuildTab("基础设置", 10, BuildBasicArgs()),
+            leftSlots = BuildTab("左侧按钮", 20, BuildSideSlotArgs("leftButtons")),
+            rightSlots = BuildTab("右侧按钮", 30, BuildSideSlotArgs("rightButtons")),
+            hearthstone = BuildTab("炉石设置", 40, {
                 showBindLocation = {
                     type = "toggle",
                     order = 10,
                     width = 1.0,
-                    name = "Show Bind Location",
+                    name = "显示炉石绑定地点",
                     disabled = function()
                         return not GetGameBarConfig().enabled
                     end,
@@ -390,7 +390,7 @@ function NS.BuildGameBarOptions()
                             type = "select",
                             order = 1,
                             width = 1.0,
-                            name = "Left Click",
+                            name = "左键",
                             disabled = function()
                                 return not GetGameBarConfig().enabled
                             end,
@@ -410,7 +410,7 @@ function NS.BuildGameBarOptions()
                             type = "select",
                             order = 2,
                             width = 1.0,
-                            name = "Middle Click",
+                            name = "中键",
                             disabled = function()
                                 return not GetGameBarConfig().enabled
                             end,
@@ -430,7 +430,7 @@ function NS.BuildGameBarOptions()
                             type = "select",
                             order = 3,
                             width = 1.0,
-                            name = "Right Click",
+                            name = "右键",
                             disabled = function()
                                 return not GetGameBarConfig().enabled
                             end,
