@@ -397,7 +397,7 @@ function RaidMarkers:CreateFrame()
         local button = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate")
         button:RegisterForClicks("AnyDown", "AnyUp")
         button:RegisterForDrag("LeftButton")
-        button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
+        button:SetHighlightTexture(nil)
         button:SetScale(1)
         button._hoverScale = 1
         button._hoverTargetScale = 1
@@ -426,13 +426,6 @@ function RaidMarkers:CreateFrame()
             RaidMarkers:SavePosition()
         end)
 
-        button:HookScript("OnEnter", function(selfButton)
-            SetRaidMarkerButtonHoverTarget(selfButton, 1.18)
-        end)
-        button:HookScript("OnLeave", function(selfButton)
-            SetRaidMarkerButtonHoverTarget(selfButton, 1)
-        end)
-
         return button
     end
 
@@ -450,13 +443,15 @@ function RaidMarkers:CreateFrame()
         button.label:Hide()
 
         button:SetScript("OnEnter", function(selfButton)
+            SetRaidMarkerButtonHoverTarget(selfButton, 1.18)
             GameTooltip:SetOwner(selfButton, "ANCHOR_BOTTOM", 0, -8)
             GameTooltip:AddLine(selfButton.tooltipTitle or "团队标记", 1, 0.82, 0)
             GameTooltip:AddLine(selfButton.tooltipText or "", 1, 1, 1)
             GameTooltip:AddLine("左键设置，右键清除。", 0.75, 1, 0.75)
             GameTooltip:Show()
         end)
-        button:SetScript("OnLeave", function()
+        button:SetScript("OnLeave", function(selfButton)
+            SetRaidMarkerButtonHoverTarget(selfButton, 1)
             GameTooltip:Hide()
         end)
 
@@ -486,6 +481,7 @@ function RaidMarkers:CreateFrame()
         end
 
         button:SetScript("OnEnter", function(selfButton)
+            SetRaidMarkerButtonHoverTarget(selfButton, 1.18)
             GameTooltip:SetOwner(selfButton, "ANCHOR_BOTTOM", 0, -8)
             GameTooltip:AddLine(selfButton.tooltipTitle or "团队功能", 1, 0.82, 0)
             GameTooltip:AddLine(selfButton.tooltipText or "", 1, 1, 1)
@@ -497,7 +493,8 @@ function RaidMarkers:CreateFrame()
             end
             GameTooltip:Show()
         end)
-        button:SetScript("OnLeave", function()
+        button:SetScript("OnLeave", function(selfButton)
+            SetRaidMarkerButtonHoverTarget(selfButton, 1)
             GameTooltip:Hide()
         end)
 
