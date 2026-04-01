@@ -52,6 +52,7 @@ local adaptiveTargetFPS = 90
 local posByRank = {}
 local sqrtPosByRank = {}
 local MAX_STEPS_PER_TICK = 250
+local glowBoost = 1
 
 local debugHolder
 local debugValue1
@@ -59,6 +60,9 @@ local debugValue2
 local fpsElapsed = 0
 local fpsFrames = 0
 local fpsValue = 0
+local fpsSampleElapsed = 0
+local fpsAutoValue = 120
+local FPS_SAMPLE_PERIOD = 0.25
 
 local RMBLook = {
     enabled = false,
@@ -105,7 +109,7 @@ local function HideTrailTextures()
         headTex:Hide()
     end
 
-    for index = 1, #slotTex do
+    for index = 1, ElementCap do
         if slotTex[index] then
             slotTex[index]:Hide()
         end
@@ -414,6 +418,9 @@ end
 local function BuildPhaseColors(config)
     if config.useClassColor then
         local r, g, b = GetPlayerClassColorRGB()
+        r = r * 1 / glowBoost
+        g = g * 1 / glowBoost
+        b = b * 1 / glowBoost
         local color = { r, g, b }
         phaseColors = { color, color, color, color, color, color, color, color, color, color }
         return
@@ -987,7 +994,7 @@ local function UpdateTrail()
 
                 headTex:Show()
                 headTex:SetSize(dotW * scale, dotH * scale)
-                headTex:SetVertexColor(r, g, b, alpha)
+                headTex:SetVertexColor(r * glowBoost, g * glowBoost, b * glowBoost, alpha)
                 SetHeadTexPos(x, y)
             end
         end
@@ -1035,7 +1042,7 @@ local function UpdateTrail()
 
                     texture:Show()
                     texture:SetSize(dotW * scale, dotH * scale)
-                    texture:SetVertexColor(r, g, b, alpha)
+                    texture:SetVertexColor(r * glowBoost, g * glowBoost, b * glowBoost, alpha)
                 end
             end
         end
@@ -1074,6 +1081,7 @@ function CursorTrail:Stop()
         self.frame:SetScript("OnUpdate", nil)
     end
 
+    self.started = false
     HideTrailTextures()
     ApplyDebugState()
     RMBLook:Disable()
@@ -1084,13 +1092,41 @@ function CursorTrail:Stop()
     lastUpdateTime = nil
 end
 
+local function UpdateAutoFPS(dt)
+    fpsSampleElapsed = fpsSampleElapsed + (dt or 0)
+    if fpsSampleElapsed < FPS_SAMPLE_PERIOD then
+        return
+    end
+    fpsSampleElapsed = 0
+
+    local fpsNow
+    if type(GetFramerate) == "function" then
+        fpsNow = GetFramerate()
+    end
+    if not fpsNow or fpsNow <= 0 then
+        if fpsElapsed > 0 then
+            fpsNow = fpsFrames / fpsElapsed
+        else
+            fpsNow = fpsAutoValue
+        end
+    end
+    fpsAutoValue = fpsAutoValue * 0.8 + fpsNow * 0.2
+end
+
 function CursorTrail:Start()
+    if self.started then
+        self:Refresh()
+        return
+    end
+
     self:EnsureRuntime()
     self:Refresh()
+    self.started = true
 
     local x, y = GetCursorXY()
     lastX, lastY = x, y
     lastSampleX, lastSampleY = x, y
+    EnsurePoints(ElementCap, x, y)
     RMBLook:Enable(1)
 
     local accumulated = 0
@@ -1102,6 +1138,8 @@ function CursorTrail:Start()
             fpsElapsed = 0
             fpsFrames = 0
         end
+
+        UpdateAutoFPS(dt)
 
         if not adaptiveUpdate then
             accumulated = 0
@@ -1152,7 +1190,11 @@ function CursorTrail:RefreshFromSettings()
         return
     end
 
-    self:Start()
+    if self.started then
+        self:Refresh()
+    else
+        self:Start()
+    end
 end
 
 function CursorTrail:OnPlayerLogin()
