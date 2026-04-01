@@ -107,6 +107,24 @@ local function SetSimpleOutlineColor(border, r, g, b, a)
     end
 end
 
+local function ApplyRaidMarkerButtonScale(button, scale)
+    if not button then
+        return
+    end
+
+    local currentScale = scale or 1
+    button._hoverScale = currentScale
+
+    if button.icon and button._baseIconSize then
+        local size = button._baseIconSize * currentScale
+        button.icon:SetSize(size, size)
+    end
+
+    if button.label then
+        button.label:SetScale(currentScale)
+    end
+end
+
 local function SetRaidMarkerButtonHoverTarget(button, targetScale)
     if not button then
         return
@@ -121,14 +139,13 @@ local function SetRaidMarkerButtonHoverTarget(button, targetScale)
     button:SetScript("OnUpdate", function(selfButton, elapsed)
         local current = selfButton._hoverScale or 1
         local target = selfButton._hoverTargetScale or 1
-        local nextScale = current + (target - current) * math.min(1, elapsed * 4.5)
+        local nextScale = current + (target - current) * math.min(1, elapsed * 8)
 
         if math.abs(target - nextScale) < 0.01 then
             nextScale = target
         end
 
-        selfButton._hoverScale = nextScale
-        selfButton:SetScale(nextScale)
+        ApplyRaidMarkerButtonScale(selfButton, nextScale)
 
         if nextScale == target then
             selfButton._hoverAnimating = false
@@ -268,6 +285,7 @@ function RaidMarkers:UpdateLayout()
         if button.icon then
             button.icon:ClearAllPoints()
             button.icon:SetPoint("CENTER", button, "CENTER", 0, 0)
+            button._baseIconSize = iconSize
             button.icon:SetSize(iconSize, iconSize)
             if button.iconTexture then
                 button.icon:SetTexture(button.iconTexture)
@@ -293,6 +311,8 @@ function RaidMarkers:UpdateLayout()
                 button.label:Hide()
             end
         end
+
+        ApplyRaidMarkerButtonScale(button, button._hoverScale or 1)
 
         if config.orientation == "VERTICAL" then
             if index == 1 then
