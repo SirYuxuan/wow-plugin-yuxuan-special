@@ -56,7 +56,7 @@ local function BuildCursorTrailColorOption(colorIndex, order)
         type = "color",
         order = order,
         width = 1.0,
-        name = "颜色 " .. tostring(colorIndex),
+        name = "棰滆壊 " .. tostring(colorIndex),
         hasAlpha = false,
         disabled = function()
             local config = GetCursorTrailConfig()
@@ -88,7 +88,7 @@ end
 
 local function BuildCursorTrailArgs()
     return {
-        stateRow = {
+        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鍩虹寮€鍏?鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        stateRow = {
             type = "group",
             order = 10,
             name = "",
@@ -98,7 +98,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "启用鼠标拖尾",
+                    name = "鍚敤榧犳爣鎷栧熬",
                     get = function()
                         return GetCursorTrailConfig().enabled
                     end,
@@ -111,7 +111,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 2,
                     width = 1.0,
-                    name = "仅战斗中显示",
+                    name = "浠呮垬鏂椾腑鏄剧ず",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -123,23 +123,13 @@ local function BuildCursorTrailArgs()
                         RefreshCursorTrail(false)
                     end,
                 },
-                useClassColor = {
-                    type = "toggle",
-                    order = 3,
-                    width = 1.0,
-                    name = "使用职业色覆盖",
-                    disabled = function()
-                        return not GetCursorTrailConfig().enabled
-                    end,
-                    get = function()
-                        return GetCursorTrailConfig().useClassColor
-                    end,
-                    set = function(_, value)
-                        GetCursorTrailConfig().useClassColor = value and true or false
-                        RefreshCursorTrail(true)
-                    end,
-                },
             },
+        },
+        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鎷栧熬琛屼负 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        behaviorTitle = {
+            type = "description",
+            order = 15,
+            fontSize = "medium",
+            name = "|cFFFFD200鎷栧熬琛屼负|r",
         },
         behaviorRow = {
             type = "group",
@@ -151,7 +141,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "彩虹流动",
+                    name = "褰╄櫣娴佸姩",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -167,7 +157,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 2,
                     width = 1.0,
-                    name = "随时间缩放",
+                    name = "闅忔椂闂寸缉鏀?,
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -183,7 +173,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 3,
                     width = 1.0,
-                    name = "随距离缩放",
+                    name = "闅忚窛绂荤缉鏀?,
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -207,7 +197,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "点间距",
+                    name = "鐐归棿璺?,
                     min = 1,
                     max = 10,
                     step = 1,
@@ -226,7 +216,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "存活时间",
+                    name = "瀛樻椿鏃堕棿",
                     min = 0.1,
                     max = 5.0,
                     step = 0.05,
@@ -245,7 +235,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 3,
                     width = 1.0,
-                    name = "最大点数",
+                    name = "鏈€澶х偣鏁?,
                     min = 1,
                     max = 800,
                     step = 5,
@@ -262,6 +252,12 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
+        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?澶栬灏哄 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        sizeTitle = {
+            type = "description",
+            order = 35,
+            fontSize = "medium",
+            name = "|cFFFFD200澶栬灏哄|r",
+        },
         sizeRow = {
             type = "group",
             order = 40,
@@ -272,7 +268,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "点宽度",
+                    name = "鐐瑰搴?,
                     min = 1,
                     max = 256,
                     step = 1,
@@ -291,7 +287,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "点高度",
+                    name = "鐐归珮搴?,
                     min = 1,
                     max = 256,
                     step = 1,
@@ -310,7 +306,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 3,
                     width = 1.0,
-                    name = "透明度",
+                    name = "閫忔槑搴?,
                     min = 0.0,
                     max = 1.0,
                     step = 0.05,
@@ -327,9 +323,9 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
-        textureRow = {
+        renderRow = {
             type = "group",
-            order = 50,
+            order = 45,
             name = "",
             layout = "row",
             args = {
@@ -337,14 +333,14 @@ local function BuildCursorTrailArgs()
                     type = "select",
                     order = 1,
                     width = 1.0,
-                    name = "层级",
+                    name = "灞傜骇",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
                     values = function()
                         return {
-                            [1] = "TOOLTIP",
-                            [2] = "BACKGROUND",
+                            [1] = "TOOLTIP (鍓嶆櫙)",
+                            [2] = "BACKGROUND (鑳屾櫙)",
                         }
                     end,
                     get = function()
@@ -359,14 +355,14 @@ local function BuildCursorTrailArgs()
                     type = "select",
                     order = 2,
                     width = 1.0,
-                    name = "混合模式",
+                    name = "娣峰悎妯″紡",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
                     values = function()
                         return {
-                            [1] = "发光",
-                            [2] = "普通",
+                            [1] = "鍙戝厜 (ADD)",
+                            [2] = "鏅€?(BLEND)",
                         }
                     end,
                     get = function()
@@ -377,30 +373,11 @@ local function BuildCursorTrailArgs()
                         RefreshCursorTrail(false)
                     end,
                 },
-                phaseCount = {
-                    type = "range",
-                    order = 3,
-                    width = 1.0,
-                    name = "颜色数量",
-                    min = 1,
-                    max = 10,
-                    step = 1,
-                    disabled = function()
-                        return not GetCursorTrailConfig().enabled
-                    end,
-                    get = function()
-                        return GetCursorTrailConfig().phaseCount
-                    end,
-                    set = function(_, value)
-                        GetCursorTrailConfig().phaseCount = math.floor(value)
-                        RefreshCursorTrail(false)
-                    end,
-                },
             },
         },
         offsetRow = {
             type = "group",
-            order = 60,
+            order = 48,
             name = "",
             layout = "row",
             args = {
@@ -408,7 +385,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 1,
                     width = 1.0,
-                    name = "X 偏移",
+                    name = "X 鍋忕Щ",
                     min = -256,
                     max = 256,
                     step = 1,
@@ -427,7 +404,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "Y 偏移",
+                    name = "Y 鍋忕Щ",
                     min = -256,
                     max = 256,
                     step = 1,
@@ -442,11 +419,41 @@ local function BuildCursorTrailArgs()
                         RefreshCursorTrail(false)
                     end,
                 },
+            },
+        },
+        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?绾圭悊涓庨鑹?鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        colorTitle = {
+            type = "description",
+            order = 49,
+            fontSize = "medium",
+            name = "|cFFFFD200颜色设置|r",
+        },
+        colorConfigRow = {
+            type = "group",
+            order = 55,
+            name = "",
+            layout = "row",
+            args = {
+                useClassColor = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "浣跨敤鑱屼笟鑹茶鐩?,
+                    disabled = function()
+                        return not GetCursorTrailConfig().enabled
+                    end,
+                    get = function()
+                        return GetCursorTrailConfig().useClassColor
+                    end,
+                    set = function(_, value)
+                        GetCursorTrailConfig().useClassColor = value and true or false
+                        RefreshCursorTrail(true)
+                    end,
+                },
                 colorSpeed = {
                     type = "range",
-                    order = 3,
+                    order = 2,
                     width = 1.0,
-                    name = "颜色速度",
+                    name = "棰滆壊閫熷害",
                     min = 0.1,
                     max = 10.0,
                     step = 0.1,
@@ -461,40 +468,37 @@ local function BuildCursorTrailArgs()
                         RefreshCursorTrail(false)
                     end,
                 },
+                phaseCount = {
+                    type = "range",
+                    order = 3,
+                    width = 1.0,
+                    name = "浣跨敤棰滆壊鏁?,
+                    min = 1,
+                    max = 10,
+                    step = 1,
+                    disabled = function()
+                        return not GetCursorTrailConfig().enabled
+                    end,
+                    get = function()
+                        return GetCursorTrailConfig().phaseCount
+                    end,
+                    set = function(_, value)
+                        GetCursorTrailConfig().phaseCount = math.floor(value)
+                        RefreshCursorTrail(false)
+                    end,
+                },
             },
         },
-        textureInput = {
-            type = "input",
-            order = 70,
-            width = "full",
-            name = "纹理 Atlas 或文件路径",
-            disabled = function()
-                return not GetCursorTrailConfig().enabled
-            end,
-            get = function()
-                return GetCursorTrailConfig().textureInput or ""
-            end,
-            set = function(_, value)
-                GetCursorTrailConfig().textureInput = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                RefreshCursorTrail(false)
-            end,
-        },
-        paletteHint = {
-            type = "description",
-            order = 80,
-            fontSize = "medium",
-            name = "|cFFCCCCCC示例 atlas|r `titleprestige-starglow`，也支持直接填贴图路径。",
-        },
-        paletteRow1 = BuildCursorTrailColorRow(90, 1, 2),
-        paletteRow2 = BuildCursorTrailColorRow(91, 3, 4),
-        paletteRow3 = BuildCursorTrailColorRow(92, 5, 6),
-        paletteRow4 = BuildCursorTrailColorRow(93, 7, 8),
-        paletteRow5 = BuildCursorTrailColorRow(94, 9, 10),
-        lookTitle = {
+        paletteRow1 = BuildCursorTrailColorRow(60, 1, 2),
+        paletteRow2 = BuildCursorTrailColorRow(61, 3, 4),
+        paletteRow3 = BuildCursorTrailColorRow(62, 5, 6),
+        paletteRow4 = BuildCursorTrailColorRow(63, 7, 8),
+        paletteRow5 = BuildCursorTrailColorRow(64, 9, 10),
+        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鍙抽敭瑙傚療 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        lookTitle = {
             type = "description",
             order = 100,
             fontSize = "medium",
-            name = "|cFFFFD200右键观察|r",
+            name = "|cFFFFD200鍙抽敭瑙傚療|r",
         },
         lookRow = {
             type = "group",
@@ -506,7 +510,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 1,
                     width = 1.0,
-                    name = "允许越过 UI 转视角",
+                    name = "鍏佽瓒婅繃 UI 杞瑙?,
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -522,7 +526,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 2,
                     width = 1.0,
-                    name = "仅战斗中允许转视角",
+                    name = "浠呮垬鏂椾腑鍏佽杞瑙?,
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -538,7 +542,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 3,
                     width = 1.0,
-                    name = "右键时高亮鼠标",
+                    name = "鍙抽敭鏃堕珮浜紶鏍?,
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -552,30 +556,38 @@ local function BuildCursorTrailArgs()
                 },
             },
         },
-        cursorFrameSize = {
-            type = "range",
-            order = 120,
-            width = 1.0,
-            name = "高亮尺寸",
-            min = 10,
-            max = 128,
-            step = 1,
-            disabled = function()
-                return not GetCursorTrailConfig().enabled
-            end,
-            get = function()
-                return GetCursorTrailConfig().cursorFrameSize
-            end,
-            set = function(_, value)
-                GetCursorTrailConfig().cursorFrameSize = math.floor(value)
-                RefreshCursorTrail(false)
-            end,
+        lookSizeRow = {
+            type = "group",
+            order = 115,
+            name = "",
+            layout = "row",
+            args = {
+                cursorFrameSize = {
+                    type = "range",
+                    order = 1,
+                    width = 1.0,
+                    name = "楂樹寒灏哄",
+                    min = 10,
+                    max = 128,
+                    step = 1,
+                    disabled = function()
+                        return not GetCursorTrailConfig().enabled
+                    end,
+                    get = function()
+                        return GetCursorTrailConfig().cursorFrameSize
+                    end,
+                    set = function(_, value)
+                        GetCursorTrailConfig().cursorFrameSize = math.floor(value)
+                        RefreshCursorTrail(false)
+                    end,
+                },
+            },
         },
-        perfTitle = {
+        -- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?鎬ц兘涓庤皟璇?鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?        perfTitle = {
             type = "description",
             order = 130,
             fontSize = "medium",
-            name = "|cFFFFD200性能与调试|r",
+            name = "|cFFFFD200鎬ц兘涓庤皟璇晐r",
         },
         perfRow = {
             type = "group",
@@ -586,8 +598,8 @@ local function BuildCursorTrailArgs()
                 adaptiveUpdate = {
                     type = "toggle",
                     order = 1,
-                    width = 1.2,
-                    name = "自适应更新频率",
+                    width = 1.0,
+                    name = "鑷€傚簲鏇存柊棰戠巼",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -603,7 +615,7 @@ local function BuildCursorTrailArgs()
                     type = "range",
                     order = 2,
                     width = 1.0,
-                    name = "目标更新 Hz",
+                    name = "鐩爣鏇存柊 Hz",
                     min = 1,
                     max = 240,
                     step = 1,
@@ -622,7 +634,7 @@ local function BuildCursorTrailArgs()
                     type = "toggle",
                     order = 3,
                     width = 0.9,
-                    name = "显示 FPS",
+                    name = "鏄剧ず FPS",
                     disabled = function()
                         return not GetCursorTrailConfig().enabled
                     end,
@@ -640,7 +652,7 @@ local function BuildCursorTrailArgs()
             type = "execute",
             order = 200,
             width = 1.0,
-            name = "恢复默认设置",
+            name = "鎭㈠榛樿璁剧疆",
             func = function()
                 Core:ResetCursorTrailConfig()
                 RefreshCursorTrail(true)
@@ -660,7 +672,7 @@ local function BuildButtonManagementArgs()
             type = "description",
             order = 1,
             fontSize = "medium",
-            name = "|cFF888888当前没有可显示的频道按钮。|r",
+            name = "|cFF888888褰撳墠娌℃湁鍙樉绀虹殑棰戦亾鎸夐挳銆倈r",
         }
         return args
     end
@@ -669,7 +681,7 @@ local function BuildButtonManagementArgs()
         local entryIndex = index
         local key = def.key
         local isCustom = def.action == "custom"
-        local rowName = (isCustom and "[自定义] " or "[内置] ") .. def.label
+        local rowName = (isCustom and "[鑷畾涔塢 " or "[鍐呯疆] ") .. def.label
 
         args["button_" .. key] = {
             type = "actionRow",
@@ -688,7 +700,7 @@ local function BuildButtonManagementArgs()
             },
             actions = {
                 {
-                    label = "上移",
+                    label = "涓婄Щ",
                     width = 46,
                     disabled = function()
                         return entryIndex == 1
@@ -702,7 +714,7 @@ local function BuildButtonManagementArgs()
                     end,
                 },
                 {
-                    label = "下移",
+                    label = "涓嬬Щ",
                     width = 46,
                     disabled = function()
                         return entryIndex == #defs
@@ -716,10 +728,10 @@ local function BuildButtonManagementArgs()
                     end,
                 },
                 {
-                    label = isCustom and "删除" or "移除",
+                    label = isCustom and "鍒犻櫎" or "绉婚櫎",
                     width = 50,
                     confirm = true,
-                    confirmText = "确认移除这个按钮吗？",
+                    confirmText = "纭绉婚櫎杩欎釜鎸夐挳鍚楋紵",
                     func = function()
                         for orderIndex, orderKey in ipairs(config.buttonOrder) do
                             if orderKey == key then
@@ -749,25 +761,25 @@ end
 function NS.BuildInterfaceEnhanceOptions()
     return {
         type = "group",
-        name = "界面增强",
+        name = "鐣岄潰澧炲己",
         order = 12,
         args = {
             mouseCursor = {
                 type = "group",
-                name = "鼠标指针",
+                name = "榧犳爣鎸囬拡",
                 order = 5,
                 childGroups = "tab",
                 args = {
-                    cursorTrail = BuildTab("鼠标拖尾", 10, BuildCursorTrailArgs()),
+                    cursorTrail = BuildTab("榧犳爣鎷栧熬", 10, BuildCursorTrailArgs()),
                 },
             },
             quickChat = {
                 type = "group",
-                name = "快捷频道",
+                name = "蹇嵎棰戦亾",
                 order = 10,
                 childGroups = "tab",
                 args = {
-                    basic = BuildTab("基础设置", 10, {
+                    basic = BuildTab("鍩虹璁剧疆", 10, {
                         stateRow = {
                             type = "group",
                             order = 10,
@@ -778,7 +790,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "toggle",
                                     order = 1,
                                     width = 1.0,
-                                    name = "启用快捷频道",
+                                    name = "鍚敤蹇嵎棰戦亾",
                                     get = function()
                                         return GetConfig().enabled
                                     end,
@@ -791,7 +803,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "toggle",
                                     order = 2,
                                     width = 1.0,
-                                    name = "解锁位置拖动",
+                                    name = "瑙ｉ攣浣嶇疆鎷栧姩",
                                     disabled = function()
                                         return not GetConfig().enabled
                                     end,
@@ -815,7 +827,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "input",
                                     order = 1,
                                     width = 1.8,
-                                    name = "世界频道名称",
+                                    name = "涓栫晫棰戦亾鍚嶇О",
                                     disabled = function()
                                         return not GetConfig().enabled
                                     end,
@@ -824,7 +836,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     end,
                                     set = function(_, value)
                                         local text = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
-                                        GetConfig().worldChannelName = text ~= "" and text or "大脚世界频道"
+                                        GetConfig().worldChannelName = text ~= "" and text or "澶ц剼涓栫晫棰戦亾"
                                         RefreshQuickChat(false)
                                     end,
                                 },
@@ -840,7 +852,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "range",
                                     order = 1,
                                     width = 1.0,
-                                    name = "按钮间隔",
+                                    name = "鎸夐挳闂撮殧",
                                     min = 0,
                                     max = 30,
                                     step = 1,
@@ -859,7 +871,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "range",
                                     order = 2,
                                     width = 1.0,
-                                    name = "文字大小",
+                                    name = "鏂囧瓧澶у皬",
                                     min = 10,
                                     max = 32,
                                     step = 1,
@@ -878,7 +890,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "select",
                                     order = 3,
                                     width = 1.1,
-                                    name = "快捷条字体",
+                                    name = "蹇嵎鏉″瓧浣?,
                                     disabled = function()
                                         return not GetConfig().enabled
                                     end,
@@ -899,15 +911,15 @@ function NS.BuildInterfaceEnhanceOptions()
                             type = "execute",
                             order = 90,
                             width = 1.0,
-                            name = "恢复默认设置",
+                            name = "鎭㈠榛樿璁剧疆",
                             func = function()
                                 Core:ResetQuickChatConfig()
                                 RefreshQuickChat(true)
                             end,
                         },
                     }),
-                    buttonManagement = BuildTab("按钮管理", 20, BuildButtonManagementArgs()),
-                    addCustom = BuildTab("自定义按钮", 30, {
+                    buttonManagement = BuildTab("鎸夐挳绠＄悊", 20, BuildButtonManagementArgs()),
+                    addCustom = BuildTab("鑷畾涔夋寜閽?, 30, {
                         addRow = {
                             type = "group",
                             order = 10,
@@ -918,7 +930,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "input",
                                     order = 1,
                                     width = 1.0,
-                                    name = "按钮文字",
+                                    name = "鎸夐挳鏂囧瓧",
                                     get = function()
                                         return pendingLabel
                                     end,
@@ -930,7 +942,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "input",
                                     order = 2,
                                     width = 1.6,
-                                    name = "聊天指令",
+                                    name = "鑱婂ぉ鎸囦护",
                                     get = function()
                                         return pendingCommand
                                     end,
@@ -942,7 +954,7 @@ function NS.BuildInterfaceEnhanceOptions()
                                     type = "execute",
                                     order = 3,
                                     width = 0.8,
-                                    name = "添加按钮",
+                                    name = "娣诲姞鎸夐挳",
                                     func = function()
                                         local label = tostring(pendingLabel or ""):gsub("^%s+", ""):gsub("%s+$", "")
                                         local command = tostring(pendingCommand or ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -972,7 +984,7 @@ function NS.BuildInterfaceEnhanceOptions()
                             type = "execute",
                             order = 20,
                             width = 1.1,
-                            name = "恢复内置按钮",
+                            name = "鎭㈠鍐呯疆鎸夐挳",
                             func = function()
                                 local config = GetConfig()
                                 local quickChat = GetModule()

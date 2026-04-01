@@ -14,6 +14,7 @@ NS.Modules.InterfaceEnhance.CursorTrail = CursorTrail
 local abs = math.abs
 local sqrt = math.sqrt
 local MOUSELOOK_CURSOR_ATLAS = "Cursor_cast_128"
+local CURSOR_TRAIL_TEXTURE = "bags-glow-flash"
 
 local Anchor
 local headTex
@@ -57,12 +58,10 @@ local glowBoost = 1
 local debugHolder
 local debugValue1
 local debugValue2
+local debugEnabled = false
 local fpsElapsed = 0
 local fpsFrames = 0
 local fpsValue = 0
-local fpsSampleElapsed = 0
-local fpsAutoValue = 120
-local FPS_SAMPLE_PERIOD = 0.25
 
 local RMBLook = {
     enabled = false,
@@ -240,13 +239,22 @@ local function EnsureDebugHolder()
 end
 
 local function ApplyDebugState()
-    EnsureDebugHolder()
-
     local config = GetEffectiveConfig()
-    if config and config.enabled and config.debugEnabled then
+    debugEnabled = config and config.enabled and config.debugEnabled and true or false
+
+    if not debugEnabled then
+        fpsElapsed = 0
+        fpsFrames = 0
+        fpsValue = 0
+        if debugHolder then
+            debugHolder:Hide()
+        end
+        return
+    end
+
+    EnsureDebugHolder()
+    if debugHolder then
         debugHolder:Show()
-    else
-        debugHolder:Hide()
     end
 end
 
@@ -348,19 +356,6 @@ SetHeadTexPos = function(x, y)
     lastHeadOffX, lastHeadOffY = offX, offY
 end
 
-local function LooksLikeAPath(path)
-    if not path or path == "" then
-        return false
-    end
-    if path:find("\\") or path:find("/") then
-        return true
-    end
-
-    local lowerPath = path:lower()
-    return lowerPath:match("%.blp$") or lowerPath:match("%.tga$") or lowerPath:match("%.png$")
-        or lowerPath:match("%.jpg$") or lowerPath:match("%.jpeg$")
-end
-
 local function TrySetAtlas(texture, atlasName)
     if atlasName and atlasName ~= "" and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlasName) then
         texture:SetAtlas(atlasName, true)
@@ -370,23 +365,11 @@ local function TrySetAtlas(texture, atlasName)
 end
 
 local function ApplyElementTexture(texture)
-    local config = GetEffectiveConfig()
-    local input = config and config.textureInput
-    if not input or input == "" then
-        input = (config and config.fallbackTexture) or "bags-glow-flash"
-    end
-
-    if LooksLikeAPath(input) then
-        texture:SetTexture(input)
-        texture:SetTexCoord(0, 1, 0, 1)
+    if TrySetAtlas(texture, CURSOR_TRAIL_TEXTURE) then
         return
     end
 
-    if TrySetAtlas(texture, input) then
-        return
-    end
-
-    texture:SetTexture(input)
+    texture:SetTexture(CURSOR_TRAIL_TEXTURE)
     texture:SetTexCoord(0, 1, 0, 1)
 end
 
@@ -1176,27 +1159,6 @@ function CursorTrail:Stop()
     lastUpdateTime = nil
 end
 
-local function UpdateAutoFPS(dt)
-    fpsSampleElapsed = fpsSampleElapsed + (dt or 0)
-    if fpsSampleElapsed < FPS_SAMPLE_PERIOD then
-        return
-    end
-    fpsSampleElapsed = 0
-
-    local fpsNow
-    if type(GetFramerate) == "function" then
-        fpsNow = GetFramerate()
-    end
-    if not fpsNow or fpsNow <= 0 then
-        if fpsElapsed > 0 then
-            fpsNow = fpsFrames / fpsElapsed
-        else
-            fpsNow = fpsAutoValue
-        end
-    end
-    fpsAutoValue = fpsAutoValue * 0.8 + fpsNow * 0.2
-end
-
 function CursorTrail:Start()
     if self.started then
         self:Refresh()
@@ -1215,15 +1177,15 @@ function CursorTrail:Start()
 
     local accumulated = 0
     self.frame:SetScript("OnUpdate", function(_, dt)
-        fpsElapsed = fpsElapsed + dt
-        fpsFrames = fpsFrames + 1
-        if fpsElapsed >= 1 then
-            fpsValue = math.floor(fpsFrames / fpsElapsed + 0.5)
-            fpsElapsed = 0
-            fpsFrames = 0
+        if debugEnabled then
+            fpsElapsed = fpsElapsed + dt
+            fpsFrames = fpsFrames + 1
+            if fpsElapsed >= 1 then
+                fpsValue = math.floor(fpsFrames / fpsElapsed + 0.5)
+                fpsElapsed = 0
+                fpsFrames = 0
+            end
         end
-
-        UpdateAutoFPS(dt)
 
         if not adaptiveUpdate then
             accumulated = 0
@@ -1257,7 +1219,6 @@ function CursorTrail:EnsureRuntime()
 
     self.runtimeReady = true
     EnsureAnchor()
-    EnsureDebugHolder()
     self.frame = CreateFrame("Frame", nil, UIParent)
 end
 
