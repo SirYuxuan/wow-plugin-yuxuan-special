@@ -1,4 +1,6 @@
 local _, NS = ...
+local LibStub = _G.LibStub
+local LibSharedMedia = LibStub and LibStub("LibSharedMedia-3.0", true)
 
 local Options = NS.Options
 
@@ -62,71 +64,78 @@ Private.Assets = {
     qqIcon = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Icons\\qq.png",
 }
 
-Private.FontPresets = {
-    CHAT = {
-        label = "聊天字体",
-    },
-    DEFAULT = {
-        label = "系统默认",
-        path = STANDARD_TEXT_FONT,
-    },
-    ARKAI = {
-        label = "楷体",
-        path = "Fonts\\ARKai_T.ttf",
-    },
-    BLEI = {
-        label = "粗黑",
-        path = "Fonts\\bLEI00D.ttf",
-    },
-    FZXHL = {
-        label = "细黑",
-        path = "Fonts\\FZXHLJW.TTF",
-    },
-    FRIZQT = {
-        label = "Frizqt",
-        path = "Fonts\\FRIZQT__.TTF",
-    },
-    MORPHEUS = {
-        label = "Morpheus",
-        path = "Fonts\\MORPHEUS.ttf",
-    },
-    SKURRI = {
-        label = "Skurri",
-        path = "Fonts\\skurri.ttf",
-    },
-}
-
-Private.FontPresetOrder = {
-    "CHAT",
-    "DEFAULT",
-    "ARKAI",
-    "BLEI",
-    "FZXHL",
-    "FRIZQT",
-    "MORPHEUS",
-    "SKURRI",
-}
-
 local LEGACY_FONT_PRESET_MAP = {
     CHAT = "CHAT",
     DEFAULT = "DEFAULT",
-    ARKAI = "ARKAI",
-    BLEI = "BLEI",
-    FZXHL = "FZXHL",
-    FRIZQT = "FRIZQT",
-    MORPHEUS = "MORPHEUS",
-    SKURRI = "SKURRI",
-    ["楷体"] = "ARKAI",
-    ["粗黑"] = "BLEI",
-    ["细黑"] = "FZXHL",
-    ["Fonts\\ARKai_T.ttf"] = "ARKAI",
-    ["Fonts\\bLEI00D.ttf"] = "BLEI",
-    ["Fonts\\FZXHLJW.TTF"] = "FZXHL",
-    ["Friz Quadrata TT"] = "FRIZQT",
-    ["Fonts\\FRIZQT__.TTF"] = "FRIZQT",
-    ["Fonts\\MORPHEUS.ttf"] = "MORPHEUS",
-    ["Fonts\\skurri.ttf"] = "SKURRI",
+    ARKAI = "Fonts\\ARKai_T.ttf",
+    BLEI = "Fonts\\bLEI00D.ttf",
+    FZXHL = "Fonts\\FZXHLJW.TTF",
+    FRIZQT = "Fonts\\FRIZQT__.TTF",
+    MORPHEUS = "Fonts\\MORPHEUS.ttf",
+    SKURRI = "Fonts\\skurri.ttf",
+    ["楷体"] = "Fonts\\ARKai_T.ttf",
+    ["粗黑"] = "Fonts\\bLEI00D.ttf",
+    ["细黑"] = "Fonts\\FZXHLJW.TTF",
+    ["Friz Quadrata TT"] = "Fonts\\FRIZQT__.TTF",
 }
+
+local FALLBACK_FONT_OPTIONS = {
+    ["Fonts\\ARKai_T.ttf"] = "楷体",
+    ["Fonts\\bLEI00D.ttf"] = "粗黑",
+    ["Fonts\\FZXHLJW.TTF"] = "细黑",
+    ["Fonts\\FRIZQT__.TTF"] = "Frizqt",
+    ["Fonts\\MORPHEUS.ttf"] = "Morpheus",
+    ["Fonts\\skurri.ttf"] = "Skurri",
+}
+
+local function LooksLikeFontPath(value)
+    if type(value) ~= "string" or value == "" then
+        return false
+    end
+
+    local lowerValue = string.lower(value)
+    return value:find("\\", 1, true) ~= nil
+        or value:find("/", 1, true) ~= nil
+        or lowerValue:find("%.ttf$", 1) ~= nil
+        or lowerValue:find("%.otf$", 1) ~= nil
+end
+
+function Private.GetFontCatalog()
+    local catalog = {
+        CHAT = {
+            label = "聊天字体",
+        },
+        DEFAULT = {
+            label = "系统默认",
+            path = STANDARD_TEXT_FONT,
+        },
+    }
+
+    if LibSharedMedia and LibSharedMedia.HashTable then
+        local ok, mediaFonts = pcall(LibSharedMedia.HashTable, LibSharedMedia, "font")
+        if ok and type(mediaFonts) == "table" then
+            for name, path in pairs(mediaFonts) do
+                if type(name) == "string" and name ~= "" and type(path) == "string" and path ~= "" then
+                    catalog[name] = {
+                        label = name,
+                        path = path,
+                    }
+                end
+            end
+        end
+    end
+
+    if next(catalog, "DEFAULT") == nil then
+        for path, label in pairs(FALLBACK_FONT_OPTIONS) do
+            catalog[path] = {
+                label = label,
+                path = path,
+            }
+        end
+    end
+
+    return catalog
+end
 
 function Private.UnpackColor(color)
     return color[1], color[2], color[3], color[4] or 1
@@ -201,22 +210,22 @@ end
 
 function Private.GetFontOptions()
     local values = {}
-    for _, key in ipairs(Private.FontPresetOrder or {}) do
-        local info = Private.FontPresets[key]
-        if info then
+    local catalog = Private.GetFontCatalog()
+
+    values.CHAT = catalog.CHAT and catalog.CHAT.label or "聊天字体"
+    values.DEFAULT = catalog.DEFAULT and catalog.DEFAULT.label or "系统默认"
+
+    for key, info in pairs(catalog) do
+        if key ~= "CHAT" and key ~= "DEFAULT" and info then
             values[key] = info.label
         end
     end
 
-    for key, info in pairs(Private.FontPresets) do
-        if values[key] == nil then
-            values[key] = info.label
-        end
-    end
     return values
 end
 
 function Private.ResolveFontPresetKey(fontPresetKey, legacyValue)
+    local catalog = Private.GetFontCatalog()
     local candidates = {
         fontPresetKey,
         legacyValue,
@@ -224,12 +233,12 @@ function Private.ResolveFontPresetKey(fontPresetKey, legacyValue)
 
     for _, candidate in ipairs(candidates) do
         if type(candidate) == "string" and candidate ~= "" then
-            if Private.FontPresets[candidate] then
+            if catalog[candidate] then
                 return candidate
             end
 
             local upperCandidate = string.upper(candidate)
-            if Private.FontPresets[upperCandidate] then
+            if catalog[upperCandidate] then
                 return upperCandidate
             end
 
@@ -238,10 +247,14 @@ function Private.ResolveFontPresetKey(fontPresetKey, legacyValue)
                 return mapped
             end
 
-            for key, info in pairs(Private.FontPresets) do
+            for key, info in pairs(catalog) do
                 if info.label == candidate or info.path == candidate then
                     return key
                 end
+            end
+
+            if LooksLikeFontPath(candidate) then
+                return candidate
             end
         end
     end
@@ -262,9 +275,21 @@ end
 function Private.GetFontPathAndFlags(outline, fontPresetKey)
     local config = Private.GetAppearanceConfig()
     local presetKey = Private.ResolveFontPresetKey(fontPresetKey, config and config.fontPreset)
-    local preset = Private.FontPresets[presetKey] or Private.FontPresets.CHAT
-    local fontPath = preset.path
+    local catalog = Private.GetFontCatalog()
+    local preset = catalog[presetKey] or catalog.CHAT
+    local fontPath = preset and preset.path or nil
     local fontFlags = outline or ""
+
+    if not fontPath and LibSharedMedia and LibSharedMedia.Fetch and presetKey ~= "CHAT" and presetKey ~= "DEFAULT" then
+        local ok, fetchedPath = pcall(LibSharedMedia.Fetch, LibSharedMedia, "font", presetKey, true)
+        if ok and type(fetchedPath) == "string" and fetchedPath ~= "" then
+            fontPath = fetchedPath
+        end
+    end
+
+    if not fontPath and LooksLikeFontPath(presetKey) then
+        fontPath = presetKey
+    end
 
     if not fontPath and ChatFontNormal and ChatFontNormal.GetFont then
         local chatPath, _, chatFlags = ChatFontNormal:GetFont()

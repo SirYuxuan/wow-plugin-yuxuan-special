@@ -243,13 +243,30 @@ function NS.BuildGeneralOptions()
                         type = "toggle",
                         name = "显示小地图按钮",
                         order = 11,
-                        desc = "在小地图左侧显示一个用于打开设置窗口的按钮。",
+                        desc = "在小地图左侧显示一个用于打开设置窗口的按钮。关闭后需要重载界面才能完全生效。",
                         get = function()
                             return GetAppearanceConfig().showMinimapButton ~= false
                         end,
                         set = function(_, value)
                             GetAppearanceConfig().showMinimapButton = value and true or false
-                            RefreshAllSettings(true)
+                            if value then
+                                RefreshAllSettings(true)
+                                return
+                            end
+
+                            if NS.Options and NS.Options.NotifyChanged then
+                                NS.Options:NotifyChanged()
+                            end
+
+                            Core:Print("已关闭小地图按钮，重载界面后完全生效。")
+                            if NS.Options and NS.Options.ShowConfirm then
+                                NS.Options:ShowConfirm(
+                                    "关闭小地图按钮需要重载界面后完全生效，是否现在重载？",
+                                    function()
+                                        ReloadUI()
+                                    end
+                                )
+                            end
                         end,
                     },
                     themeRow = {
