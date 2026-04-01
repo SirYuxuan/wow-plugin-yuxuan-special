@@ -380,14 +380,12 @@ function Options:CreateMainFrame()
     scaleSlider:SetObeyStepOnDrag(true)
     scaleSlider:SetValue(ClampWindowScale(Private.GetWindowScale and Private.GetWindowScale() or 1))
 
-    local function ApplyWindowScaleValue(value)
+    local function PersistWindowScaleValue(value)
         local scale = ClampWindowScale(value)
         local config = Private.GetAppearanceConfig and Private.GetAppearanceConfig()
         if config then
             config.windowScale = scale
         end
-
-        Options:ApplyWindowScale()
         return scale
     end
 
@@ -396,11 +394,16 @@ function Options:CreateMainFrame()
             return
         end
 
-        local scale = ApplyWindowScaleValue(value)
+        local scale = PersistWindowScaleValue(value)
         scaleSliderHolder.valueBox:SetText(Private.FormatNumber(scale, WINDOW_SCALE_STEP))
     end)
+    scaleSlider:SetScript("OnMouseUp", function(selfSlider)
+        PersistWindowScaleValue(selfSlider:GetValue())
+        Options:ApplyWindowScale()
+    end)
     scaleSliderHolder.valueBox:SetScript("OnEnterPressed", function(editBox)
-        local scale = ApplyWindowScaleValue(editBox:GetText())
+        local scale = PersistWindowScaleValue(editBox:GetText())
+        Options:ApplyWindowScale()
         editBox:SetText(Private.FormatNumber(scale, WINDOW_SCALE_STEP))
         editBox:ClearFocus()
     end)
@@ -410,7 +413,8 @@ function Options:CreateMainFrame()
     end)
     scaleSliderHolder.valueBox:SetScript("OnEditFocusLost", function(editBox)
         editBox:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
-        local scale = ApplyWindowScaleValue(editBox:GetText())
+        local scale = PersistWindowScaleValue(editBox:GetText())
+        Options:ApplyWindowScale()
         editBox:SetText(Private.FormatNumber(scale, WINDOW_SCALE_STEP))
     end)
     scaleSliderHolder.valueBox:SetScript("OnEditFocusGained", function(editBox)
