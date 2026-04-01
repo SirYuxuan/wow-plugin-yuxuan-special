@@ -1007,6 +1007,7 @@ function NS.BuildInterfaceEnhanceOptions()
                     }),
                 },
             },
+            gameBar = NS.BuildGameBarOptions(),
         },
     }
 end

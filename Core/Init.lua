@@ -48,6 +48,11 @@ function Core:OnPlayerLogin()
         quickChat:OnPlayerLogin()
     end
 
+    local gameBar = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.GameBar
+    if gameBar and gameBar.OnPlayerLogin then
+        gameBar:OnPlayerLogin()
+    end
+
     local cursorTrail = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CursorTrail
     if cursorTrail and cursorTrail.OnPlayerLogin then
         cursorTrail:OnPlayerLogin()

@@ -100,6 +100,35 @@ NS.DEFAULTS = {
                 y = -180,
             },
         },
+        gameBar = {
+            enabled = false,
+            locked = true,
+            buttonSize = 28,
+            spacing = 4,
+            middleWidth = 80,
+            timeFontSize = 20,
+            animationDuration = 0.2,
+            showBackground = true,
+            backgroundColor = {
+                r = 0,
+                g = 0,
+                b = 0,
+                a = 0.45,
+            },
+            mouseOver = false,
+            point = "TOP",
+            relativePoint = "TOP",
+            x = 0,
+            y = -20,
+            leftButtons = { "CHARACTER", "TALENTS", "SPELLBOOK", "QUESTLOG" },
+            rightButtons = { "BAGS", "FRIENDS", "GUILD", "SETTINGS" },
+            hearthstone = {
+                showBindLocation = true,
+                left = "AUTO",
+                middle = "RANDOM",
+                right = "AUTO",
+            },
+        },
         cursorTrail = {
             enabled = false,
             combatOnly = false,
@@ -806,6 +835,12 @@ function Core:ResetQuickChatConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.quickChat = CloneTable(NS.DEFAULTS.interfaceEnhance.quickChat)
     return self.db.interfaceEnhance.quickChat
+end
+
+function Core:ResetGameBarConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.gameBar = CloneTable(NS.DEFAULTS.interfaceEnhance.gameBar)
+    return self.db.interfaceEnhance.gameBar
 end
 
 function Core:ResetCursorTrailConfig()
