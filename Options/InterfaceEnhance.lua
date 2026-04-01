@@ -24,6 +24,14 @@ local function GetCursorTrailConfig()
     return Core:GetConfig("interfaceEnhance", "cursorTrail")
 end
 
+local function GetMouseTooltipModule()
+    return NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.MouseTooltip
+end
+
+local function GetMouseTooltipConfig()
+    return Core:GetConfig("interfaceEnhance", "mouseTooltip")
+end
+
 local function RefreshQuickChat(notifyOptions)
     local quickChat = GetQuickChatModule()
     if quickChat and quickChat.RefreshFromSettings then
@@ -39,6 +47,17 @@ local function RefreshCursorTrail(notifyOptions)
     local cursorTrail = GetCursorTrailModule()
     if cursorTrail and cursorTrail.RefreshFromSettings then
         cursorTrail:RefreshFromSettings()
+    end
+
+    if notifyOptions and NS.Options and NS.Options.NotifyChanged then
+        NS.Options:NotifyChanged()
+    end
+end
+
+local function RefreshMouseTooltip(notifyOptions)
+    local mouseTooltip = GetMouseTooltipModule()
+    if mouseTooltip and mouseTooltip.RefreshFromSettings then
+        mouseTooltip:RefreshFromSettings()
     end
 
     if notifyOptions and NS.Options and NS.Options.NotifyChanged then
@@ -665,6 +684,230 @@ local function BuildCursorTrailArgs()
     }
 end
 
+local function BuildMouseTooltipArgs()
+    return {
+        stateRow = {
+            type = "group",
+            order = 10,
+            name = "",
+            layout = "row",
+            args = {
+                enabled = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "启用鼠标提示增强",
+                    get = function()
+                        return GetMouseTooltipConfig().enabled
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().enabled = value and true or false
+                        RefreshMouseTooltip(true)
+                    end,
+                },
+                disableAllTooltips = {
+                    type = "toggle",
+                    order = 2,
+                    width = 1.0,
+                    name = "禁用所有鼠标提示",
+                    disabled = function()
+                        return not GetMouseTooltipConfig().enabled
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().disableAllTooltips
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().disableAllTooltips = value and true or false
+                        RefreshMouseTooltip(true)
+                    end,
+                },
+                tooltipFollowCursor = {
+                    type = "toggle",
+                    order = 3,
+                    width = 1.0,
+                    name = "提示跟随鼠标",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().tooltipFollowCursor
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().tooltipFollowCursor = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+            },
+        },
+        appearanceTitle = {
+            type = "description",
+            order = 20,
+            fontSize = "medium",
+            name = "|cFFFFD200外观设置|r",
+        },
+        appearanceRow = {
+            type = "group",
+            order = 30,
+            name = "",
+            layout = "row",
+            args = {
+                opaqueTooltipBackground = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "不透明提示背景",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().opaqueTooltipBackground
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().opaqueTooltipBackground = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+                showTooltipHealthBar = {
+                    type = "toggle",
+                    order = 2,
+                    width = 1.0,
+                    name = "显示提示血条",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().showTooltipHealthBar
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().showTooltipHealthBar = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+            },
+        },
+        npcTitle = {
+            type = "description",
+            order = 40,
+            fontSize = "medium",
+            name = "|cFFFFD200NPC 存活时间|r",
+        },
+        npcStateRow = {
+            type = "group",
+            order = 50,
+            name = "",
+            layout = "row",
+            args = {
+                showNPCAliveTime = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "显示 NPC 存活时间",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().showNPCAliveTime
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().showNPCAliveTime = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+                npcTimeUseModifier = {
+                    type = "toggle",
+                    order = 2,
+                    width = 1.0,
+                    name = "按住修饰键时显示",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips or not config.showNPCAliveTime
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().npcTimeUseModifier
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().npcTimeUseModifier = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+            },
+        },
+        npcDetailRow = {
+            type = "group",
+            order = 60,
+            name = "",
+            layout = "row",
+            args = {
+                npcTimeShowCurrentTime = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "显示当前时间",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips or not config.showNPCAliveTime
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().npcTimeShowCurrentTime
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().npcTimeShowCurrentTime = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+                npcTimeShowLayer = {
+                    type = "toggle",
+                    order = 2,
+                    width = 1.0,
+                    name = "显示位面层",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips or not config.showNPCAliveTime
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().npcTimeShowLayer
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().npcTimeShowLayer = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+                npcTimeShowNPCID = {
+                    type = "toggle",
+                    order = 3,
+                    width = 1.0,
+                    name = "显示 NPC ID",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips or not config.showNPCAliveTime
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().npcTimeShowNPCID
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().npcTimeShowNPCID = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+            },
+        },
+        reset = {
+            type = "execute",
+            order = 100,
+            width = 1.0,
+            name = "恢复默认设置",
+            func = function()
+                Core:ResetMouseTooltipConfig()
+                RefreshMouseTooltip(true)
+            end,
+        },
+    }
+end
+
 local function BuildButtonManagementArgs()
     local args = {}
     local quickChat = GetQuickChatModule()
@@ -1012,6 +1255,7 @@ function NS.BuildInterfaceEnhanceOptions()
                 childGroups = "tab",
                 args = {
                     cursorTrail = BuildTab("鼠标拖尾", 10, BuildCursorTrailArgs()),
+                    mouseTooltip = BuildTab("鼠标提示", 20, BuildMouseTooltipArgs()),
                 },
             },
             quickChat = {

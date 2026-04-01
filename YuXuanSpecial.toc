@@ -14,6 +14,7 @@ Modules\MapAssist\MapIDDisplay.lua
 Modules\MapAssist\QuickWaypoint.lua
 Modules\InterfaceEnhance\CursorTrail.lua
 Modules\InterfaceEnhance\GameBar.lua
+Modules\InterfaceEnhance\MouseTooltip.lua
 Modules\InterfaceEnhance\QuickChat.lua
 Modules\CombatAssist\QuickFocus.lua
 Modules\CombatAssist\TrinketMonitor.lua

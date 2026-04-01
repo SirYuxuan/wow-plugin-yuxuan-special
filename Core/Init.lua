@@ -53,6 +53,11 @@ function Core:OnPlayerLogin()
         gameBar:OnPlayerLogin()
     end
 
+    local mouseTooltip = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.MouseTooltip
+    if mouseTooltip and mouseTooltip.OnPlayerLogin then
+        mouseTooltip:OnPlayerLogin()
+    end
+
     local cursorTrail = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CursorTrail
     if cursorTrail and cursorTrail.OnPlayerLogin then
         cursorTrail:OnPlayerLogin()

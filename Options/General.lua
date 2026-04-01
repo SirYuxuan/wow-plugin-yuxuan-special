@@ -51,6 +51,11 @@ local function RefreshAllSettings(notifyOptions)
         quickChat:RefreshFromSettings()
     end
 
+    local mouseTooltip = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.MouseTooltip
+    if mouseTooltip and mouseTooltip.RefreshFromSettings then
+        mouseTooltip:RefreshFromSettings()
+    end
+
     local cursorTrail = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CursorTrail
     if cursorTrail and cursorTrail.RefreshFromSettings then
         cursorTrail:RefreshFromSettings()

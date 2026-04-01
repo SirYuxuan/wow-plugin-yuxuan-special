@@ -100,6 +100,18 @@ NS.DEFAULTS = {
                 y = -180,
             },
         },
+        mouseTooltip = {
+            enabled = false,
+            disableAllTooltips = false,
+            tooltipFollowCursor = false,
+            opaqueTooltipBackground = false,
+            showTooltipHealthBar = false,
+            showNPCAliveTime = false,
+            npcTimeShowCurrentTime = false,
+            npcTimeShowLayer = false,
+            npcTimeShowNPCID = false,
+            npcTimeUseModifier = false,
+        },
         gameBar = {
             enabled = false,
             locked = true,
@@ -835,6 +847,12 @@ function Core:ResetQuickChatConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.quickChat = CloneTable(NS.DEFAULTS.interfaceEnhance.quickChat)
     return self.db.interfaceEnhance.quickChat
+end
+
+function Core:ResetMouseTooltipConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.mouseTooltip = CloneTable(NS.DEFAULTS.interfaceEnhance.mouseTooltip)
+    return self.db.interfaceEnhance.mouseTooltip
 end
 
 function Core:ResetGameBarConfig()
