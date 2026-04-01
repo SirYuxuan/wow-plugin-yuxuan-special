@@ -12,10 +12,13 @@ Core\Commands.lua
 
 Modules\MapAssist\MapIDDisplay.lua
 Modules\MapAssist\QuickWaypoint.lua
+Modules\InterfaceEnhance\AttributeDisplay.lua
 Modules\InterfaceEnhance\CursorTrail.lua
+Modules\InterfaceEnhance\CurrencyDisplay.lua
 Modules\InterfaceEnhance\DistanceMonitor.lua
 Modules\InterfaceEnhance\GameBar.lua
 Modules\InterfaceEnhance\MouseTooltip.lua
+Modules\InterfaceEnhance\PerformanceMonitor.lua
 Modules\InterfaceEnhance\QuickChat.lua
 Modules\InterfaceEnhance\RaidMarkers.lua
 Modules\CombatAssist\QuickFocus.lua
@@ -23,13 +26,16 @@ Modules\CombatAssist\TrinketMonitor.lua
 Modules\ClassAssist\Mage\ShatterIndicator.lua
 
 Options\CombatAssist.lua
+Options\AttributeDisplay.lua
 Options\ClassAssist.lua
+Options\CurrencyDisplay.lua
 Options\DistanceMonitor.lua
 Options\GameBar.lua
 Options\General.lua
 Options\InterfaceEnhance.lua
 Options\Mage.lua
 Options\MapAssist.lua
+Options\PerformanceMonitor.lua
 Options\RaidMarkers.lua
 Options\Shared.lua
 Options\Widgets.lua

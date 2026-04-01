@@ -73,6 +73,21 @@ function Core:OnPlayerLogin()
         cursorTrail:OnPlayerLogin()
     end
 
+    local attributeDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.AttributeDisplay
+    if attributeDisplay and attributeDisplay.OnPlayerLogin then
+        attributeDisplay:OnPlayerLogin()
+    end
+
+    local currencyDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CurrencyDisplay
+    if currencyDisplay and currencyDisplay.OnPlayerLogin then
+        currencyDisplay:OnPlayerLogin()
+    end
+
+    local performanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.PerformanceMonitor
+    if performanceMonitor and performanceMonitor.OnPlayerLogin then
+        performanceMonitor:OnPlayerLogin()
+    end
+
     local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
     if quickFocus and quickFocus.OnPlayerLogin then
         quickFocus:OnPlayerLogin()

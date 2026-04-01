@@ -76,6 +76,21 @@ local function RefreshAllSettings(notifyOptions)
         cursorTrail:RefreshFromSettings()
     end
 
+    local attributeDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.AttributeDisplay
+    if attributeDisplay and attributeDisplay.RefreshFromSettings then
+        attributeDisplay:RefreshFromSettings()
+    end
+
+    local currencyDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CurrencyDisplay
+    if currencyDisplay and currencyDisplay.RefreshFromSettings then
+        currencyDisplay:RefreshFromSettings()
+    end
+
+    local performanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.PerformanceMonitor
+    if performanceMonitor and performanceMonitor.RefreshFromSettings then
+        performanceMonitor:RefreshFromSettings()
+    end
+
     local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
     if quickFocus and quickFocus.RefreshFromSettings then
         quickFocus:RefreshFromSettings()

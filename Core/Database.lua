@@ -236,6 +236,95 @@ NS.DEFAULTS = {
             color9 = { 0.00, 0.00, 0.00 },
             color10 = { 0.00, 0.00, 0.00 },
         },
+        attributeDisplay = {
+            enabled = true,
+            locked = false,
+            fontOutline = false,
+            showIlvl = true,
+            showPrimary = true,
+            showCrit = true,
+            showHaste = true,
+            showMastery = true,
+            showVersa = true,
+            showLeech = false,
+            showDodge = false,
+            showParry = false,
+            showBlock = false,
+            showSpeed = true,
+            colorIlvl = { r = 0.996, g = 0.349, b = 0.827 },
+            colorPrimary = { r = 1.00, g = 0.498, b = 0.259 },
+            colorCrit = { r = 1.00, g = 0.00, b = 0.071 },
+            colorHaste = { r = 0.043, g = 1.00, b = 0.00 },
+            colorMastery = { r = 1.00, g = 1.00, b = 1.00 },
+            colorVersa = { r = 0.00, g = 0.902, b = 1.00 },
+            colorLeech = { r = 0.81, g = 0.39, b = 0.99 },
+            colorDodge = { r = 0.85, g = 0.85, b = 0.65 },
+            colorParry = { r = 0.65, g = 0.85, b = 0.85 },
+            colorBlock = { r = 0.75, g = 0.75, b = 0.75 },
+            colorSpeed = { r = 1.00, g = 1.00, b = 0.40 },
+            fontSize = 14,
+            lineSpacing = 2,
+            decimalPlaces = 1,
+            bgAlpha = 0.5,
+            bgStyle = "semi",
+            font = "Friz Quadrata TT",
+            align = "LEFT",
+            visibility = "always",
+            ilvlFormat = "real",
+            secondaryFormat = "percent",
+            speedFormat = "current",
+            pos = {
+                point = "CENTER",
+                relativeTo = "UIParent",
+                relativePoint = "CENTER",
+                x = 0,
+                y = 0,
+            },
+            progressBarEnable = false,
+            progressBarHeight = 6,
+            progressBarWidth = 180,
+            progressBarTexture = "Yuxuan",
+            progressBarColor = { r = 1.00, g = 1.00, b = 1.00 },
+            maxIlvl = 289,
+        },
+        currencyDisplay = {
+            enabled = false,
+            locked = false,
+            orientation = "HORIZONTAL",
+            spacing = 8,
+            iconSize = 16,
+            fontSize = 14,
+            fontOutline = false,
+            font = "Friz Quadrata TT",
+            displayMode = "ICON_TEXT",
+            showMoney = true,
+            selected = {},
+            order = {},
+            pos = {
+                point = "CENTER",
+                relativeTo = "UIParent",
+                relativePoint = "CENTER",
+                x = 0,
+                y = -220,
+            },
+        },
+        performanceMonitor = {
+            enabled = true,
+            locked = true,
+            font = "Friz Quadrata TT",
+            fontSize = 14,
+            updateInterval = 1,
+            showBackground = true,
+            showBorder = false,
+            backgroundColor = { r = 0, g = 0, b = 0, a = 0.32 },
+            borderColor = { r = 0, g = 0.6, b = 1, a = 0.45 },
+            point = {
+                point = "CENTER",
+                relativePoint = "CENTER",
+                x = 220,
+                y = -20,
+            },
+        },
     },
     combatAssist = {
         quickFocus = {
@@ -935,6 +1024,24 @@ function Core:ResetCursorTrailConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.cursorTrail = CloneTable(NS.DEFAULTS.interfaceEnhance.cursorTrail)
     return self.db.interfaceEnhance.cursorTrail
+end
+
+function Core:ResetAttributeDisplayConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.attributeDisplay = CloneTable(NS.DEFAULTS.interfaceEnhance.attributeDisplay)
+    return self.db.interfaceEnhance.attributeDisplay
+end
+
+function Core:ResetCurrencyDisplayConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.currencyDisplay = CloneTable(NS.DEFAULTS.interfaceEnhance.currencyDisplay)
+    return self.db.interfaceEnhance.currencyDisplay
+end
+
+function Core:ResetPerformanceMonitorConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.performanceMonitor = CloneTable(NS.DEFAULTS.interfaceEnhance.performanceMonitor)
+    return self.db.interfaceEnhance.performanceMonitor
 end
 
 function Core:ResetTrinketMonitorConfig()

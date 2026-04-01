@@ -1258,6 +1258,8 @@ function NS.BuildInterfaceEnhanceOptions()
                     mouseTooltip = BuildTab("鼠标提示", 20, BuildMouseTooltipArgs()),
                 },
             },
+            attributeDisplay = NS.BuildAttributeDisplayOptions(),
+            currencyDisplay = NS.BuildCurrencyDisplayOptions(),
             distanceMonitor = NS.BuildDistanceMonitorOptions(),
             raidMarkers = NS.BuildRaidMarkersOptions(),
             quickChat = {
@@ -1271,6 +1273,7 @@ function NS.BuildInterfaceEnhanceOptions()
                     addCustom = BuildTab("新增按钮", 30, BuildQuickChatAddCustomArgs()),
                 },
             },
+            performanceMonitor = NS.BuildPerformanceMonitorOptions(),
             gameBar = NS.BuildGameBarOptions(),
         },
     }
