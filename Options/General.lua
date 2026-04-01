@@ -36,6 +36,10 @@ local function RefreshAllSettings(notifyOptions)
         NS.Options:RefreshAppearance()
     end
 
+    if Core and Core.RefreshMinimapButton then
+        Core:RefreshMinimapButton()
+    end
+
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.RefreshFromSettings then
         quickWaypoint:RefreshFromSettings()
@@ -218,26 +222,39 @@ function NS.BuildGeneralOptions()
                         type = "description",
                         order = 1,
                         fontSize = "medium",
-                        name = "这里可以统一调整插件设置界面的字体和主题色。",
+                        name = "这里的字体和主题色只作用于设置窗口本身，不会覆盖各模块自己的字体设置。",
                     },
                     fontPreset = {
                         type = "select",
-                        name = "插件字体",
+                        name = "设置窗口字体",
                         order = 10,
                         values = function()
                             return NS.Options.Private.GetFontOptions()
                         end,
                         get = function()
-                            return GetAppearanceConfig().fontPreset
+                            return NS.Options.Private.NormalizeFontPreset(GetAppearanceConfig())
                         end,
                         set = function(_, value)
-                            GetAppearanceConfig().fontPreset = value
+                            GetAppearanceConfig().fontPreset = NS.Options.Private.ResolveFontPresetKey(value)
+                            RefreshAllSettings(true)
+                        end,
+                    },
+                    showMinimapButton = {
+                        type = "toggle",
+                        name = "显示小地图按钮",
+                        order = 11,
+                        desc = "在小地图左侧显示一个用于打开设置窗口的按钮。",
+                        get = function()
+                            return GetAppearanceConfig().showMinimapButton ~= false
+                        end,
+                        set = function(_, value)
+                            GetAppearanceConfig().showMinimapButton = value and true or false
                             RefreshAllSettings(true)
                         end,
                     },
                     themeRow = {
                         type = "group",
-                        order = 11,
+                        order = 12,
                         name = "",
                         layout = "row",
                         args = {

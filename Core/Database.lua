@@ -29,6 +29,7 @@ NS.DEFAULTS = {
         appearance = {
             fontPreset = "CHAT",
             windowScale = 1.0,
+            showMinimapButton = true,
             colorMode = "CLASS",
             customColor = {
                 r = 0.95,

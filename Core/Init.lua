@@ -1,8 +1,8 @@
 ﻿local ADDON_NAME, NS = ...
 
 NS.ADDON_NAME = ADDON_NAME
-NS.DISPLAY_NAME = "雨轩专用插件"
-NS.VERSION = "0.3.0"
+NS.DISPLAY_NAME = "雨轩工具箱"
+NS.VERSION = "0.0.1"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
@@ -25,6 +25,105 @@ NS.Core = Core
 
 function Core:Print(message)
     print(string.format("|cFF33FF99%s|r: %s", NS.DISPLAY_NAME, tostring(message or "")))
+end
+
+function Core:GetAppearanceConfig()
+    self.db = self.db or {}
+    self.db.general = self.db.general or {}
+    self.db.general.appearance = self.db.general.appearance or {}
+    return self.db.general.appearance
+end
+
+function Core:CreateMinimapButton()
+    if self.minimapButton or not Minimap then
+        return self.minimapButton
+    end
+
+    local button = CreateFrame("Button", "YuXuanSpecialMinimapButton", Minimap)
+    button:SetSize(32, 32)
+    button:SetFrameStrata("MEDIUM")
+    button:SetFrameLevel(8)
+    button:RegisterForClicks("AnyUp")
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(18, 18)
+    icon:SetPoint("CENTER", 0, 1)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10_Blue")
+    button.icon = icon
+
+    local background = button:CreateTexture(nil, "BACKGROUND")
+    background:SetSize(20, 20)
+    background:SetPoint("CENTER", 0, 1)
+    background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    background:SetVertexColor(0, 0, 0, 1)
+    button.background = background
+
+    local border = button:CreateTexture(nil, "OVERLAY")
+    border:SetSize(54, 54)
+    border:SetPoint("TOPLEFT")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    button.border = border
+
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetSize(46, 46)
+    highlight:SetPoint("CENTER")
+    highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    highlight:SetBlendMode("ADD")
+    highlight:SetAlpha(0.85)
+
+    button:SetScript("OnEnter", function(selfButton)
+        GameTooltip:SetOwner(selfButton, "ANCHOR_LEFT")
+        GameTooltip:AddLine(NS.DISPLAY_NAME, 1, 0.82, 0.18)
+        GameTooltip:AddLine("左键打开设置", 1, 1, 1)
+        GameTooltip:AddLine("/yxs", 1, 0.93, 0.25)
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    button:SetScript("OnClick", function()
+        if NS.Options and NS.Options.Open then
+            NS.Options:Open()
+        end
+    end)
+
+    self.minimapButton = button
+    return button
+end
+
+function Core:UpdateMinimapButtonPosition()
+    local button = self.minimapButton
+    if not (button and Minimap) then
+        return
+    end
+
+    local radius = (Minimap:GetWidth() or 140) * 0.5 + 5
+    local angle = math.rad(180)
+    local x = math.cos(angle) * radius
+    local y = math.sin(angle) * radius
+
+    button:ClearAllPoints()
+    button:SetPoint("CENTER", Minimap, "CENTER", x, y)
+end
+
+function Core:RefreshMinimapButton()
+    local config = self:GetAppearanceConfig()
+    local shouldShow = config.showMinimapButton ~= false
+
+    if not shouldShow then
+        if self.minimapButton then
+            self.minimapButton:Hide()
+        end
+        return
+    end
+
+    local button = self:CreateMinimapButton()
+    if not button then
+        return
+    end
+
+    self:UpdateMinimapButtonPosition()
+    button:Show()
 end
 
 function Core:OnAddonLoaded()
@@ -104,6 +203,14 @@ function Core:OnPlayerLogin()
     if shatterIndicator and shatterIndicator.OnPlayerLogin then
         shatterIndicator:OnPlayerLogin()
     end
+
+    self:RefreshMinimapButton()
+
+    print(string.format(
+        "|cFF33FF99%s|r |cFFFFD200V%s|r |cFF7CFC00已加载|r |cFFFFFFFF打开设置|r |cFFFFFF00/yxs|r",
+        NS.DISPLAY_NAME,
+        NS.VERSION
+    ))
 end
 
 function Core:OnWorldMapLoaded()

@@ -70,6 +70,18 @@ Private.FontPresets = {
         label = "系统默认",
         path = STANDARD_TEXT_FONT,
     },
+    ARKAI = {
+        label = "楷体",
+        path = "Fonts\\ARKai_T.ttf",
+    },
+    BLEI = {
+        label = "粗黑",
+        path = "Fonts\\bLEI00D.ttf",
+    },
+    FZXHL = {
+        label = "细黑",
+        path = "Fonts\\FZXHLJW.TTF",
+    },
     FRIZQT = {
         label = "Frizqt",
         path = "Fonts\\FRIZQT__.TTF",
@@ -84,12 +96,32 @@ Private.FontPresets = {
     },
 }
 
+Private.FontPresetOrder = {
+    "CHAT",
+    "DEFAULT",
+    "ARKAI",
+    "BLEI",
+    "FZXHL",
+    "FRIZQT",
+    "MORPHEUS",
+    "SKURRI",
+}
+
 local LEGACY_FONT_PRESET_MAP = {
     CHAT = "CHAT",
     DEFAULT = "DEFAULT",
+    ARKAI = "ARKAI",
+    BLEI = "BLEI",
+    FZXHL = "FZXHL",
     FRIZQT = "FRIZQT",
     MORPHEUS = "MORPHEUS",
     SKURRI = "SKURRI",
+    ["楷体"] = "ARKAI",
+    ["粗黑"] = "BLEI",
+    ["细黑"] = "FZXHL",
+    ["Fonts\\ARKai_T.ttf"] = "ARKAI",
+    ["Fonts\\bLEI00D.ttf"] = "BLEI",
+    ["Fonts\\FZXHLJW.TTF"] = "FZXHL",
     ["Friz Quadrata TT"] = "FRIZQT",
     ["Fonts\\FRIZQT__.TTF"] = "FRIZQT",
     ["Fonts\\MORPHEUS.ttf"] = "MORPHEUS",
@@ -169,8 +201,17 @@ end
 
 function Private.GetFontOptions()
     local values = {}
+    for _, key in ipairs(Private.FontPresetOrder or {}) do
+        local info = Private.FontPresets[key]
+        if info then
+            values[key] = info.label
+        end
+    end
+
     for key, info in pairs(Private.FontPresets) do
-        values[key] = info.label
+        if values[key] == nil then
+            values[key] = info.label
+        end
     end
     return values
 end
@@ -258,7 +299,11 @@ function Private.ApplyFont(target, size, outline, fontPresetKey)
     end
 
     local fontPath, fontFlags = Private.GetFontPathAndFlags(outline, fontPresetKey)
-    target:SetFont(fontPath, size or 12, fontFlags or "")
+    local applied = target:SetFont(fontPath, size or 12, fontFlags or "")
+    if applied == false then
+        local fallbackPath, fallbackFlags = Private.GetFontPathAndFlags(outline, "CHAT")
+        target:SetFont(fallbackPath or STANDARD_TEXT_FONT, size or 12, fallbackFlags or "")
+    end
 end
 
 function Private.ApplyStoredFont(target)

@@ -41,7 +41,7 @@ local function BuildAboutOptions()
                 type = "description",
                 order = 4,
                 fontSize = "medium",
-                name = "当前版本包含地图辅助、战斗辅助与职业辅助，并使用独立自定义窗口进行配置。",
+                name = "当前提供地图辅助、界面增强、战斗辅助与法师冰霜相关功能。",
             },
             commandHeader = {
                 type = "header",
@@ -52,43 +52,18 @@ local function BuildAboutOptions()
                 type = "description",
                 order = 11,
                 fontSize = "medium",
-                name = "|cFFFFFF00/yxs|r - 打开或关闭配置窗口",
+                name = "|cFFFFFF00/yxs|r - 打开或关闭设置窗口",
             },
-            cmd2 = {
-                type = "description",
-                order = 12,
-                fontSize = "medium",
-                name = "|cFFFFFF00/yxs map|r - 打开地图辅助",
+            feedbackHeader = {
+                type = "header",
+                order = 20,
+                name = "反馈",
             },
-            cmd3 = {
+            feedback = {
                 type = "description",
-                order = 13,
+                order = 21,
                 fontSize = "medium",
-                name = "|cFFFFFF00/yxs nav|r - 打开快捷导航",
-            },
-            cmd4 = {
-                type = "description",
-                order = 14,
-                fontSize = "medium",
-                name = "|cFFFFFF00/yxs combat|r - 打开战斗辅助",
-            },
-            cmd5 = {
-                type = "description",
-                order = 15,
-                fontSize = "medium",
-                name = "|cFFFFFF00/yxs trinket|r - 打开饰品监控",
-            },
-            cmd6 = {
-                type = "description",
-                order = 16,
-                fontSize = "medium",
-                name = "|cFFFFFF00/yxs mage|r - 打开法师辅助",
-            },
-            cmd7 = {
-                type = "description",
-                order = 17,
-                fontSize = "medium",
-                name = "|cFFFFFF00/yxs frost|r - 打开冰霜专精页",
+                name = "如果你需要插件里还没有实现的轻量单体功能，欢迎加群反馈，我会按实际需求继续补充。",
             },
         },
     }
