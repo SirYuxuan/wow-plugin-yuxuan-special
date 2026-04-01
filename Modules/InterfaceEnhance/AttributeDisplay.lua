@@ -1,21 +1,28 @@
-﻿local _, NS = ...
+local _, NS = ...
 local Core = NS.Core
 
 local AttributeDisplay = {}
 NS.Modules.InterfaceEnhance.AttributeDisplay = AttributeDisplay
 
-local function GetConfig()
-    return Core:GetConfig("interfaceEnhance", "attributeDisplay")
-end
 local LibSharedMedia = LibStub("LibSharedMedia-3.0")
-
--- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
---  Attribute Display Module
---  (Cloned from WeiyuAttribute, adapted for YuXuanToolbox)
--- 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 
 local STAT_KEYS = { "ilvl", "primary", "crit", "haste", "mastery", "versa", "leech", "dodge", "parry", "block", "speed" }
 local PROGRESS_KEYS = { "ilvl", "primary", "crit", "haste", "mastery", "versa", "speed" }
+local PRIMARY_STAT_NAMES = {
+    [1] = "力量",
+    [2] = "敏捷",
+    [4] = "智力",
+}
+local SECONDARY_STAT_NAMES = {
+    crit = "暴击",
+    haste = "急速",
+    mastery = "精通",
+    versa = "全能",
+    leech = "吸血",
+    dodge = "躲闪",
+    parry = "招架",
+    block = "格挡",
+}
 local DRAGON_RIDING_SPELL_IDS = {
     32235, 32239, 32240, 32242, 32289, 32290, 32292, 336036, 340068, 341776,
     342666, 342667, 344574, 346554, 349943, 353263, 353265, 353856, 353875,
@@ -38,67 +45,194 @@ local DRAGON_RIDING_SPELL_IDS = {
     332252, 332256, 334352, 334482, 335150,
 }
 
--- Dragon riding speed tracking state
 local lastX, lastY = 0, 0
 local wasSwimming = false
 local lastUpdateTime = 0
 
--- 鈹€鈹€鈹€ Frame creation 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+local function GetConfig()
+    return Core:GetConfig("interfaceEnhance", "attributeDisplay")
+end
+
+local function FetchFont(fontName)
+    return LibSharedMedia:Fetch("font", fontName) or STANDARD_TEXT_FONT
+end
+
+local function FetchStatusBar(textureName)
+    return LibSharedMedia:Fetch("statusbar", textureName) or "Interface\\TargetingFrame\\UI-StatusBar"
+end
+
+local function EnsurePosition()
+    local config = GetConfig()
+    config.pos = config.pos or {
+        point = "CENTER",
+        relativeTo = "UIParent",
+        relativePoint = "CENTER",
+        x = 0,
+        y = 0,
+    }
+    return config.pos
+end
+
+local function IsDragonRiding()
+    for _, spellID in ipairs(DRAGON_RIDING_SPELL_IDS) do
+        if C_UnitAuras.GetPlayerAuraBySpellID(spellID) then
+            return true
+        end
+    end
+    return false
+end
+
+local function GetDragonSpeed()
+    local elapsed = GetTime() - lastUpdateTime
+    lastUpdateTime = GetTime()
+
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if not mapID then
+        return 0
+    end
+
+    local position = C_Map.GetPlayerMapPosition(mapID, "player")
+    if not position then
+        return 0
+    end
+
+    local width, height = C_Map.GetMapWorldSize(mapID)
+    local x = position.x * width
+    local y = position.y * height
+    local dx = x - lastX
+    local dy = y - lastY
+    lastX = x
+    lastY = y
+
+    if elapsed <= 0 then
+        return 0
+    end
+
+    return math.sqrt(dx * dx + dy * dy) / elapsed
+end
+
+local function GetPlayerSpeed()
+    local unit = "player"
+    local currentSpeed, _, _, swimSpeed = GetUnitSpeed(unit)
+    local speed = currentSpeed
+    local swimming = IsSwimming(unit)
+
+    if UnitInVehicle(unit) then
+        speed = GetUnitSpeed("vehicle") / BASE_MOVEMENT_SPEED * 100
+    elseif swimming then
+        speed = swimSpeed
+    elseif UnitOnTaxi(unit) then
+        speed = currentSpeed
+    elseif IsFlying(unit) then
+        if IsDragonRiding() then
+            speed = GetDragonSpeed()
+        else
+            speed = currentSpeed
+        end
+    end
+
+    if IsFalling(unit) then
+        if wasSwimming then
+            speed = swimSpeed
+        end
+    else
+        wasSwimming = swimming
+    end
+
+    return (speed / BASE_MOVEMENT_SPEED) * 100
+end
+
+local function GetPrimaryStatValue()
+    local specIndex = GetSpecialization()
+    local statID = 1
+    if specIndex then
+        local _, _, _, _, _, primaryStatID = GetSpecializationInfo(specIndex)
+        statID = primaryStatID or 1
+    end
+
+    local statValue = UnitStat("player", statID) or 0
+    local statName = PRIMARY_STAT_NAMES[statID] or "主属性"
+    return statName, statValue
+end
+
+local function GetAttributeValues(config)
+    local values = {}
+
+    if config.showCrit then
+        values.crit = { rating = GetCombatRating(CR_CRIT_MELEE), percent = GetCritChance("player") or 0 }
+    end
+    if config.showHaste then
+        values.haste = { rating = GetCombatRating(CR_HASTE_MELEE), percent = UnitSpellHaste("player") or 0 }
+    end
+    if config.showMastery then
+        values.mastery = { rating = GetCombatRating(CR_MASTERY), percent = GetMasteryEffect("player") or 0 }
+    end
+    if config.showVersa then
+        values.versa = {
+            rating = GetCombatRating(CR_VERSATILITY_DAMAGE_DONE),
+            percent = GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) or 0,
+        }
+    end
+    if config.showLeech then
+        values.leech = { rating = GetCombatRating(CR_LIFESTEAL), percent = GetLifesteal() or 0 }
+    end
+    if config.showDodge then
+        values.dodge = { rating = GetCombatRating(CR_DODGE), percent = GetDodgeChance() or 0 }
+    end
+    if config.showParry then
+        values.parry = { rating = GetCombatRating(CR_PARRY), percent = GetParryChance() or 0 }
+    end
+    if config.showBlock then
+        values.block = { rating = GetCombatRating(CR_BLOCK), percent = GetBlockChance() or 0 }
+    end
+
+    return values
+end
 
 function Core:CreateAttributeFrame()
-    if self.attributeFrame then return end
+    if self.attributeFrame then
+        return
+    end
+
+    self.attributeLines = self.attributeLines or {}
+    self.attributeProgressBars = self.attributeProgressBars or {}
 
     local frame = CreateFrame("Frame", "YuXuanAttributeFrame", UIParent, "BackdropTemplate")
     frame:SetSize(200, 250)
-    frame:SetPoint("CENTER")
     frame:SetFrameStrata("LOW")
-    frame:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\ChatFrame\\ChatFrameBorder",
-        tile = true,
-        tileSize = 16,
-        edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    frame:SetBackdropColor(0.1, 0.1, 0.1, 0.5)
-    frame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.5)
     frame:EnableMouse(true)
     frame:SetMovable(true)
     frame:SetClampedToScreen(false)
     frame:RegisterForDrag("LeftButton")
-
-    frame:SetScript("OnDragStart", function(self)
-        local cfg = GetConfig()
-        if not cfg.locked then self:StartMoving() end
+    frame:SetScript("OnDragStart", function(selfFrame)
+        if not GetConfig().locked then
+            selfFrame:StartMoving()
+        end
+    end)
+    frame:SetScript("OnDragStop", function(selfFrame)
+        selfFrame:StopMovingOrSizing()
+        local point, relativeTo, relativePoint, x, y = selfFrame:GetPoint(1)
+        local position = EnsurePosition()
+        position.point = point
+        position.relativeTo = relativeTo and relativeTo:GetName() or "UIParent"
+        position.relativePoint = relativePoint
+        position.x = x
+        position.y = y
+    end)
+    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:SetScript("OnEvent", function()
+        Core:UpdateAttributeVisibility()
     end)
 
-    frame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
-        local cfg = GetConfig()
-        local point, relativeTo, relativePoint, x, y = self:GetPoint(1)
-        cfg.pos = {
-            point = point,
-            relativeTo = relativeTo and relativeTo:GetName() or "UIParent",
-            relativePoint = relativePoint,
-            x = x,
-            y = y,
-        }
-    end)
-
-    -- Create font strings
     for _, key in ipairs(STAT_KEYS) do
-        local fs = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        self.attributeLines[key] = fs
+        self.attributeLines[key] = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     end
 
-    -- Create progress bars
     for _, key in ipairs(PROGRESS_KEYS) do
         local bar = CreateFrame("StatusBar", nil, frame)
-        bar:SetHeight(6)
-        bar:SetWidth(180)
         bar:SetMinMaxValues(0, 100)
         bar:SetValue(0)
-        bar:Show()
 
         local bg = bar:CreateTexture(nil, "BACKGROUND")
         bg:SetAllPoints()
@@ -108,134 +242,24 @@ function Core:CreateAttributeFrame()
     end
 
     self.attributeFrame = frame
-
-    -- Visibility events
-    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    frame:SetScript("OnEvent", function() Core:UpdateAttributeVisibility() end)
-
-    -- Update ticker
-    C_Timer.NewTicker(0.2, function()
-        if Core.db and GetConfig().enabled then
-            Core:UpdateAttributeDisplay()
-        end
-    end)
 end
-
--- 鈹€鈹€鈹€ Stat calculation 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
-local function IsDragonRiding()
-    local spellIDs = DRAGON_RIDING_SPELL_IDS
-    if not spellIDs then return false end
-    for _, id in ipairs(spellIDs) do
-        if C_UnitAuras.GetPlayerAuraBySpellID(id) then
-            return true
-        end
-    end
-    return false
-end
-
-local function GetDragonSpeed()
-    local dragonSpeed = 0
-    local dt = GetTime() - lastUpdateTime
-    lastUpdateTime = GetTime()
-    local map = C_Map.GetBestMapForUnit("player")
-    if map then
-        local position = C_Map.GetPlayerMapPosition(map, "player")
-        if position then
-            local x, y = position.x, position.y
-            local w, h = C_Map.GetMapWorldSize(map)
-            x = x * w
-            y = y * h
-            local dx = x - lastX
-            local dy = y - lastY
-            lastX = x
-            lastY = y
-            if dt > 0 then
-                dragonSpeed = math.sqrt(dx * dx + dy * dy) / dt
-            end
-        end
-    end
-    return dragonSpeed
-end
-
-local function GetPlayerSpeed()
-    local unit = "player"
-    local currentSpeed, _, _, swimSpeed = GetUnitSpeed(unit)
-    local speed = currentSpeed
-    local swimming = IsSwimming(unit)
-    if UnitInVehicle(unit) then
-        speed = GetUnitSpeed("Vehicle") / BASE_MOVEMENT_SPEED * 100
-    elseif swimming then
-        speed = swimSpeed
-    elseif UnitOnTaxi("player") then
-        speed = currentSpeed
-    elseif IsFlying(unit) then
-        if IsDragonRiding() then
-            speed = GetDragonSpeed()
-        else
-            speed = currentSpeed
-        end
-    end
-    if IsFalling(unit) then
-        if wasSwimming then
-            speed = swimSpeed
-        end
-    else
-        wasSwimming = swimming
-    end
-    return (speed / BASE_MOVEMENT_SPEED) * 100
-end
-
-local function GetAttributeValues(cfg)
-    local values = {}
-    if cfg.showCrit then
-        values.crit = { rating = GetCombatRating(CR_CRIT_MELEE), percent = GetCritChance("player") or 0 }
-    end
-    if cfg.showHaste then
-        values.haste = { rating = GetCombatRating(CR_HASTE_MELEE), percent = UnitSpellHaste("player") or 0 }
-    end
-    if cfg.showMastery then
-        values.mastery = { rating = GetCombatRating(CR_MASTERY), percent = GetMasteryEffect("player") or 0 }
-    end
-    if cfg.showVersa then
-        values.versa = {
-            rating = GetCombatRating(CR_VERSATILITY_DAMAGE_DONE),
-            percent = GetCombatRatingBonus(
-                CR_VERSATILITY_DAMAGE_DONE) or 0
-        }
-    end
-    if cfg.showLeech then
-        values.leech = { rating = GetCombatRating(CR_LIFESTEAL), percent = GetLifesteal() or 0 }
-    end
-    if cfg.showDodge then
-        values.dodge = { rating = GetCombatRating(CR_DODGE), percent = GetDodgeChance() or 0 }
-    end
-    if cfg.showParry then
-        values.parry = { rating = GetCombatRating(CR_PARRY), percent = GetParryChance() or 0 }
-    end
-    if cfg.showBlock then
-        values.block = { rating = GetCombatRating(CR_BLOCK), percent = GetBlockChance() or 0 }
-    end
-    return values
-end
-
--- 鈹€鈹€鈹€ Display update 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 function Core:UpdateAttributeDisplay()
-    if not self.db or not self.attributeFrame then return end
-    local cfg = GetConfig()
-    local frame = self.attributeFrame
-
-    local fontPath = LibSharedMedia:Fetch("font", cfg.font) or STANDARD_TEXT_FONT
-    for _, fs in pairs(self.attributeLines) do
-        fs:SetFont(fontPath, cfg.fontSize, cfg.fontOutline and "OUTLINE" or "")
-        fs:SetJustifyH(cfg.align)
-        fs:SetWidth(frame:GetWidth() - 16)
+    if not self.db or not self.attributeFrame then
+        return
     end
 
-    -- Background
-    if cfg.bgStyle == "none" then
+    local config = GetConfig()
+    local frame = self.attributeFrame
+
+    local fontPath = FetchFont(config.font)
+    for _, fontString in pairs(self.attributeLines) do
+        fontString:SetFont(fontPath, config.fontSize, config.fontOutline and "OUTLINE" or "")
+        fontString:SetJustifyH(config.align)
+        fontString:SetWidth(frame:GetWidth() - 16)
+    end
+
+    if config.bgStyle == "none" then
         frame:SetBackdrop(nil)
     else
         frame:SetBackdrop({
@@ -246,266 +270,177 @@ function Core:UpdateAttributeDisplay()
             edgeSize = 16,
             insets = { left = 4, right = 4, top = 4, bottom = 4 },
         })
-        frame:SetBackdropColor(0.1, 0.1, 0.1, cfg.bgAlpha)
-        frame:SetBackdropBorderColor(0.5, 0.5, 0.5, cfg.bgAlpha)
+        frame:SetBackdropColor(0.1, 0.1, 0.1, config.bgAlpha)
+        frame:SetBackdropBorderColor(0.5, 0.5, 0.5, config.bgAlpha)
     end
 
     local displayList = {}
-    local values = GetAttributeValues(cfg)
+    local values = GetAttributeValues(config)
 
-    -- Item Level
-    if cfg.showIlvl then
-        local _, equipIlvl = GetAverageItemLevel("player")
-        local avgIlvl = select(1, GetAverageItemLevel("player"))
+    if config.showIlvl then
+        local _, equippedIlvl = GetAverageItemLevel("player")
+        local averageIlvl = select(1, GetAverageItemLevel("player"))
         local text
-        if cfg.ilvlFormat == "real" then
-            text = string.format("瑁呯瓑: %.1f", equipIlvl)
+        if config.ilvlFormat == "real" then
+            text = string.format("装等: %.1f", equippedIlvl)
         else
-            text = string.format("瑁呯瓑: %.1f (%.1f)", equipIlvl, avgIlvl)
+            text = string.format("装等: %.1f (%.1f)", equippedIlvl, averageIlvl)
         end
-        table.insert(displayList, { key = "ilvl", text = text, color = cfg.colorIlvl, value = equipIlvl })
+        table.insert(displayList, { key = "ilvl", text = text, color = config.colorIlvl, value = equippedIlvl })
     end
 
-    -- Primary Stat
-    if cfg.showPrimary then
-        local spec = GetSpecialization()
-        local primaryStatTypes = { "STRENGTH", "AGILITY", nil, "INTELLECT" }
-        local _, _, _, _, _, primaryStatIndex = GetSpecializationInfo(spec)
-        if not primaryStatIndex then primaryStatIndex = 1 end
-        local statValue
-        if primaryStatIndex == 1 then
-            statValue = UnitStat("player", 1)
-        elseif primaryStatIndex == 2 then
-            statValue = UnitStat("player", 2)
-        elseif primaryStatIndex == 4 then
-            statValue = UnitStat("player", 4)
-        else
-            statValue = 0
-        end
-        local statName = _G["SPEC_FRAME_PRIMARY_STAT_" .. (primaryStatTypes[primaryStatIndex] or "STRENGTH")] or "涓诲睘鎬?
-        table.insert(displayList,
-            { key = "primary", text = statName .. ": " .. statValue, color = cfg.colorPrimary, value = statValue })
+    if config.showPrimary then
+        local statName, statValue = GetPrimaryStatValue()
+        table.insert(displayList, { key = "primary", text = statName .. ": " .. statValue, color = config.colorPrimary, value = statValue })
     end
 
-    -- Secondary stats (sorted by value)
     local sortable = {}
-    if cfg.showCrit and values.crit then
-        table.insert(sortable,
-            { key = "crit", value = values.crit.percent, rating = values.crit.rating, color = cfg.colorCrit, name = "鏆村嚮" })
-    end
-    if cfg.showHaste and values.haste then
-        table.insert(sortable,
-            {
-                key = "haste",
-                value = values.haste.percent,
-                rating = values.haste.rating,
-                color = cfg.colorHaste,
-                name =
-                "鎬ラ€?
+    for key, statName in pairs(SECONDARY_STAT_NAMES) do
+        if config["show" .. key:sub(1, 1):upper() .. key:sub(2)] and values[key] then
+            table.insert(sortable, {
+                key = key,
+                value = values[key].percent,
+                rating = values[key].rating,
+                color = config["color" .. key:sub(1, 1):upper() .. key:sub(2)],
+                name = statName,
             })
-    end
-    if cfg.showMastery and values.mastery then
-        table.insert(sortable,
-            {
-                key = "mastery",
-                value = values.mastery.percent,
-                rating = values.mastery.rating,
-                color = cfg.colorMastery,
-                name =
-                "绮鹃€?
-            })
-    end
-    if cfg.showVersa and values.versa then
-        table.insert(sortable,
-            {
-                key = "versa",
-                value = values.versa.percent,
-                rating = values.versa.rating,
-                color = cfg.colorVersa,
-                name =
-                "鍏ㄨ兘"
-            })
-    end
-    if cfg.showLeech and values.leech then
-        table.insert(sortable,
-            {
-                key = "leech",
-                value = values.leech.percent,
-                rating = values.leech.rating,
-                color = cfg.colorLeech,
-                name =
-                "鍚歌"
-            })
-    end
-    if cfg.showDodge and values.dodge then
-        table.insert(sortable,
-            {
-                key = "dodge",
-                value = values.dodge.percent,
-                rating = values.dodge.rating,
-                color = cfg.colorDodge,
-                name =
-                "韬查棯"
-            })
-    end
-    if cfg.showParry and values.parry then
-        table.insert(sortable,
-            {
-                key = "parry",
-                value = values.parry.percent,
-                rating = values.parry.rating,
-                color = cfg.colorParry,
-                name =
-                "鎷涙灦"
-            })
-    end
-    if cfg.showBlock and values.block then
-        table.insert(sortable,
-            {
-                key = "block",
-                value = values.block.percent,
-                rating = values.block.rating,
-                color = cfg.colorBlock,
-                name =
-                "鏍兼尅"
-            })
-    end
-
-    table.sort(sortable, function(a, b) return a.value > b.value end)
-
-    local function FormatSecondary(name, rating, percent)
-        if cfg.secondaryFormat == "percent" then
-            return string.format("%s: %." .. cfg.decimalPlaces .. "f%%", name, percent)
-        else
-            return string.format("%s: %d (%." .. cfg.decimalPlaces .. "f%%)", name, rating, percent)
         end
     end
 
-    for _, item in ipairs(sortable) do
-        table.insert(displayList,
-            {
-                key = item.key,
-                text = FormatSecondary(item.name, item.rating, item.value),
-                color = item.color,
-                value =
-                    item.value
-            })
+    table.sort(sortable, function(left, right)
+        return left.value > right.value
+    end)
+
+    for _, entry in ipairs(sortable) do
+        local text
+        if config.secondaryFormat == "percent" then
+            text = string.format("%s: %." .. config.decimalPlaces .. "f%%", entry.name, entry.value)
+        else
+            text = string.format("%s: %d (%." .. config.decimalPlaces .. "f%%)", entry.name, entry.rating, entry.value)
+        end
+
+        table.insert(displayList, {
+            key = entry.key,
+            text = text,
+            color = entry.color,
+            value = entry.value,
+        })
     end
 
-    -- Speed
-    if cfg.showSpeed then
+    if config.showSpeed then
         local speed = GetPlayerSpeed()
         local text
-        if cfg.speedFormat == "current" then
-            text = string.format("绉婚€? %." .. cfg.decimalPlaces .. "f%%", speed)
+        if config.speedFormat == "current" then
+            text = string.format("移速: %." .. config.decimalPlaces .. "f%%", speed)
         else
-            text = string.format("绉婚€? %." .. cfg.decimalPlaces .. "f%% (闈欐€?", speed)
+            text = string.format("移速: %." .. config.decimalPlaces .. "f%% (静态)", speed)
         end
-        table.insert(displayList, { key = "speed", text = text, color = cfg.colorSpeed, value = speed })
+        table.insert(displayList, { key = "speed", text = text, color = config.colorSpeed, value = speed })
     end
 
-    -- Layout lines and progress bars
     local yOffset = -8
     for _, item in ipairs(displayList) do
-        local fs = self.attributeLines[item.key]
-        if fs then
-            fs:ClearAllPoints()
-            fs:SetPoint("TOPLEFT", 8, yOffset)
-            fs:SetText(item.text)
-            fs:SetTextColor(item.color.r, item.color.g, item.color.b)
-            fs:Show()
+        local fontString = self.attributeLines[item.key]
+        local progressBar = self.attributeProgressBars[item.key]
+
+        if fontString then
+            fontString:ClearAllPoints()
+            fontString:SetPoint("TOPLEFT", 8, yOffset)
+            fontString:SetText(item.text)
+            fontString:SetTextColor(item.color.r, item.color.g, item.color.b)
+            fontString:Show()
         end
 
-        local bar = self.attributeProgressBars[item.key]
-        if bar and cfg.progressBarEnable then
-            local current, maxValue
+        if progressBar and config.progressBarEnable then
+            local currentValue, maxValue
             if item.key == "ilvl" then
-                current, maxValue = item.value, cfg.maxIlvl
+                currentValue, maxValue = item.value, config.maxIlvl
             elseif item.key == "primary" then
-                current, maxValue = item.value, 5000
+                currentValue, maxValue = item.value, 5000
             elseif item.key == "crit" or item.key == "haste" or item.key == "mastery" or item.key == "versa" then
-                current, maxValue = item.value, 150
+                currentValue, maxValue = item.value, 150
             elseif item.key == "speed" then
-                current, maxValue = item.value, 1100
+                currentValue, maxValue = item.value, 1100
             end
 
-            if current and maxValue then
-                bar:SetMinMaxValues(0, maxValue)
-                bar:SetValue(current)
-                bar:SetHeight(cfg.progressBarHeight)
-                bar:SetWidth(cfg.progressBarWidth)
-                bar:ClearAllPoints()
-                bar:SetPoint("TOPLEFT", fs, "BOTTOMLEFT", 0, -2)
-                local texturePath = LibSharedMedia:Fetch("statusbar", cfg.progressBarTexture) or
-                    "Interface\\TargetingFrame\\UI-StatusBar"
-                bar:SetStatusBarTexture(texturePath)
-                bar:SetStatusBarColor(cfg.progressBarColor.r, cfg.progressBarColor.g, cfg.progressBarColor.b, 1)
-                bar:Show()
+            if currentValue and maxValue then
+                progressBar:SetMinMaxValues(0, maxValue)
+                progressBar:SetValue(currentValue)
+                progressBar:SetHeight(config.progressBarHeight)
+                progressBar:SetWidth(config.progressBarWidth)
+                progressBar:ClearAllPoints()
+                progressBar:SetPoint("TOPLEFT", fontString, "BOTTOMLEFT", 0, -2)
+                progressBar:SetStatusBarTexture(FetchStatusBar(config.progressBarTexture))
+                progressBar:SetStatusBarColor(config.progressBarColor.r, config.progressBarColor.g, config.progressBarColor.b, 1)
+                progressBar:Show()
             else
-                bar:SetValue(0)
-                bar:Show()
+                progressBar:Hide()
             end
-        elseif bar then
-            bar:Hide()
+        elseif progressBar then
+            progressBar:Hide()
         end
 
-        local lineHeight = cfg.fontSize + cfg.lineSpacing
-        if bar and bar:IsShown() then
-            lineHeight = lineHeight + cfg.progressBarHeight + 2
+        local lineHeight = config.fontSize + config.lineSpacing
+        if progressBar and progressBar:IsShown() then
+            lineHeight = lineHeight + config.progressBarHeight + 2
         end
         yOffset = yOffset - lineHeight
     end
 
-    -- Hide unused lines
-    for key, fs in pairs(self.attributeLines) do
-        local found = false
+    for key, fontString in pairs(self.attributeLines) do
+        local used = false
         for _, item in ipairs(displayList) do
             if item.key == key then
-                found = true; break
+                used = true
+                break
             end
         end
-        if not found then
-            fs:Hide()
-            if self.attributeProgressBars[key] then self.attributeProgressBars[key]:Hide() end
+
+        if not used then
+            fontString:Hide()
+            if self.attributeProgressBars[key] then
+                self.attributeProgressBars[key]:Hide()
+            end
         end
     end
 
     frame:SetHeight(-yOffset + 8)
 end
 
--- 鈹€鈹€鈹€ Visibility 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
 function Core:UpdateAttributeVisibility()
-    if not self.db or not self.attributeFrame then return end
-    local cfg = GetConfig()
+    if not self.db or not self.attributeFrame then
+        return
+    end
 
-    if not cfg.enabled then
+    local config = GetConfig()
+    if not config.enabled then
         self.attributeFrame:Hide()
         return
     end
 
     local inCombat = UnitAffectingCombat("player")
-    if cfg.visibility == "always" then
+    if config.visibility == "combat" then
+        self.attributeFrame:SetShown(inCombat)
+    elseif config.visibility == "noncombat" then
+        self.attributeFrame:SetShown(not inCombat)
+    else
         self.attributeFrame:Show()
-    elseif cfg.visibility == "combat" then
-        if inCombat then self.attributeFrame:Show() else self.attributeFrame:Hide() end
-    elseif cfg.visibility == "noncombat" then
-        if not inCombat then self.attributeFrame:Show() else self.attributeFrame:Hide() end
     end
 end
 
--- 鈹€鈹€鈹€ Apply settings 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-
 function Core:ApplyAttributeSettings()
-    if not self.db or not self.attributeFrame then return end
-    local cfg = GetConfig()
+    if not self.db or not self.attributeFrame then
+        return
+    end
 
-    local pos = cfg.pos or { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 0, y = 0 }
-    local relative = _G[pos.relativeTo] or UIParent
+    local config = GetConfig()
+    local position = EnsurePosition()
+    local relative = _G[position.relativeTo] or UIParent
+
     self.attributeFrame:ClearAllPoints()
-    self.attributeFrame:SetPoint(pos.point, relative, pos.relativePoint, pos.x, pos.y)
+    self.attributeFrame:SetPoint(position.point, relative, position.relativePoint, position.x, position.y)
 
-    if cfg.locked then
+    if config.locked then
         self.attributeFrame:EnableMouse(false)
         self.attributeFrame:RegisterForDrag()
     else
@@ -518,9 +453,19 @@ function Core:ApplyAttributeSettings()
 end
 
 function AttributeDisplay:OnPlayerLogin()
-    Core.attributeLines = Core.attributeLines or {}
-    Core.attributeProgressBars = Core.attributeProgressBars or {}
     Core:CreateAttributeFrame()
+
+    if Core.attributeUpdateTicker then
+        Core.attributeUpdateTicker:Cancel()
+    end
+
+    Core.attributeUpdateTicker = C_Timer.NewTicker(0.2, function()
+        local config = GetConfig()
+        if config and config.enabled then
+            Core:UpdateAttributeDisplay()
+        end
+    end)
+
     Core:ApplyAttributeSettings()
 end
 
@@ -532,4 +477,3 @@ function AttributeDisplay:RefreshFromSettings()
 
     Core:ApplyAttributeSettings()
 end
-

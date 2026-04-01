@@ -1,42 +1,13 @@
-﻿local addonName, NS = ...
+local addonName, NS = ...
 local Core = NS.Core
 
 local PerformanceMonitor = {}
 NS.Modules.InterfaceEnhance.PerformanceMonitor = PerformanceMonitor
+
 local LibSharedMedia = LibStub("LibSharedMedia-3.0")
 
-local function PMcfg()
-    local profile = Core.db and Core.db.interfaceEnhance or {}
-    profile.performanceMonitor = profile.performanceMonitor or {}
-    local cfg = profile.performanceMonitor
-
-    if cfg.enabled == nil then cfg.enabled = true end
-    if cfg.locked == nil then cfg.locked = true end
-    if cfg.font == nil or cfg.font == "" then cfg.font = "Friz Quadrata TT" end
-    if cfg.fontSize == nil then cfg.fontSize = 14 end
-    if cfg.updateInterval == nil then cfg.updateInterval = 1 end
-    if cfg.showBackground == nil then cfg.showBackground = true end
-    if cfg.showBorder == nil then cfg.showBorder = false end
-    if type(cfg.backgroundColor) ~= "table" then
-        cfg.backgroundColor = { r = 0, g = 0, b = 0, a = 0.32 }
-    elseif cfg.backgroundColor.a == nil then
-        cfg.backgroundColor.a = 0.32
-    end
-    if type(cfg.borderColor) ~= "table" then
-        cfg.borderColor = { r = 0, g = 0.6, b = 1, a = 0.45 }
-    elseif cfg.borderColor.a == nil then
-        cfg.borderColor.a = 0.45
-    end
-    if type(cfg.point) ~= "table" then
-        cfg.point = {
-            point = "CENTER",
-            relativePoint = "CENTER",
-            x = 220,
-            y = -20,
-        }
-    end
-
-    return cfg
+local function GetConfig()
+    return Core:GetConfig("interfaceEnhance", "performanceMonitor")
 end
 
 local function CreateSimpleOutline(parent, layer, thickness)
@@ -67,10 +38,24 @@ local function CreateSimpleOutline(parent, layer, thickness)
 end
 
 local function SetSimpleOutlineColor(border, r, g, b, a)
-    if type(border) ~= "table" then return end
+    if type(border) ~= "table" then
+        return
+    end
+
     for _, edge in pairs(border) do
         edge:SetColorTexture(r or 0, g or 0, b or 0, a or 0)
     end
+end
+
+local function FetchFont(fontName)
+    return LibSharedMedia:Fetch("font", fontName) or STANDARD_TEXT_FONT
+end
+
+local function GetNumAddOnsCompat()
+    if C_AddOns and C_AddOns.GetNumAddOns then
+        return C_AddOns.GetNumAddOns()
+    end
+    return GetNumAddOns and GetNumAddOns() or 0
 end
 
 local function GetAddOnInfoCompat(index)
@@ -82,29 +67,17 @@ local function GetAddOnInfoCompat(index)
         return info
     end
 
-    local getAddOnInfo = rawget(_G, "GetAddOnInfo")
-    if getAddOnInfo then
-        local name, title = getAddOnInfo(index)
+    if GetAddOnInfo then
+        local name, title = GetAddOnInfo(index)
         return name, title
     end
-end
-
-local function GetNumAddOnsCompat()
-    if C_AddOns and C_AddOns.GetNumAddOns then
-        return C_AddOns.GetNumAddOns()
-    end
-
-    local getNumAddOns = rawget(_G, "GetNumAddOns")
-    return getNumAddOns and getNumAddOns() or 0
 end
 
 local function IsAddOnLoadedCompat(indexOrName)
     if C_AddOns and C_AddOns.IsAddOnLoaded then
         return C_AddOns.IsAddOnLoaded(indexOrName)
     end
-
-    local isAddOnLoaded = rawget(_G, "IsAddOnLoaded")
-    return isAddOnLoaded and isAddOnLoaded(indexOrName) or false
+    return IsAddOnLoaded and IsAddOnLoaded(indexOrName) or false
 end
 
 local function FormatMemoryUsage(kb)
@@ -116,17 +89,17 @@ local function FormatMemoryUsage(kb)
 end
 
 local function CollectAddOnMemoryRows()
-    local rows = {}
     local total = 0
+    local rows = {}
 
     if UpdateAddOnMemoryUsage then
         UpdateAddOnMemoryUsage()
     end
 
-    for i = 1, GetNumAddOnsCompat() do
-        local name, title = GetAddOnInfoCompat(i)
-        if name and IsAddOnLoadedCompat(i) then
-            local memory = (GetAddOnMemoryUsage and GetAddOnMemoryUsage(i)) or 0
+    for index = 1, GetNumAddOnsCompat() do
+        local name, title = GetAddOnInfoCompat(index)
+        if name and IsAddOnLoadedCompat(index) then
+            local memory = GetAddOnMemoryUsage and GetAddOnMemoryUsage(index) or 0
             total = total + memory
             table.insert(rows, {
                 name = title and title ~= "" and title or name,
@@ -135,21 +108,14 @@ local function CollectAddOnMemoryRows()
         end
     end
 
-    table.sort(rows, function(a, b)
-        if a.memory == b.memory then
-            return a.name < b.name
+    table.sort(rows, function(left, right)
+        if left.memory == right.memory then
+            return left.name < right.name
         end
-        return a.memory > b.memory
+        return left.memory > right.memory
     end)
 
     return total, rows
-end
-
-local function GetPerformanceText()
-    local fps = math.floor((GetFramerate and GetFramerate() or 0) + 0.5)
-    local _, _, _, world = GetNetStats()
-    local latency = tonumber(world) or 0
-    return string.format("%d FPS  %d MS", fps, latency)
 end
 
 local function GetMetricColorHex(value, metric)
@@ -173,7 +139,7 @@ end
 
 local function BuildPerformanceText(fps, latency)
     return string.format(
-        "FPS锛殀c%s%d|r MS锛殀c%s%d|r",
+        "FPS |c%s%d|r  MS |c%s%d|r",
         GetMetricColorHex(fps, "fps"),
         tonumber(fps) or 0,
         GetMetricColorHex(latency, "ms"),
@@ -182,94 +148,108 @@ local function BuildPerformanceText(fps, latency)
 end
 
 local function ApplyPerformanceMonitorFont(frame)
-    if not frame or not frame.text then return end
-
-    local cfg = PMcfg()
-    local fontPath = LibSharedMedia and LibSharedMedia.Fetch and LibSharedMedia:Fetch("font", cfg.font) or nil
-    if not fontPath or fontPath == "" then
-        fontPath = STANDARD_TEXT_FONT
+    if not frame or not frame.text then
+        return
     end
 
-    if not frame.text:SetFont(fontPath, cfg.fontSize or 14, "OUTLINE") then
-        frame.text:SetFont(STANDARD_TEXT_FONT, cfg.fontSize or 14, "OUTLINE")
+    local config = GetConfig()
+    if not config then
+        return
+    end
+
+    local fontPath = FetchFont(config.font)
+    if not frame.text:SetFont(fontPath, config.fontSize or 14, "OUTLINE") then
+        frame.text:SetFont(STANDARD_TEXT_FONT, config.fontSize or 14, "OUTLINE")
     end
 end
 
 function Core:SavePerformanceMonitorPosition()
-    if not self.performanceMonitorFrame then return end
+    if not self.performanceMonitorFrame then
+        return
+    end
+
     local point, _, relativePoint, x, y = self.performanceMonitorFrame:GetPoint(1)
-    local pos = PMcfg().point
-    pos.point = point or "CENTER"
-    pos.relativePoint = relativePoint or "CENTER"
-    pos.x = math.floor((x or 0) + 0.5)
-    pos.y = math.floor((y or 0) + 0.5)
+    local position = GetConfig().point
+    position.point = point or "CENTER"
+    position.relativePoint = relativePoint or "CENTER"
+    position.x = math.floor((x or 0) + 0.5)
+    position.y = math.floor((y or 0) + 0.5)
 end
 
 function Core:UpdatePerformanceMonitorVisibility()
-    if not self.performanceMonitorFrame then return end
-    if PMcfg().enabled then
-        self.performanceMonitorFrame:Show()
-    else
-        self.performanceMonitorFrame:Hide()
+    if not self.performanceMonitorFrame then
+        return
     end
+
+    self.performanceMonitorFrame:SetShown(GetConfig().enabled)
 end
 
 function Core:UpdatePerformanceMonitorLayout()
-    if not self.performanceMonitorFrame then return end
+    if not self.performanceMonitorFrame then
+        return
+    end
 
-    local cfg = PMcfg()
+    local config = GetConfig()
     local frame = self.performanceMonitorFrame
 
-    frame:SetMovable(not cfg.locked)
+    frame:SetMovable(not config.locked)
     ApplyPerformanceMonitorFont(frame)
+    frame.text:ClearAllPoints()
     frame.text:SetPoint("LEFT", frame, "LEFT", 6, 0)
     frame.text:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
 
-    local width = math.max(110, math.ceil(frame.text:GetStringWidth() + 14))
+    local width = math.max(110, math.ceil((frame.text:GetStringWidth() or 0) + 14))
     frame:SetSize(width, 24)
 
-    if cfg.showBackground then
-        local bg = cfg.backgroundColor or { r = 0, g = 0, b = 0, a = 0.32 }
-        frame.bg:SetColorTexture(bg.r or 0, bg.g or 0, bg.b or 0, bg.a or 0.32)
+    if config.showBackground then
+        local background = config.backgroundColor or { r = 0, g = 0, b = 0, a = 0.32 }
+        frame.bg:SetColorTexture(background.r or 0, background.g or 0, background.b or 0, background.a or 0.32)
     else
         frame.bg:SetColorTexture(0, 0, 0, 0)
     end
 
-    SetSimpleOutlineColor(frame.border, 0, 0, 0, 0)
+    if config.showBorder then
+        local border = config.borderColor or { r = 0, g = 0.6, b = 1, a = 0.45 }
+        SetSimpleOutlineColor(frame.border, border.r or 0, border.g or 0.6, border.b or 1, border.a or 0.45)
+    else
+        SetSimpleOutlineColor(frame.border, 0, 0, 0, 0)
+    end
 end
 
 function Core:RefreshPerformanceMonitor()
-    if not self.performanceMonitorFrame then return end
+    if not self.performanceMonitorFrame then
+        return
+    end
 
     local fps = math.floor((GetFramerate and GetFramerate() or 0) + 0.5)
     local _, _, _, world = GetNetStats()
     local latency = tonumber(world) or 0
-    local frame = self.performanceMonitorFrame
 
-    ApplyPerformanceMonitorFont(frame)
-    frame.text:SetTextColor(1, 1, 1, 1)
-    frame.text:SetText(BuildPerformanceText(fps, latency))
+    ApplyPerformanceMonitorFont(self.performanceMonitorFrame)
+    self.performanceMonitorFrame.text:SetTextColor(1, 1, 1, 1)
+    self.performanceMonitorFrame.text:SetText(BuildPerformanceText(fps, latency))
 
     self:UpdatePerformanceMonitorLayout()
     self:UpdatePerformanceMonitorVisibility()
 end
 
 function Core:RefreshPerformanceMonitorTooltip()
-    if not self.performanceMonitorFrame then return end
+    if not self.performanceMonitorFrame then
+        return
+    end
 
-    local frame = self.performanceMonitorFrame
-    local total, rows = CollectAddOnMemoryRows()
+    local totalMemory, rows = CollectAddOnMemoryRows()
     local fps = math.floor((GetFramerate and GetFramerate() or 0) + 0.5)
     local _, _, home, world = GetNetStats()
 
-    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip:SetOwner(self.performanceMonitorFrame, "ANCHOR_TOP")
     GameTooltip:ClearLines()
-    GameTooltip:AddLine("鎬ц兘鐩戞帶", 1, 0.82, 0)
+    GameTooltip:AddLine("性能监控", 1, 0.82, 0)
     GameTooltip:AddLine(" ")
     GameTooltip:AddDoubleLine("FPS", tostring(fps), 1, 1, 1, 0.25, 1, 0.4)
-    GameTooltip:AddDoubleLine("鏈湴寤惰繜", string.format("%d ms", tonumber(home) or 0), 1, 1, 1, 0.35, 0.8, 1)
-    GameTooltip:AddDoubleLine("涓栫晫寤惰繜", string.format("%d ms", tonumber(world) or 0), 1, 1, 1, 0.35, 0.8, 1)
-    GameTooltip:AddDoubleLine("鎻掍欢鎬诲唴瀛?, FormatMemoryUsage(total), 1, 1, 1, 1, 0.82, 0)
+    GameTooltip:AddDoubleLine("本地延迟", string.format("%d ms", tonumber(home) or 0), 1, 1, 1, 0.35, 0.8, 1)
+    GameTooltip:AddDoubleLine("世界延迟", string.format("%d ms", tonumber(world) or 0), 1, 1, 1, 0.35, 0.8, 1)
+    GameTooltip:AddDoubleLine("插件总内存", FormatMemoryUsage(totalMemory), 1, 1, 1, 1, 0.82, 0)
     GameTooltip:AddLine(" ")
 
     for _, entry in ipairs(rows) do
@@ -277,7 +257,7 @@ function Core:RefreshPerformanceMonitorTooltip()
     end
 
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Shift + 宸﹂敭锛氱珛鍗冲洖鏀跺唴瀛?, 1, 1, 1)
+    GameTooltip:AddLine("Shift + 左键：立即回收内存", 1, 1, 1)
     GameTooltip:Show()
 end
 
@@ -287,27 +267,28 @@ function Core:UpdatePerformanceMonitorTicker()
         self.performanceMonitorTicker = nil
     end
 
-    local cfg = PMcfg()
-    if not cfg.enabled then return end
+    local config = GetConfig()
+    if not config.enabled then
+        return
+    end
 
-    self.performanceMonitorTicker = C_Timer.NewTicker(math.max(0.2, tonumber(cfg.updateInterval) or 1), function()
+    self.performanceMonitorTicker = C_Timer.NewTicker(math.max(0.2, tonumber(config.updateInterval) or 1), function()
         Core:RefreshPerformanceMonitor()
     end)
 end
 
-function Core:ApplyPerformanceMonitorSettings()
-    if not self.performanceMonitorFrame then
-        self:CreatePerformanceMonitorFrame()
+function Core:CreatePerformanceMonitorFrame()
+    if self.performanceMonitorFrame then
+        return
     end
 
-    self:RefreshPerformanceMonitor()
-    self:UpdatePerformanceMonitorLayout()
-    self:UpdatePerformanceMonitorVisibility()
-    self:UpdatePerformanceMonitorTicker()
-end
-
-function Core:CreatePerformanceMonitorFrame()
-    if self.performanceMonitorFrame then return end
+    local config = GetConfig()
+    local position = config.point or {
+        point = "CENTER",
+        relativePoint = "CENTER",
+        x = 220,
+        y = -20,
+    }
 
     local frame = CreateFrame("Button", addonName .. "PerformanceMonitor", UIParent)
     frame:SetFrameStrata("MEDIUM")
@@ -316,10 +297,11 @@ function Core:CreatePerformanceMonitorFrame()
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetSize(110, 24)
+    frame:SetPoint(position.point or "CENTER", UIParent, position.relativePoint or "CENTER", position.x or 220, position.y or -20)
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame)
-
+    frame.border = CreateSimpleOutline(frame, "BORDER", 1)
 
     frame.text = frame:CreateFontString(nil, "OVERLAY")
     frame.text:SetJustifyH("CENTER")
@@ -327,25 +309,24 @@ function Core:CreatePerformanceMonitorFrame()
     frame.text:SetPoint("CENTER", frame, "CENTER", 0, 0)
     frame.text:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE")
 
-    local pos = PMcfg().point
-    frame:SetPoint(pos.point or "CENTER", UIParent, pos.relativePoint or "CENTER", pos.x or 220, pos.y or -20)
-
-    frame:SetScript("OnEnter", function(self)
+    frame:SetScript("OnEnter", function(selfFrame)
         Core:RefreshPerformanceMonitorTooltip()
-        if self.tooltipTicker then
-            self.tooltipTicker:Cancel()
+
+        if selfFrame.tooltipTicker then
+            selfFrame.tooltipTicker:Cancel()
         end
-        self.tooltipTicker = C_Timer.NewTicker(math.max(0.2, tonumber(PMcfg().updateInterval) or 1), function()
-            if GameTooltip:IsOwned(self) then
+
+        selfFrame.tooltipTicker = C_Timer.NewTicker(math.max(0.2, tonumber(GetConfig().updateInterval) or 1), function()
+            if GameTooltip:IsOwned(selfFrame) then
                 Core:RefreshPerformanceMonitor()
                 Core:RefreshPerformanceMonitorTooltip()
             end
         end)
     end)
-    frame:SetScript("OnLeave", function(self)
-        if self.tooltipTicker then
-            self.tooltipTicker:Cancel()
-            self.tooltipTicker = nil
+    frame:SetScript("OnLeave", function(selfFrame)
+        if selfFrame.tooltipTicker then
+            selfFrame.tooltipTicker:Cancel()
+            selfFrame.tooltipTicker = nil
         end
         GameTooltip:Hide()
     end)
@@ -361,16 +342,29 @@ function Core:CreatePerformanceMonitorFrame()
             end
         end
     end)
-    frame:SetScript("OnDragStart", function(self)
-        if PMcfg().locked then return end
-        self:StartMoving()
+    frame:SetScript("OnDragStart", function(selfFrame)
+        if GetConfig().locked then
+            return
+        end
+        selfFrame:StartMoving()
     end)
-    frame:SetScript("OnDragStop", function(self)
-        self:StopMovingOrSizing()
+    frame:SetScript("OnDragStop", function(selfFrame)
+        selfFrame:StopMovingOrSizing()
         Core:SavePerformanceMonitorPosition()
     end)
 
     self.performanceMonitorFrame = frame
+end
+
+function Core:ApplyPerformanceMonitorSettings()
+    if not self.performanceMonitorFrame then
+        self:CreatePerformanceMonitorFrame()
+    end
+
+    self:RefreshPerformanceMonitor()
+    self:UpdatePerformanceMonitorLayout()
+    self:UpdatePerformanceMonitorVisibility()
+    self:UpdatePerformanceMonitorTicker()
 end
 
 function PerformanceMonitor:OnPlayerLogin()
@@ -380,4 +374,3 @@ end
 function PerformanceMonitor:RefreshFromSettings()
     Core:ApplyPerformanceMonitorSettings()
 end
-

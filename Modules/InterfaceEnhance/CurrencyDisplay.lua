@@ -398,7 +398,7 @@ function Core:GetCurrencyDisplayEntries()
         end
         table.insert(entries, {
             kind = "money",
-            name = GOLD_AMOUNT_SYMBOL or "閲戝竵",
+            name = GOLD_AMOUNT_SYMBOL or "金币",
             quantity = moneyAmount,
             icon = DEFAULT_MONEY_ICON,
         })
@@ -424,7 +424,7 @@ function Core:GetCurrencyDisplayEntries()
     if #entries == 0 then
         entries[1] = {
             kind = "empty",
-            name = "鏈€夋嫨璐у竵",
+            name = "未选择货币",
             quantity = 0,
             icon = DEFAULT_MONEY_ICON,
         }
@@ -437,11 +437,11 @@ local function BuildTooltipLabel(data)
     local icon = data.icon or DEFAULT_MONEY_ICON
     local iconMarkup = string.format("|T%d:14:14:0:0|t", icon)
     if data.kind == "money" then
-        return iconMarkup .. " 閲戝竵",
+        return iconMarkup .. " 金币",
             GetMoneyString and GetMoneyString(data.quantity or 0, false) or FormatMoneyShort(data.quantity or 0)
     end
     if data.kind == "empty" then
-        return iconMarkup .. " " .. (data.name or "鏈€夋嫨璐у竵"), "-"
+        return iconMarkup .. " " .. (data.name or "未选择货币"), "-"
     end
 
     local countText = BreakUpLargeNumbers and BreakUpLargeNumbers(data.quantity or 0) or tostring(data.quantity or 0)
@@ -456,7 +456,7 @@ local function ShowCurrencyTooltip(frame)
     local entries = Core:GetCurrencyDisplayEntries()
     GameTooltip:SetOwner(frame, "ANCHOR_BOTTOM", 0, -8)
     GameTooltip:ClearLines()
-    GameTooltip:AddLine("璐у竵鐘舵€佹潯", 1, 0.82, 0)
+    GameTooltip:AddLine("货币状态条", 1, 0.82, 0)
     GameTooltip:AddLine(" ")
 
     for _, data in ipairs(entries) do
