@@ -964,8 +964,10 @@ local function AddCursorPathPoint(x, y, now)
         lastSampleX, lastSampleY = x, y
     end
 
-    local dx = x - lastSampleX
-    local dy = y - lastSampleY
+    local baseX = lastSampleX
+    local baseY = lastSampleY
+    local dx = x - baseX
+    local dy = y - baseY
     local dist = sqrt(dx * dx + dy * dy)
     if dist <= 0.0001 then
         lastX, lastY = x, y
@@ -988,8 +990,8 @@ local function AddCursorPathPoint(x, y, now)
     local ux = dx / dist
     local uy = dy / dist
     for stepIndex = 1, count do
-        local px = lastSampleX + ux * step * stepIndex
-        local py = lastSampleY + uy * step * stepIndex
+        local px = baseX + ux * step * stepIndex
+        local py = baseY + uy * step * stepIndex
         PushPoint(px, py, now)
         lastSampleX, lastSampleY = px, py
     end
