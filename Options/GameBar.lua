@@ -32,9 +32,11 @@ end
 local function EnsureButtonSlots(sideKey)
     local config = GetGameBarConfig()
     config[sideKey] = config[sideKey] or {}
+
     if #config[sideKey] == 0 then
         config[sideKey][1] = "NONE"
     end
+
     return config[sideKey]
 end
 
@@ -60,78 +62,88 @@ local function GetHearthstoneChoices()
     }
 end
 
-local function MakeSlotOption(sideKey, index)
+local function RemoveSlot(sideKey, index)
+    local slots = EnsureButtonSlots(sideKey)
+    if #slots <= 1 then
+        return
+    end
+
+    table.remove(slots, index)
+
+    if #slots == 0 then
+        slots[1] = "NONE"
+    end
+end
+
+local function MakeSlotRow(sideKey, index)
     return {
-        type = "select",
-        order = 10 + index,
-        width = 1.0,
-        name = "按钮 " .. tostring(index),
+        type = "group",
+        order = 20 + index,
+        name = "",
+        layout = "row",
         hidden = function()
             return index > #EnsureButtonSlots(sideKey)
         end,
-        disabled = function()
-            return not GetGameBarConfig().enabled
-        end,
-        values = GetButtonChoices,
-        get = function()
-            return EnsureButtonSlots(sideKey)[index] or "NONE"
-        end,
-        set = function(_, value)
-            EnsureButtonSlots(sideKey)[index] = value
-            RefreshGameBar(true)
-        end,
-    }
-end
-
-local function BuildSideSlotArgs(sideKey)
-    local args = {}
-
-    for index = 1, 7 do
-        args["slot" .. tostring(index)] = MakeSlotOption(sideKey, index)
-    end
-
-    args.controlRow = {
-        type = "group",
-        order = 200,
-        name = "",
-        layout = "row",
         args = {
-            addSlot = {
-                type = "execute",
+            slot = {
+                type = "select",
                 order = 1,
-                width = 0.8,
-                name = "新增槽位",
+                width = 2.1,
+                name = "按钮 " .. tostring(index),
                 disabled = function()
-                    return not GetGameBarConfig().enabled or #EnsureButtonSlots(sideKey) >= 7
+                    return not GetGameBarConfig().enabled
                 end,
-                func = function()
-                    local slots = EnsureButtonSlots(sideKey)
-                    if #slots < 7 then
-                        table.insert(slots, "NONE")
-                        RefreshGameBar(true)
-                    end
+                values = GetButtonChoices,
+                get = function()
+                    return EnsureButtonSlots(sideKey)[index] or "NONE"
+                end,
+                set = function(_, value)
+                    EnsureButtonSlots(sideKey)[index] = value
+                    RefreshGameBar(true)
                 end,
             },
-            removeSlot = {
+            delete = {
                 type = "execute",
                 order = 2,
-                width = 0.8,
-                name = "移除槽位",
+                width = 0.7,
+                name = "删除",
                 disabled = function()
                     return not GetGameBarConfig().enabled or #EnsureButtonSlots(sideKey) <= 1
                 end,
                 confirm = true,
-                confirmText = "确认移除最后一个按钮槽位吗？",
+                confirmText = "确认删除这个按钮槽位吗？",
                 func = function()
-                    local slots = EnsureButtonSlots(sideKey)
-                    if #slots > 1 then
-                        table.remove(slots)
-                        RefreshGameBar(true)
-                    end
+                    RemoveSlot(sideKey, index)
+                    RefreshGameBar(true)
                 end,
             },
         },
     }
+end
+
+local function BuildSideSlotArgs(sideKey)
+    local args = {
+        addSlot = {
+            type = "execute",
+            order = 10,
+            width = 1.0,
+            name = "新增按钮",
+            disabled = function()
+                return not GetGameBarConfig().enabled or #EnsureButtonSlots(sideKey) >= 7
+            end,
+            func = function()
+                local slots = EnsureButtonSlots(sideKey)
+                if #slots < 7 then
+                    table.insert(slots, "NONE")
+                    RefreshGameBar(true)
+                end
+            end,
+        },
+    }
+
+    for index = 1, 7 do
+        args["slotRow" .. tostring(index)] = MakeSlotRow(sideKey, index)
+    end
 
     return args
 end
@@ -380,73 +392,65 @@ function NS.BuildGameBarOptions()
                         RefreshGameBar(false)
                     end,
                 },
-                selectRow = {
-                    type = "group",
+                left = {
+                    type = "select",
                     order = 20,
-                    name = "",
-                    layout = "row",
-                    args = {
-                        left = {
-                            type = "select",
-                            order = 1,
-                            width = 1.0,
-                            name = "左键",
-                            disabled = function()
-                                return not GetGameBarConfig().enabled
-                            end,
-                            values = GetHearthstoneChoices,
-                            get = function()
-                                local hearthstone = GetGameBarConfig().hearthstone or {}
-                                return hearthstone.left or "AUTO"
-                            end,
-                            set = function(_, value)
-                                local config = GetGameBarConfig()
-                                config.hearthstone = config.hearthstone or {}
-                                config.hearthstone.left = value
-                                RefreshGameBar(false)
-                            end,
-                        },
-                        middle = {
-                            type = "select",
-                            order = 2,
-                            width = 1.0,
-                            name = "中键",
-                            disabled = function()
-                                return not GetGameBarConfig().enabled
-                            end,
-                            values = GetHearthstoneChoices,
-                            get = function()
-                                local hearthstone = GetGameBarConfig().hearthstone or {}
-                                return hearthstone.middle or "RANDOM"
-                            end,
-                            set = function(_, value)
-                                local config = GetGameBarConfig()
-                                config.hearthstone = config.hearthstone or {}
-                                config.hearthstone.middle = value
-                                RefreshGameBar(false)
-                            end,
-                        },
-                        right = {
-                            type = "select",
-                            order = 3,
-                            width = 1.0,
-                            name = "右键",
-                            disabled = function()
-                                return not GetGameBarConfig().enabled
-                            end,
-                            values = GetHearthstoneChoices,
-                            get = function()
-                                local hearthstone = GetGameBarConfig().hearthstone or {}
-                                return hearthstone.right or "AUTO"
-                            end,
-                            set = function(_, value)
-                                local config = GetGameBarConfig()
-                                config.hearthstone = config.hearthstone or {}
-                                config.hearthstone.right = value
-                                RefreshGameBar(false)
-                            end,
-                        },
-                    },
+                    width = 1.2,
+                    name = "左键",
+                    disabled = function()
+                        return not GetGameBarConfig().enabled
+                    end,
+                    values = GetHearthstoneChoices,
+                    get = function()
+                        local hearthstone = GetGameBarConfig().hearthstone or {}
+                        return hearthstone.left or "AUTO"
+                    end,
+                    set = function(_, value)
+                        local config = GetGameBarConfig()
+                        config.hearthstone = config.hearthstone or {}
+                        config.hearthstone.left = value
+                        RefreshGameBar(false)
+                    end,
+                },
+                middle = {
+                    type = "select",
+                    order = 30,
+                    width = 1.2,
+                    name = "中键",
+                    disabled = function()
+                        return not GetGameBarConfig().enabled
+                    end,
+                    values = GetHearthstoneChoices,
+                    get = function()
+                        local hearthstone = GetGameBarConfig().hearthstone or {}
+                        return hearthstone.middle or "RANDOM"
+                    end,
+                    set = function(_, value)
+                        local config = GetGameBarConfig()
+                        config.hearthstone = config.hearthstone or {}
+                        config.hearthstone.middle = value
+                        RefreshGameBar(false)
+                    end,
+                },
+                right = {
+                    type = "select",
+                    order = 40,
+                    width = 1.2,
+                    name = "右键",
+                    disabled = function()
+                        return not GetGameBarConfig().enabled
+                    end,
+                    values = GetHearthstoneChoices,
+                    get = function()
+                        local hearthstone = GetGameBarConfig().hearthstone or {}
+                        return hearthstone.right or "AUTO"
+                    end,
+                    set = function(_, value)
+                        local config = GetGameBarConfig()
+                        config.hearthstone = config.hearthstone or {}
+                        config.hearthstone.right = value
+                        RefreshGameBar(false)
+                    end,
                 },
             }),
         },

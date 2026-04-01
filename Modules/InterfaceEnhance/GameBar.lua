@@ -2062,6 +2062,24 @@ local function CreateMiddlePanel(parent)
     colon:SetText(":")
     panel.colon = colon
 
+    local colonPulse = colon:CreateAnimationGroup()
+    colonPulse:SetLooping("REPEAT")
+
+    local fadeOut = colonPulse:CreateAnimation("Alpha")
+    fadeOut:SetOrder(1)
+    fadeOut:SetFromAlpha(1)
+    fadeOut:SetToAlpha(0.28)
+    fadeOut:SetDuration(0.85)
+
+    local fadeIn = colonPulse:CreateAnimation("Alpha")
+    fadeIn:SetOrder(2)
+    fadeIn:SetFromAlpha(0.28)
+    fadeIn:SetToAlpha(1)
+    fadeIn:SetDuration(0.85)
+
+    panel.colonPulse = colonPulse
+    panel.colonPulse:Play()
+
     local mins = panel:CreateFontString(nil, "OVERLAY")
     mins:SetFont(STANDARD_TEXT_FONT, 20, "OUTLINE")
     mins:SetTextColor(1, 1, 1, 1)
@@ -2155,6 +2173,18 @@ local function CreateMiddlePanel(parent)
         end
         HideElvUITimeTooltip()
         GameTooltip:Hide()
+    end)
+    panel:SetScript("OnShow", function(self)
+        if self.colonPulse and not self.colonPulse:IsPlaying() then
+            self.colon:SetAlpha(1)
+            self.colonPulse:Play()
+        end
+    end)
+    panel:SetScript("OnHide", function(self)
+        if self.colonPulse and self.colonPulse:IsPlaying() then
+            self.colonPulse:Stop()
+        end
+        self.colon:SetAlpha(1)
     end)
     panel:SetScript("OnClick", function(_, mouseButton)
         if IsShiftKeyDown() then
