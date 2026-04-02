@@ -70,7 +70,7 @@ local TWO_HANDED_EQUIP_LOCS = {
     INVTYPE_RANGEDRIGHT = true,
 }
 
-local PANEL_WIDTH = 388
+local PANEL_WIDTH = 432
 local PANEL_GAP = 12
 local HEADER_HEIGHT = 98
 local ROW_HEIGHT = 24
