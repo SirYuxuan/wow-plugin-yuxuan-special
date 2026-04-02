@@ -238,6 +238,70 @@ NS.DEFAULTS = {
             color9 = { 0.00, 0.00, 0.00 },
             color10 = { 0.00, 0.00, 0.00 },
         },
+        specTalentBar = {
+            enabled = true,
+            locked = true,
+            orientation = "HORIZONTAL",
+            fontPreset = "CHAT",
+            fontSize = 13,
+            spacing = 18,
+            textColor = {
+                r = 1.00,
+                g = 1.00,
+                b = 1.00,
+                a = 1.00,
+            },
+            point = {
+                point = "CENTER",
+                relativePoint = "CENTER",
+                x = 0,
+                y = -150,
+            },
+        },
+        questTools = {
+            enabled = false,
+            locked = true,
+            orientation = "HORIZONTAL",
+            fontPreset = "CHAT",
+            fontSize = 13,
+            spacing = 18,
+            textColor = {
+                r = 1.00,
+                g = 1.00,
+                b = 1.00,
+                a = 1.00,
+            },
+            autoAnnounceQuest = false,
+            autoQuestTurnIn = false,
+            announceTemplate = "|cFF33FF99【雨轩专业版插件】|r |cFFFFFF00{action}|r：{quest}",
+            point = {
+                point = "CENTER",
+                relativePoint = "CENTER",
+                x = 0,
+                y = -110,
+            },
+        },
+        eventTracker = {
+            enabled = true,
+            fontPreset = "CHAT",
+            fontSize = 12,
+            fontOutline = true,
+            trackerWidth = 220,
+            trackerHeight = 28,
+            backdropAlpha = 0.6,
+            alertEnabled = true,
+            alertSecond = 60,
+            weeklyMN = true,
+            professionsWeeklyMN = true,
+            stormarionAssault = true,
+            weeklyTWW = true,
+            nightfall = true,
+            theaterTroupe = true,
+            ecologicalSuccession = true,
+            ringingDeeps = true,
+            spreadingTheLight = true,
+            underworldOperative = true,
+        },
         attributeDisplay = {
             enabled = true,
             locked = false,
@@ -1026,6 +1090,24 @@ function Core:ResetCursorTrailConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.cursorTrail = CloneTable(NS.DEFAULTS.interfaceEnhance.cursorTrail)
     return self.db.interfaceEnhance.cursorTrail
+end
+
+function Core:ResetSpecTalentBarConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.specTalentBar = CloneTable(NS.DEFAULTS.interfaceEnhance.specTalentBar)
+    return self.db.interfaceEnhance.specTalentBar
+end
+
+function Core:ResetQuestToolsConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.questTools = CloneTable(NS.DEFAULTS.interfaceEnhance.questTools)
+    return self.db.interfaceEnhance.questTools
+end
+
+function Core:ResetEventTrackerConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.eventTracker = CloneTable(NS.DEFAULTS.interfaceEnhance.eventTracker)
+    return self.db.interfaceEnhance.eventTracker
 end
 
 function Core:ResetAttributeDisplayConfig()

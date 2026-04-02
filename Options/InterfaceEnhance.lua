@@ -1258,6 +1258,8 @@ function NS.BuildInterfaceEnhanceOptions()
                     mouseTooltip = BuildTab("鼠标提示", 20, BuildMouseTooltipArgs()),
                 },
             },
+            specTalentBar = NS.BuildSpecTalentBarOptions(),
+            questTools = NS.BuildQuestToolsOptions(),
             attributeDisplay = NS.BuildAttributeDisplayOptions(),
             currencyDisplay = NS.BuildCurrencyDisplayOptions(),
             distanceMonitor = NS.BuildDistanceMonitorOptions(),
@@ -1275,6 +1277,7 @@ function NS.BuildInterfaceEnhanceOptions()
             },
             performanceMonitor = NS.BuildPerformanceMonitorOptions(),
             gameBar = NS.BuildGameBarOptions(),
+            eventTracker = NS.BuildEventTrackerOptions(),
         },
     }
 end

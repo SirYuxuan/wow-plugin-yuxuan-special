@@ -172,6 +172,16 @@ function Core:OnPlayerLogin()
         cursorTrail:OnPlayerLogin()
     end
 
+    local specTalentBar = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.SpecTalentBar
+    if specTalentBar and specTalentBar.OnPlayerLogin then
+        specTalentBar:OnPlayerLogin()
+    end
+
+    local questTools = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuestTools
+    if questTools and questTools.OnPlayerLogin then
+        questTools:OnPlayerLogin()
+    end
+
     local attributeDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.AttributeDisplay
     if attributeDisplay and attributeDisplay.OnPlayerLogin then
         attributeDisplay:OnPlayerLogin()
@@ -185,6 +195,11 @@ function Core:OnPlayerLogin()
     local performanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.PerformanceMonitor
     if performanceMonitor and performanceMonitor.OnPlayerLogin then
         performanceMonitor:OnPlayerLogin()
+    end
+
+    local eventTracker = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EventTracker
+    if eventTracker and eventTracker.OnPlayerLogin then
+        eventTracker:OnPlayerLogin()
     end
 
     local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
@@ -222,6 +237,11 @@ function Core:OnWorldMapLoaded()
     local mapIDDisplay = NS.Modules.MapAssist and NS.Modules.MapAssist.MapIDDisplay
     if mapIDDisplay and mapIDDisplay.OnWorldMapLoaded then
         mapIDDisplay:OnWorldMapLoaded()
+    end
+
+    local eventTracker = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EventTracker
+    if eventTracker and eventTracker.OnWorldMapLoaded then
+        eventTracker:OnWorldMapLoaded()
     end
 end
 
