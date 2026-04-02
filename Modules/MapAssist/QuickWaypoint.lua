@@ -228,8 +228,9 @@ function QuickWaypoint:CreatePanel()
 
     local panel = CreateFrame("Frame", nil, WorldMapFrame, "BackdropTemplate")
     panel:SetSize(245, 40)
-    panel:SetFrameStrata("HIGH")
-    panel:SetFrameLevel((WorldMapFrame:GetFrameLevel() or 1) + 20)
+    panel:SetFrameStrata("DIALOG")
+    panel:SetFrameLevel(((WorldMapFrame.BorderFrame and WorldMapFrame.BorderFrame:GetFrameLevel()) or
+        (WorldMapFrame:GetFrameLevel() or 1)) + 30)
     panel:Hide()
     panel:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",

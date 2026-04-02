@@ -126,6 +126,51 @@ function Core:RefreshMinimapButton()
     button:Show()
 end
 
+function Core:HideFrameObject(frame)
+    if not frame then
+        return
+    end
+
+    self.hiddenSystemFrame = self.hiddenSystemFrame or CreateFrame("Frame", ADDON_NAME .. "HiddenSystemFrame", UIParent)
+    self.hiddenSystemFrame:Hide()
+
+    if frame.GetParent and frame.SetParent and not frame.__YuXuanOriginalParent then
+        frame.__YuXuanOriginalParent = frame:GetParent()
+    end
+
+    if frame.SetParent then
+        pcall(frame.SetParent, frame, self.hiddenSystemFrame)
+    end
+
+    if frame.Hide then
+        pcall(frame.Hide, frame)
+    end
+
+    if frame.SetAlpha then
+        pcall(frame.SetAlpha, frame, 0)
+    end
+end
+
+function Core:HideAddonCompartment()
+    local frame = _G.AddonCompartmentFrame
+    if not frame then
+        return
+    end
+
+    self:HideFrameObject(frame)
+
+    if frame.__YuXuanHideHooked then
+        return
+    end
+
+    frame.__YuXuanHideHooked = true
+    frame:HookScript("OnShow", function(selfFrame)
+        if NS.Core and NS.Core.HideFrameObject then
+            NS.Core:HideFrameObject(selfFrame)
+        end
+    end)
+end
+
 function Core:OnAddonLoaded()
     self:InitializeDatabase()
     self:RegisterSlashCommands()
@@ -225,6 +270,7 @@ function Core:OnPlayerLogin()
     end
 
     self:RefreshMinimapButton()
+    self:HideAddonCompartment()
 
     print(string.format(
         "|cFF33FF99%s|r |cFFFFD200V%s|r |cFF7CFC00已加载|r |cFFFFFFFF打开设置|r |cFFFFFF00/yxs|r",

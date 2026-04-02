@@ -11,6 +11,7 @@ local RAID_MARKERS_DEFAULT_SPACING = 6
 local RAID_MARKERS_DEFAULT_COUNTDOWN = 6
 local RAID_MARKERS_BUTTON_PADDING = 4
 local RAID_MARKERS_BUTTON_BORDER = 1
+local RAID_MARKERS_PANEL_PADDING = 5
 
 local RAID_TARGET_BUTTONS = {
     { key = "STAR", index = 1, label = "星星", texture = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1" },
@@ -139,9 +140,9 @@ local function SetRaidMarkerButtonHoverTarget(button, targetScale)
     button:SetScript("OnUpdate", function(selfButton, elapsed)
         local current = selfButton._hoverScale or 1
         local target = selfButton._hoverTargetScale or 1
-        local nextScale = current + (target - current) * math.min(1, elapsed * 8)
+        local nextScale = current + (target - current) * math.min(1, elapsed * 18)
 
-        if math.abs(target - nextScale) < 0.01 then
+        if math.abs(target - nextScale) < 0.003 then
             nextScale = target
         end
 
@@ -257,6 +258,7 @@ function RaidMarkers:UpdateLayout()
     local textSize = math.max(11, math.floor(iconSize * 0.45))
     local bgColor = config.backgroundColor or { r = 0, g = 0, b = 0, a = 0.35 }
     local borderColor = config.borderColor or { r = 0, g = 0.6, b = 1, a = 0.45 }
+    local panelPadding = RAID_MARKERS_PANEL_PADDING
     local totalWidth = 0
     local totalHeight = 0
 
@@ -316,7 +318,7 @@ function RaidMarkers:UpdateLayout()
 
         if config.orientation == "VERTICAL" then
             if index == 1 then
-                button:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+                button:SetPoint("TOPLEFT", frame, "TOPLEFT", panelPadding, -panelPadding)
             else
                 button:SetPoint("TOPLEFT", buttons[index - 1], "BOTTOMLEFT", 0, -spacing)
             end
@@ -325,7 +327,7 @@ function RaidMarkers:UpdateLayout()
             totalHeight = totalHeight + buttonSize + (index > 1 and spacing or 0)
         else
             if index == 1 then
-                button:SetPoint("LEFT", frame, "LEFT", 0, 0)
+                button:SetPoint("LEFT", frame, "LEFT", panelPadding, 0)
             else
                 button:SetPoint("LEFT", buttons[index - 1], "RIGHT", spacing, 0)
             end
@@ -334,18 +336,14 @@ function RaidMarkers:UpdateLayout()
             totalHeight = math.max(totalHeight, buttonSize)
         end
 
-        if config.showBackground then
-            button.bg:SetColorTexture(bgColor.r or 0, bgColor.g or 0, bgColor.b or 0, bgColor.a or 0.35)
-        else
-            button.bg:SetColorTexture(0, 0, 0, 0)
-        end
+        button.bg:SetColorTexture(0, 0, 0, 0)
     end
 
-    frame:SetSize(math.max(totalWidth, 1), math.max(totalHeight, 1))
+    frame:SetSize(math.max(totalWidth + panelPadding * 2, 1), math.max(totalHeight + panelPadding * 2, 1))
     frame:SetMovable(not config.locked)
 
     if config.showBackground then
-        frame.bg:SetColorTexture(bgColor.r or 0, bgColor.g or 0, bgColor.b or 0, math.min((bgColor.a or 0.35) * 0.55, 0.4))
+        frame.bg:SetColorTexture(bgColor.r or 0, bgColor.g or 0, bgColor.b or 0, bgColor.a or 0.35)
     else
         frame.bg:SetColorTexture(0, 0, 0, 0)
     end

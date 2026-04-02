@@ -231,7 +231,12 @@ local function EnsureOpaqueTooltipBackground(frame)
     end
 
     local bg = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
-    bg:SetAllPoints(frame)
+    if frame.NineSlice and frame.NineSlice.Center then
+        bg:SetAllPoints(frame.NineSlice.Center)
+    else
+        bg:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -4)
+        bg:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -4, 4)
+    end
     bg:SetColorTexture(0, 0, 0, 1)
     bg:Hide()
     frame.YXSOpaqueBackground = bg

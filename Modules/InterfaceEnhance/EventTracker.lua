@@ -253,7 +253,9 @@ local function CreateLoopTimerTracker(parent, eventKey)
     frame.statusBar = CreateFrame("StatusBar", nil, frame)
     frame.statusBar:SetPoint("TOPLEFT", frame.barBg, "TOPLEFT", 1, -1)
     frame.statusBar:SetPoint("BOTTOMRIGHT", frame.barBg, "BOTTOMRIGHT", -1, 1)
-    local barTexture = LibSharedMedia and LibSharedMedia:Fetch("statusbar", "Yuxuan") or
+    local media = NS.Media
+    local barTexture = media and media.FetchStatusBar and media:FetchStatusBar("Yuxuan") or
+        (LibSharedMedia and LibSharedMedia:Fetch("statusbar", "Yuxuan")) or
         "Interface\\TargetingFrame\\UI-StatusBar"
     frame.statusBar:SetStatusBarTexture(barTexture)
 

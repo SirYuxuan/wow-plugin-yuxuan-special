@@ -1,7 +1,5 @@
 local _, NS = ...
 local Core = NS.Core
-local LibSharedMedia = LibStub("LibSharedMedia-3.0")
-
 local ATTRIBUTE_STATS = {
     { key = "showIlvl", color = "colorIlvl", label = "装等" },
     { key = "showPrimary", color = "colorPrimary", label = "主属性" },
@@ -453,7 +451,13 @@ function NS.BuildAttributeDisplayOptions()
                                 disabled = function()
                                     return not GetConfig().enabled or not GetConfig().progressBarEnable
                                 end,
-                                values = LibSharedMedia:HashTable("statusbar"),
+                                values = function()
+                                    local media = NS.Media
+                                    if media and media.GetStatusBarDropdownValues then
+                                        return media:GetStatusBarDropdownValues()
+                                    end
+                                    return {}
+                                end,
                                 get = function()
                                     return GetConfig().progressBarTexture
                                 end,

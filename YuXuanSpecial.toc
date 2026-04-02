@@ -12,6 +12,7 @@ Libs\LibRangeCheck-3.0\LibRangeCheck-3.0.lua
 
 Core\Init.lua
 Core\Database.lua
+Core\Media.lua
 Core\Commands.lua
 
 Modules\MapAssist\MapIDDisplay.lua

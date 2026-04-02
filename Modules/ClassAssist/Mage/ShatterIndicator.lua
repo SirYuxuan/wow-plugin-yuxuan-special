@@ -477,7 +477,12 @@ end
 function ShatterIndicator:GetTextureChoices()
     local choices = {}
     for name, _ in pairs(BUILTIN_TEXTURES) do choices[name] = name end
-    if LSM then
+    local media = NS.Media
+    if media and media.GetStatusBarDropdownValues then
+        for name, _ in pairs(media:GetStatusBarDropdownValues()) do
+            if not BUILTIN_TEXTURES[name] then choices[name] = name end
+        end
+    elseif LSM then
         for _, name in ipairs(LSM:List("statusbar")) do
             if not BUILTIN_TEXTURES[name] then choices[name] = name end
         end
@@ -488,7 +493,11 @@ end
 function ShatterIndicator:GetResolvedTexturePath()
     local textureName = self:GetConfig().texture or "纯色"
     if BUILTIN_TEXTURES[textureName] then return BUILTIN_TEXTURES[textureName] end
-    if LSM then
+    local media = NS.Media
+    if media and media.FetchStatusBar then
+        local path = media:FetchStatusBar(textureName, true)
+        if path then return path end
+    elseif LSM then
         local path = LSM:Fetch("statusbar", textureName, true)
         if path then return path end
     end

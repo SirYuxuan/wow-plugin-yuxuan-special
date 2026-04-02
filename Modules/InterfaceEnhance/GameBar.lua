@@ -1646,16 +1646,25 @@ local function FormatResetTime(seconds)
 end
 
 -- ── 副本进度信息 ──────────────────────────────────
-local DIFFICULTY_TAG = { "N", "H", "M", "LFR" }
+local function GetDifficultyLabel(difficultyID)
+    if difficultyID == 7 or difficultyID == 17 then
+        return "随机"
+    end
 
-local function GetDifficultyTag(difficultyID)
-    if not GetDifficultyInfo then return "N" end
-    local _, _, isHeroic, _, displayHeroic, displayMythic = GetDifficultyInfo(difficultyID)
-    if displayMythic then return DIFFICULTY_TAG[3] end
-    if isHeroic or displayHeroic then return DIFFICULTY_TAG[2] end
-    -- LFR difficulties: 7, 17
-    if difficultyID == 7 or difficultyID == 17 then return DIFFICULTY_TAG[4] end
-    return DIFFICULTY_TAG[1]
+    if GetDifficultyInfo then
+        local difficultyName, _, isHeroic, _, displayHeroic, displayMythic = GetDifficultyInfo(difficultyID)
+        if type(difficultyName) == "string" and difficultyName ~= "" then
+            if difficultyName:find("随机", 1, true) then return "随机" end
+            if difficultyName:find("史诗", 1, true) then return "史诗" end
+            if difficultyName:find("英雄", 1, true) then return "英雄" end
+            if difficultyName:find("普通", 1, true) then return "普通" end
+        end
+
+        if displayMythic then return "史诗" end
+        if isHeroic or displayHeroic then return "英雄" end
+    end
+
+    return "普通"
 end
 
 -- 副本图标缓存（名称 → 按钮图标路径）
@@ -1718,7 +1727,7 @@ local function AddSavedInstanceLines(tooltip)
         local name, _, reset, difficulty, locked, extended, _, isRaid, maxPlayers, _, numEncounters, encounterProgress =
             GetSavedInstanceInfo(i)
         if name and (locked or extended) then
-            local tag = GetDifficultyTag(difficulty)
+            local tag = GetDifficultyLabel(difficulty)
             local entry = {
                 name = name,
                 tag = tag,

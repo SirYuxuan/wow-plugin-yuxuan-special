@@ -77,7 +77,13 @@ local function ApplyConfiguredFont(target, size, outline, config)
 end
 
 local function FetchStatusBar(textureName)
-    return LibSharedMedia:Fetch("statusbar", textureName) or "Interface\\TargetingFrame\\UI-StatusBar"
+    local media = NS.Media
+    if media and media.FetchStatusBar then
+        return media:FetchStatusBar(textureName)
+    end
+
+    return (LibSharedMedia and LibSharedMedia:Fetch("statusbar", textureName)) or
+        "Interface\\TargetingFrame\\UI-StatusBar"
 end
 
 local function EnsurePosition()
