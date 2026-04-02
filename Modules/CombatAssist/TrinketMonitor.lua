@@ -360,7 +360,7 @@ local function SetReadyAnimationEnabled(button, enabled, color)
 
         if button._glowColorKey ~= colorKey or button._glowSize ~= size then
             pcall(GlowLib.PixelGlow_Stop, glowTarget)
-            pcall(GlowLib.PixelGlow_Start, glowTarget, rgba, 8, 0.25, (10 / 50) * size, math.max(2, (1 / 50) * size), 1, 1, false, nil, 2)
+            pcall(GlowLib.PixelGlow_Start, glowTarget, rgba, 8, 0.25, (10 / 50) * size, math.max(1.25, (0.8 / 50) * size), 1, 1, false, nil, 2)
             button._glowColorKey = colorKey
             button._glowSize = size
         end
