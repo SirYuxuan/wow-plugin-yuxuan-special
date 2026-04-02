@@ -509,8 +509,10 @@ function SpecTalentBar:UpdateLayout()
     end
 
     local durabilityPercent = select(1, self:GetDurabilityEntries())
-    local percentColorCode = durabilityPercent > 60 and "|cFF33FF33" or (durabilityPercent > 30 and "|cFFFFDD33" or "|cFFFF3333")
-    frame.durabilityButton.text:SetText(string.format("|cFF%s耐久度：|r%s%d%%|r", labelHex, percentColorCode, durabilityPercent))
+    local percentColorCode = durabilityPercent > 60 and "|cFF33FF33" or
+    (durabilityPercent > 30 and "|cFFFFDD33" or "|cFFFF3333")
+    frame.durabilityButton.text:SetText(string.format("|cFF%s耐久度：|r%s%d%%|r", labelHex, percentColorCode,
+        durabilityPercent))
     frame.durabilityButton.text:SetTextColor(1, 1, 1, 1)
 
     if durabilityPercent < 60 then
