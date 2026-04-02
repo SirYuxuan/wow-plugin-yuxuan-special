@@ -518,6 +518,12 @@ function ItemLevelPlanner:ToggleFrame(forceShown)
         self:CreateFrame()
     end
 
+    if config.windowShown and self.frame then
+        self.frame:Show()
+        self.frame:SetFrameStrata("DIALOG")
+        self.frame:Raise()
+    end
+
     self:RefreshFromSettings()
 end
 
@@ -551,8 +557,10 @@ function ItemLevelPlanner:CreateCharacterButton()
     end
 
     local button = CreateFrame("Button", addonName .. "ItemLevelPlannerButton", CharacterFrame, "BackdropTemplate")
-    button:SetSize(62, 22)
-    button:SetPoint("TOPRIGHT", CharacterFrame, "TOPRIGHT", -38, -34)
+    button:SetSize(72, 22)
+    button:SetFrameStrata("DIALOG")
+    button:SetFrameLevel((CharacterFrame:GetFrameLevel() or 1) + 20)
+    button:SetPoint("TOPLEFT", CharacterFrame, "TOPLEFT", 58, -32)
     button:RegisterForClicks("AnyUp")
     button:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
@@ -574,7 +582,7 @@ function ItemLevelPlanner:CreateCharacterButton()
     end)
     button:SetScript("OnLeave", GameTooltip_Hide)
     button:SetScript("OnClick", function()
-        ItemLevelPlanner:ToggleFrame()
+        ItemLevelPlanner:ToggleFrame(true)
     end)
 
     self.characterButton = button
@@ -612,7 +620,8 @@ function ItemLevelPlanner:CreateFrame()
     local config = GetConfig()
     local frame = CreateFrame("Frame", addonName .. "ItemLevelPlannerFrame", UIParent, "BackdropTemplate")
     frame:SetSize(DEFAULT_FRAME_WIDTH, DEFAULT_FRAME_HEIGHT)
-    frame:SetFrameStrata("HIGH")
+    frame:SetFrameStrata("DIALOG")
+    frame:SetFrameLevel(50)
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
     frame:EnableMouse(true)
