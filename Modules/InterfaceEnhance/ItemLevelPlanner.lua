@@ -5,13 +5,13 @@ local ItemLevelPlanner = {}
 NS.Modules.InterfaceEnhance.ItemLevelPlanner = ItemLevelPlanner
 
 --[[
-装等预估面板固定挂在角色面板左侧，定位是“配装试算器”：
+装等预估面板定位是“配装试算器”：
 1. 列出当前穿戴的所有核心装备槽位。
 2. 每一行显示图标、槽位名、当前装等、目标装等。
 3. 直接点击并编辑目标装等，顶部实时汇总整体平均装等变化。
 
-这里刻意不做自由拖拽，避免弹窗式体验太散。
-面板只跟着角色面板出现，视觉上更像角色面板的扩展区。
+默认会出现在角色面板左侧，但支持拖动挪开并记住位置。
+这样既保留“贴着角色面板看”的便利，也不会被固定布局束缚。
 ]]
 
 local SLOT_ORDER = {
@@ -70,10 +70,37 @@ local TWO_HANDED_EQUIP_LOCS = {
     INVTYPE_RANGEDRIGHT = true,
 }
 
-local PANEL_WIDTH = 304
+local PANEL_WIDTH = 328
 local PANEL_GAP = 12
-local HEADER_HEIGHT = 92
-local ROW_HEIGHT = 21
+local HEADER_HEIGHT = 98
+local ROW_HEIGHT = 22
+local ROW_SPACING = 3
+local PANEL_PADDING = 12
+
+local function EnsurePanelPoint()
+    local config = GetConfig()
+    if config.point then
+        return config.point
+    end
+
+    local x, y = -340, 0
+    if CharacterFrame and CharacterFrame:IsShown() then
+        local left = CharacterFrame:GetLeft()
+        local top = CharacterFrame:GetTop()
+        if left and top then
+            x = left - (PANEL_WIDTH * 0.5) - PANEL_GAP
+            y = top - 240
+        end
+    end
+
+    config.point = {
+        point = "TOPRIGHT",
+        relativePoint = "BOTTOMLEFT",
+        x = math.floor(x + 0.5),
+        y = math.floor(y + 0.5),
+    }
+    return config.point
+end
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "itemLevelPlanner")
@@ -345,10 +372,29 @@ function ItemLevelPlanner:RefreshPanel()
     ApplyConfiguredFont(self.frame.deltaLabel, fontSize - 1, "")
     ApplyConfiguredFont(self.frame.deltaValue, fontSize + 2, "OUTLINE")
     ApplyConfiguredFont(self.frame.clearButton.text, fontSize - 1, "OUTLINE")
+    ApplyConfiguredFont(self.frame.closeButton.text, fontSize, "OUTLINE")
     ApplyConfiguredFont(self.frame.hintText, fontSize - 2, "")
+    ApplyConfiguredFont(self.frame.columnCurrent, fontSize - 2, "")
+    ApplyConfiguredFont(self.frame.columnTarget, fontSize - 2, "")
+
+    self.frame:Raise()
 
     self:RefreshSummary()
     self:RefreshRows()
+end
+
+function ItemLevelPlanner:SavePosition()
+    if not self.frame then
+        return
+    end
+
+    local point, _, relativePoint, x, y = self.frame:GetPoint(1)
+    local config = GetConfig()
+    config.point = config.point or {}
+    config.point.point = point or "CENTER"
+    config.point.relativePoint = relativePoint or "CENTER"
+    config.point.x = math.floor((x or 0) + 0.5)
+    config.point.y = math.floor((y or 0) + 0.5)
 end
 
 function ItemLevelPlanner:SetOverride(slotKey, value)
@@ -382,11 +428,14 @@ function ItemLevelPlanner:CreatePanel()
         return
     end
 
-    local frame = CreateFrame("Frame", addonName .. "ItemLevelPlannerFrame", CharacterFrame, "BackdropTemplate")
+    local frame = CreateFrame("Frame", addonName .. "ItemLevelPlannerFrame", UIParent, "BackdropTemplate")
     frame:SetWidth(PANEL_WIDTH)
-    frame:SetPoint("RIGHT", CharacterFrame, "LEFT", -PANEL_GAP, 0)
-    frame:SetFrameStrata("HIGH")
-    frame:SetFrameLevel((CharacterFrame:GetFrameLevel() or 1) + 12)
+    frame:SetFrameStrata("DIALOG")
+    frame:SetFrameLevel((CharacterFrame:GetFrameLevel() or 1) + 18)
+    frame:SetClampedToScreen(true)
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
     frame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Buttons\\WHITE8x8",
@@ -395,18 +444,41 @@ function ItemLevelPlanner:CreatePanel()
     })
     frame:SetBackdropColor(0.04, 0.06, 0.09, 0.96)
     frame:SetBackdropBorderColor(0.12, 0.62, 1.00, 0.60)
+    local point = EnsurePanelPoint()
+    frame:SetPoint(point.point or "CENTER", UIParent, point.relativePoint or "CENTER", point.x or 0, point.y or 0)
 
-    frame:SetScript("OnShow", function(selfFrame)
-        selfFrame:SetHeight(CharacterFrame:GetHeight() or 424)
+    frame:SetScript("OnDragStart", function(selfFrame)
+        selfFrame:StartMoving()
+    end)
+    frame:SetScript("OnDragStop", function(selfFrame)
+        selfFrame:StopMovingOrSizing()
+        ItemLevelPlanner:SavePosition()
     end)
 
     frame.titleText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.titleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -12)
     frame.titleText:SetText("装等预估")
 
+    frame.closeButton = CreateFrame("Button", nil, frame, "BackdropTemplate")
+    frame.closeButton:SetSize(20, 20)
+    frame.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -10)
+    frame.closeButton:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    frame.closeButton:SetBackdropColor(0.10, 0.14, 0.20, 1)
+    frame.closeButton:SetBackdropBorderColor(0.12, 0.62, 1.00, 0.50)
+    frame.closeButton.text = frame.closeButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.closeButton.text:SetPoint("CENTER")
+    frame.closeButton.text:SetText("×")
+    frame.closeButton:SetScript("OnClick", function()
+        ItemLevelPlanner:TogglePanel(false)
+    end)
+
     frame.clearButton = CreateFrame("Button", nil, frame, "BackdropTemplate")
     frame.clearButton:SetSize(56, 20)
-    frame.clearButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -12, -10)
+    frame.clearButton:SetPoint("RIGHT", frame.closeButton, "LEFT", -6, 0)
     frame.clearButton:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Buttons\\WHITE8x8",
@@ -461,19 +533,33 @@ function ItemLevelPlanner:CreatePanel()
     frame.hintText:SetText("点右侧数字直接改")
     frame.hintText:SetTextColor(0.70, 0.78, 0.86, 1)
 
+    frame.columnCurrent = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.columnCurrent:SetPoint("TOPRIGHT", frame.summaryPanel, "BOTTOMRIGHT", -86, -12)
+    frame.columnCurrent:SetText("当前")
+    frame.columnCurrent:SetTextColor(0.70, 0.78, 0.86, 1)
+
+    frame.columnTarget = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.columnTarget:SetPoint("LEFT", frame.columnCurrent, "RIGHT", 30, 0)
+    frame.columnTarget:SetText("预估")
+    frame.columnTarget:SetTextColor(0.70, 0.78, 0.86, 1)
+
     frame.rows = {}
     for index, slotKey in ipairs(SLOT_ORDER) do
         local row = CreateFrame("Button", nil, frame, "BackdropTemplate")
         row:SetHeight(ROW_HEIGHT)
-        row:SetPoint("TOPLEFT", frame.summaryPanel, "BOTTOMLEFT", 0, -8 - (index - 1) * (ROW_HEIGHT + 2))
-        row:SetPoint("TOPRIGHT", frame.summaryPanel, "BOTTOMRIGHT", 0, -8 - (index - 1) * (ROW_HEIGHT + 2))
+        row:SetPoint("TOPLEFT", frame.summaryPanel, "BOTTOMLEFT", 0, -26 - (index - 1) * (ROW_HEIGHT + ROW_SPACING))
+        row:SetPoint("TOPRIGHT", frame.summaryPanel, "BOTTOMRIGHT", 0, -26 - (index - 1) * (ROW_HEIGHT + ROW_SPACING))
         row:SetBackdrop({
             bgFile = "Interface\\Buttons\\WHITE8x8",
             edgeFile = "Interface\\Buttons\\WHITE8x8",
             edgeSize = 1,
         })
-        row:SetBackdropColor(0.07, 0.09, 0.13, 0.95)
+        row:SetBackdropColor(index % 2 == 0 and 0.065 or 0.08, 0.09, 0.13, 0.98)
         row:SetBackdropBorderColor(0.09, 0.16, 0.24, 1)
+
+        row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
+        row.highlight:SetAllPoints(row)
+        row.highlight:SetColorTexture(0.13, 0.22, 0.34, 0.28)
 
         row.icon = row:CreateTexture(nil, "ARTWORK")
         row.icon:SetSize(16, 16)
@@ -484,11 +570,11 @@ function ItemLevelPlanner:CreatePanel()
         row.slotText:SetJustifyH("LEFT")
 
         row.currentText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.currentText:SetPoint("CENTER", row, "CENTER", 28, 0)
+        row.currentText:SetPoint("RIGHT", row, "RIGHT", -84, 0)
         row.currentText:SetTextColor(0.82, 0.86, 0.92, 1)
 
         row.arrowText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.arrowText:SetPoint("RIGHT", row, "RIGHT", -84, 0)
+        row.arrowText:SetPoint("RIGHT", row.currentText, "LEFT", -10, 0)
         row.arrowText:SetText("→")
         row.arrowText:SetTextColor(0.45, 0.55, 0.68, 1)
 
@@ -525,6 +611,9 @@ function ItemLevelPlanner:CreatePanel()
         frame.rows[index] = row
     end
 
+    local requiredHeight = PANEL_PADDING + HEADER_HEIGHT + 26 + (#SLOT_ORDER * ROW_HEIGHT) + ((#SLOT_ORDER - 1) * ROW_SPACING) + 18
+    frame:SetHeight(requiredHeight)
+
     self.frame = frame
 end
 
@@ -543,6 +632,9 @@ function ItemLevelPlanner:RefreshVisibility()
         and CharacterFrame:IsShown()
 
     self.frame:SetShown(shouldShow and true or false)
+    if shouldShow then
+        self.frame:Raise()
+    end
 end
 
 function ItemLevelPlanner:TogglePanel(forceShown)
@@ -560,6 +652,9 @@ function ItemLevelPlanner:TogglePanel(forceShown)
     end
 
     if config.windowShown then
+        if CharacterFrame and not CharacterFrame:IsShown() and ToggleCharacter then
+            ToggleCharacter("PaperDollFrame")
+        end
         self:CreatePanel()
         self:RefreshPanel()
     end
@@ -689,10 +784,13 @@ end
 function ItemLevelPlanner:RefreshFromSettings()
     local config = GetConfig()
     config.customTargets = config.customTargets or {}
+    local point = EnsurePanelPoint()
 
     self:EnsureCharacterHooks()
     if config.windowShown then
         self:CreatePanel()
+        self.frame:ClearAllPoints()
+        self.frame:SetPoint(point.point or "CENTER", UIParent, point.relativePoint or "CENTER", point.x or 0, point.y or 0)
         self:RefreshPanel()
     end
 

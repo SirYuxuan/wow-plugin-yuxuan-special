@@ -247,6 +247,7 @@ NS.DEFAULTS = {
             decimalPlaces = 1,
             windowShown = false,
             customTargets = {},
+            point = nil,
         },
         specTalentBar = {
             enabled = true,

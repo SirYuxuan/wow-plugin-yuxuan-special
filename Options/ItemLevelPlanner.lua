@@ -154,7 +154,7 @@ function NS.BuildItemLevelPlannerOptions()
                         type = "execute",
                         order = 1,
                         width = 1.0,
-                        name = "打开/关闭角色面板左侧预估区",
+                        name = "打开/关闭预估面板",
                         disabled = function()
                             return not GetConfig().enabled
                         end,
