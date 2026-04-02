@@ -73,9 +73,9 @@ local TWO_HANDED_EQUIP_LOCS = {
 local PANEL_WIDTH = 328
 local PANEL_GAP = 12
 local HEADER_HEIGHT = 98
-local ROW_HEIGHT = 22
-local ROW_SPACING = 3
-local PANEL_PADDING = 12
+local ROW_HEIGHT = 24
+local ROW_SPACING = 4
+local PANEL_PADDING = 16
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "itemLevelPlanner")
@@ -135,6 +135,19 @@ end
 
 local function FormatNumber(value, decimals)
     return string.format("%." .. tostring(decimals or 1) .. "f", tonumber(value) or 0)
+end
+
+local function TruncateText(text, maxChars)
+    if type(text) ~= "string" or text == "" then
+        return ""
+    end
+
+    local limit = tonumber(maxChars) or 0
+    if limit <= 0 or #text <= limit then
+        return text
+    end
+
+    return text:sub(1, limit) .. "..."
 end
 
 local function GetCurrentAverageItemLevel()
@@ -215,6 +228,7 @@ local function BuildCurrentSnapshot()
         snapshot[slotKey] = {
             slotKey = slotKey,
             slotName = slotInfo.name,
+            itemName = link and (GetItemInfo(link) or "读取中...") or "未装备",
             itemLevel = itemLevel,
             link = link,
             icon = icon,
@@ -341,7 +355,7 @@ function ItemLevelPlanner:RefreshRows()
 
         row.slotKey = slotKey
         row.icon:SetTexture(info and info.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-        row.slotText:SetText((info and info.slotName) or slotKey)
+        row.slotText:SetText(string.format("%s -> %s", (info and info.slotName) or slotKey, TruncateText((info and info.itemName) or "未装备", 14)))
         row.currentText:SetText(string.format("%d", info and (info.itemLevel or 0) or 0))
 
         if target and target > 0 then
@@ -534,12 +548,12 @@ function ItemLevelPlanner:CreatePanel()
     frame.hintText:SetTextColor(0.70, 0.78, 0.86, 1)
 
     frame.columnCurrent = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.columnCurrent:SetPoint("TOPRIGHT", frame.summaryPanel, "BOTTOMRIGHT", -86, -12)
+    frame.columnCurrent:SetPoint("TOPRIGHT", frame.summaryPanel, "BOTTOMRIGHT", -108, -12)
     frame.columnCurrent:SetText("当前")
     frame.columnCurrent:SetTextColor(0.70, 0.78, 0.86, 1)
 
     frame.columnTarget = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.columnTarget:SetPoint("LEFT", frame.columnCurrent, "RIGHT", 30, 0)
+    frame.columnTarget:SetPoint("LEFT", frame.columnCurrent, "RIGHT", 44, 0)
     frame.columnTarget:SetText("预估")
     frame.columnTarget:SetTextColor(0.70, 0.78, 0.86, 1)
 
@@ -567,20 +581,21 @@ function ItemLevelPlanner:CreatePanel()
 
         row.slotText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         row.slotText:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+        row.slotText:SetPoint("RIGHT", row, "RIGHT", -138, 0)
         row.slotText:SetJustifyH("LEFT")
 
         row.currentText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.currentText:SetPoint("RIGHT", row, "RIGHT", -84, 0)
+        row.currentText:SetPoint("RIGHT", row, "RIGHT", -108, 0)
         row.currentText:SetTextColor(0.82, 0.86, 0.92, 1)
 
         row.arrowText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.arrowText:SetPoint("RIGHT", row.currentText, "LEFT", -10, 0)
+        row.arrowText:SetPoint("RIGHT", row.currentText, "LEFT", -14, 0)
         row.arrowText:SetText("→")
         row.arrowText:SetTextColor(0.45, 0.55, 0.68, 1)
 
         row.editBox = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
         row.editBox:SetSize(56, 18)
-        row.editBox:SetPoint("RIGHT", row, "RIGHT", -24, 0)
+        row.editBox:SetPoint("RIGHT", row, "RIGHT", -26, 0)
         row.editBox:SetAutoFocus(false)
         row.editBox:SetNumeric(true)
         row.editBox:SetMaxLetters(4)
@@ -611,7 +626,7 @@ function ItemLevelPlanner:CreatePanel()
         frame.rows[index] = row
     end
 
-    local requiredHeight = PANEL_PADDING + HEADER_HEIGHT + 26 + (#SLOT_ORDER * ROW_HEIGHT) + ((#SLOT_ORDER - 1) * ROW_SPACING) + 18
+    local requiredHeight = PANEL_PADDING + HEADER_HEIGHT + 34 + (#SLOT_ORDER * ROW_HEIGHT) + ((#SLOT_ORDER - 1) * ROW_SPACING) + 24
     frame:SetHeight(requiredHeight)
 
     self.frame = frame
