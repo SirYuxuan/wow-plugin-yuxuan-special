@@ -70,7 +70,7 @@ local TWO_HANDED_EQUIP_LOCS = {
     INVTYPE_RANGEDRIGHT = true,
 }
 
-local PANEL_WIDTH = 328
+local PANEL_WIDTH = 388
 local PANEL_GAP = 12
 local HEADER_HEIGHT = 98
 local ROW_HEIGHT = 24
@@ -263,6 +263,12 @@ local function GetProjectedSummary(snapshot, total)
     }
 end
 
+function ItemLevelPlanner:RefreshEquipmentSnapshot()
+    local snapshot, total = BuildCurrentSnapshot()
+    self.snapshot = snapshot
+    self.currentTotal = total
+end
+
 function ItemLevelPlanner:ComputeItemPreview(itemLink)
     if not itemLink then
         return nil
@@ -317,11 +323,13 @@ function ItemLevelPlanner:RefreshSummary()
         return
     end
 
-    local snapshot, total = BuildCurrentSnapshot()
-    local summary = GetProjectedSummary(snapshot, total)
+    if not self.snapshot or not self.currentTotal then
+        self:RefreshEquipmentSnapshot()
+    end
+
+    local summary = GetProjectedSummary(self.snapshot, self.currentTotal)
     local decimals = ClampNumber(GetConfig().decimalPlaces or 1, 0, 2)
 
-    self.snapshot = snapshot
     self.frame.currentValue:SetText(FormatNumber(summary.currentAverage, decimals))
     self.frame.projectedValue:SetText(FormatNumber(summary.projectedAverage, decimals))
 
@@ -337,6 +345,10 @@ end
 function ItemLevelPlanner:RefreshRows()
     if not self.frame then
         return
+    end
+
+    if not self.snapshot then
+        self:RefreshEquipmentSnapshot()
     end
 
     local config = GetConfig()
@@ -355,7 +367,7 @@ function ItemLevelPlanner:RefreshRows()
 
         row.slotKey = slotKey
         row.icon:SetTexture(info and info.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-        row.slotText:SetText(string.format("%s -> %s", (info and info.slotName) or slotKey, TruncateText((info and info.itemName) or "未装备", 14)))
+        row.slotText:SetText(string.format("%s -> %s", (info and info.slotName) or slotKey, TruncateText((info and info.itemName) or "未装备", 24)))
         row.currentText:SetText(string.format("%d", info and (info.itemLevel or 0) or 0))
 
         if target and target > 0 then
@@ -370,9 +382,13 @@ function ItemLevelPlanner:RefreshRows()
     end
 end
 
-function ItemLevelPlanner:RefreshPanel()
+function ItemLevelPlanner:RefreshPanel(rebuildSnapshot)
     if not self.frame then
         return
+    end
+
+    if rebuildSnapshot ~= false then
+        self:RefreshEquipmentSnapshot()
     end
 
     local config = GetConfig()
@@ -386,7 +402,6 @@ function ItemLevelPlanner:RefreshPanel()
     ApplyConfiguredFont(self.frame.deltaLabel, fontSize - 1, "")
     ApplyConfiguredFont(self.frame.deltaValue, fontSize + 2, "OUTLINE")
     ApplyConfiguredFont(self.frame.clearButton.text, fontSize - 1, "OUTLINE")
-    ApplyConfiguredFont(self.frame.closeButton.text, fontSize, "OUTLINE")
     ApplyConfiguredFont(self.frame.hintText, fontSize - 2, "")
     ApplyConfiguredFont(self.frame.columnCurrent, fontSize - 2, "")
     ApplyConfiguredFont(self.frame.columnTarget, fontSize - 2, "")
@@ -423,7 +438,11 @@ function ItemLevelPlanner:SetOverride(slotKey, value)
         config.customTargets[slotKey] = ClampNumber(number, 1, 9999)
     end
 
-    self:RefreshPanel()
+    self:RefreshSummary()
+    self:RefreshRows()
+    if self.frame then
+        self.frame:Raise()
+    end
     if NS.Options and NS.Options.NotifyChanged then
         NS.Options:NotifyChanged()
     end
@@ -431,7 +450,11 @@ end
 
 function ItemLevelPlanner:ClearAllOverrides()
     GetConfig().customTargets = {}
-    self:RefreshPanel()
+    self:RefreshSummary()
+    self:RefreshRows()
+    if self.frame then
+        self.frame:Raise()
+    end
     if NS.Options and NS.Options.NotifyChanged then
         NS.Options:NotifyChanged()
     end
@@ -473,26 +496,16 @@ function ItemLevelPlanner:CreatePanel()
     frame.titleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -12)
     frame.titleText:SetText("装等预估")
 
-    frame.closeButton = CreateFrame("Button", nil, frame, "BackdropTemplate")
-    frame.closeButton:SetSize(20, 20)
-    frame.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -10)
-    frame.closeButton:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
-    })
-    frame.closeButton:SetBackdropColor(0.10, 0.14, 0.20, 1)
-    frame.closeButton:SetBackdropBorderColor(0.12, 0.62, 1.00, 0.50)
-    frame.closeButton.text = frame.closeButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.closeButton.text:SetPoint("CENTER")
-    frame.closeButton.text:SetText("×")
+    frame.closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    frame.closeButton:SetSize(22, 22)
+    frame.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)
     frame.closeButton:SetScript("OnClick", function()
         ItemLevelPlanner:TogglePanel(false)
     end)
 
     frame.clearButton = CreateFrame("Button", nil, frame, "BackdropTemplate")
     frame.clearButton:SetSize(56, 20)
-    frame.clearButton:SetPoint("RIGHT", frame.closeButton, "LEFT", -6, 0)
+    frame.clearButton:SetPoint("RIGHT", frame.closeButton, "LEFT", -4, 0)
     frame.clearButton:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Buttons\\WHITE8x8",
@@ -548,12 +561,12 @@ function ItemLevelPlanner:CreatePanel()
     frame.hintText:SetTextColor(0.70, 0.78, 0.86, 1)
 
     frame.columnCurrent = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.columnCurrent:SetPoint("TOPRIGHT", frame.summaryPanel, "BOTTOMRIGHT", -108, -12)
+    frame.columnCurrent:SetPoint("TOPRIGHT", frame.summaryPanel, "BOTTOMRIGHT", -128, -12)
     frame.columnCurrent:SetText("当前")
     frame.columnCurrent:SetTextColor(0.70, 0.78, 0.86, 1)
 
     frame.columnTarget = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    frame.columnTarget:SetPoint("LEFT", frame.columnCurrent, "RIGHT", 44, 0)
+    frame.columnTarget:SetPoint("LEFT", frame.columnCurrent, "RIGHT", 52, 0)
     frame.columnTarget:SetText("预估")
     frame.columnTarget:SetTextColor(0.70, 0.78, 0.86, 1)
 
@@ -581,21 +594,21 @@ function ItemLevelPlanner:CreatePanel()
 
         row.slotText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         row.slotText:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
-        row.slotText:SetPoint("RIGHT", row, "RIGHT", -138, 0)
+        row.slotText:SetPoint("RIGHT", row, "RIGHT", -166, 0)
         row.slotText:SetJustifyH("LEFT")
 
         row.currentText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.currentText:SetPoint("RIGHT", row, "RIGHT", -108, 0)
+        row.currentText:SetPoint("RIGHT", row, "RIGHT", -128, 0)
         row.currentText:SetTextColor(0.82, 0.86, 0.92, 1)
 
         row.arrowText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.arrowText:SetPoint("RIGHT", row.currentText, "LEFT", -14, 0)
+        row.arrowText:SetPoint("RIGHT", row.currentText, "LEFT", -18, 0)
         row.arrowText:SetText("→")
         row.arrowText:SetTextColor(0.45, 0.55, 0.68, 1)
 
         row.editBox = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
-        row.editBox:SetSize(56, 18)
-        row.editBox:SetPoint("RIGHT", row, "RIGHT", -26, 0)
+        row.editBox:SetSize(60, 18)
+        row.editBox:SetPoint("RIGHT", row, "RIGHT", -28, 0)
         row.editBox:SetAutoFocus(false)
         row.editBox:SetNumeric(true)
         row.editBox:SetMaxLetters(4)
