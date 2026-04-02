@@ -28,6 +28,7 @@ Modules\InterfaceEnhance\ItemLevelPlanner.lua
 Modules\InterfaceEnhance\MouseTooltip.lua
 Modules\InterfaceEnhance\PerformanceMonitor.lua
 Modules\InterfaceEnhance\QuickChat.lua
+Modules\InterfaceEnhance\ChatInputBeautify.lua
 Modules\InterfaceEnhance\QuestTools.lua
 Modules\InterfaceEnhance\RaidMarkers.lua
 Modules\InterfaceEnhance\SpecTalentBar.lua

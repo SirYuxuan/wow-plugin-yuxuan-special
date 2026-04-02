@@ -192,6 +192,11 @@ function Core:OnPlayerLogin()
         quickChat:OnPlayerLogin()
     end
 
+    local chatInputBeautify = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.ChatInputBeautify
+    if chatInputBeautify and chatInputBeautify.OnPlayerLogin then
+        chatInputBeautify:OnPlayerLogin()
+    end
+
     local distanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.DistanceMonitor
     if distanceMonitor and distanceMonitor.OnPlayerLogin then
         distanceMonitor:OnPlayerLogin()
