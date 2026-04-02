@@ -1,25 +1,6 @@
 local _, NS = ...
 local Core = NS.Core
 
-local SLOT_VALUES = {
-    HEAD = "头部",
-    NECK = "项链",
-    SHOULDER = "肩部",
-    CHEST = "胸部",
-    WAIST = "腰部",
-    LEGS = "腿部",
-    FEET = "脚部",
-    WRIST = "手腕",
-    HANDS = "手部",
-    FINGER1 = "戒指 1",
-    FINGER2 = "戒指 2",
-    TRINKET1 = "饰品 1",
-    TRINKET2 = "饰品 2",
-    BACK = "披风",
-    MAINHAND = "主手",
-    OFFHAND = "副手",
-}
-
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "itemLevelPlanner")
 end
@@ -68,7 +49,7 @@ function NS.BuildItemLevelPlannerOptions()
                         type = "toggle",
                         order = 2,
                         width = 1.0,
-                        name = "角色面板按钮",
+                        name = "显示角色面板按钮",
                         disabled = function()
                             return not GetConfig().enabled
                         end,
@@ -84,7 +65,7 @@ function NS.BuildItemLevelPlannerOptions()
                         type = "toggle",
                         order = 3,
                         width = 1.0,
-                        name = "装备提示预估",
+                        name = "显示装备提示预估",
                         disabled = function()
                             return not GetConfig().enabled
                         end,
@@ -98,69 +79,9 @@ function NS.BuildItemLevelPlannerOptions()
                     },
                 },
             },
-            controlRow = {
-                type = "group",
-                order = 20,
-                name = "",
-                layout = "row",
-                args = {
-                    locked = {
-                        type = "toggle",
-                        order = 1,
-                        width = 1.0,
-                        name = "锁定窗口",
-                        disabled = function()
-                            return not GetConfig().enabled
-                        end,
-                        get = function()
-                            return GetConfig().locked
-                        end,
-                        set = function(_, value)
-                            GetConfig().locked = value and true or false
-                            RefreshModule(false)
-                        end,
-                    },
-                    selectedSlot = {
-                        type = "select",
-                        order = 2,
-                        width = 1.0,
-                        name = "默认槽位",
-                        disabled = function()
-                            return not GetConfig().enabled
-                        end,
-                        values = SLOT_VALUES,
-                        get = function()
-                            return GetConfig().selectedSlot or "HEAD"
-                        end,
-                        set = function(_, value)
-                            GetConfig().selectedSlot = value
-                            RefreshModule(false)
-                        end,
-                    },
-                    targetItemLevel = {
-                        type = "range",
-                        order = 3,
-                        width = 1.0,
-                        name = "默认目标装等",
-                        min = 1,
-                        max = 999,
-                        step = 1,
-                        disabled = function()
-                            return not GetConfig().enabled
-                        end,
-                        get = function()
-                            return GetConfig().targetItemLevel or 665
-                        end,
-                        set = function(_, value)
-                            GetConfig().targetItemLevel = value
-                            RefreshModule(false)
-                        end,
-                    },
-                },
-            },
             styleRow = {
                 type = "group",
-                order = 30,
+                order = 20,
                 name = "",
                 layout = "row",
                 args = {
@@ -189,7 +110,7 @@ function NS.BuildItemLevelPlannerOptions()
                         width = 1.0,
                         name = "字体大小",
                         min = 10,
-                        max = 22,
+                        max = 18,
                         step = 1,
                         disabled = function()
                             return not GetConfig().enabled
@@ -206,7 +127,7 @@ function NS.BuildItemLevelPlannerOptions()
                         type = "range",
                         order = 3,
                         width = 1.0,
-                        name = "小数位数",
+                        name = "结果小数位",
                         min = 0,
                         max = 2,
                         step = 1,
@@ -225,28 +146,43 @@ function NS.BuildItemLevelPlannerOptions()
             },
             actionRow = {
                 type = "group",
-                order = 40,
+                order = 30,
                 name = "",
                 layout = "row",
                 args = {
-                    toggleWindow = {
+                    togglePanel = {
                         type = "execute",
                         order = 1,
                         width = 1.0,
-                        name = "打开/关闭窗口",
+                        name = "打开/关闭角色面板左侧预估区",
                         disabled = function()
                             return not GetConfig().enabled
                         end,
                         func = function()
                             local module = GetModule()
-                            if module and module.ToggleFrame then
-                                module:ToggleFrame()
+                            if module and module.TogglePanel then
+                                module:TogglePanel()
+                            end
+                        end,
+                    },
+                    clearAll = {
+                        type = "execute",
+                        order = 2,
+                        width = 1.0,
+                        name = "清空全部预估数值",
+                        disabled = function()
+                            return not GetConfig().enabled
+                        end,
+                        func = function()
+                            local module = GetModule()
+                            if module and module.ClearAllOverrides then
+                                module:ClearAllOverrides()
                             end
                         end,
                     },
                     reset = {
                         type = "execute",
-                        order = 2,
+                        order = 3,
                         width = 1.0,
                         name = "恢复默认设置",
                         func = function()
