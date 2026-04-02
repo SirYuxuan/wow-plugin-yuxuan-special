@@ -4,7 +4,9 @@
 ## Author: Sir丶雨轩
 ## Version: 1.0.0
 ## SavedVariables: YuXuanSpecialDB
-## OptionalDeps: ClickableRaidBuffs
+
+Libs\LibStub\LibStub.lua
+Libs\LibCustomGlow\LibCustomGlow-1.0.lua
 
 Core\Init.lua
 Core\Database.lua

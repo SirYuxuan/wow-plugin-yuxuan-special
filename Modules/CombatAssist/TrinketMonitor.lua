@@ -313,8 +313,9 @@ local function StopReadyHighlight(button)
         return
     end
 
+    local glowTarget = button._readyGlowTarget or button.overlayFrame or button
     if GlowLib then
-        pcall(GlowLib.PixelGlow_Stop, button)
+        pcall(GlowLib.PixelGlow_Stop, glowTarget)
     end
 
     if button._readyDashes then
@@ -336,6 +337,8 @@ local function SetReadyAnimationEnabled(button, enabled, color)
         return
     end
 
+    local glowTarget = button._readyGlowTarget or button.overlayFrame or button
+
     if enabled ~= true then
         StopReadyHighlight(button)
         return
@@ -356,8 +359,8 @@ local function SetReadyAnimationEnabled(button, enabled, color)
         local size = button:GetWidth() or 50
 
         if button._glowColorKey ~= colorKey or button._glowSize ~= size then
-            pcall(GlowLib.PixelGlow_Stop, button)
-            pcall(GlowLib.PixelGlow_Start, button, rgba, 8, 0.25, (10 / 50) * size, (1 / 50) * size, 0, 0, false)
+            pcall(GlowLib.PixelGlow_Stop, glowTarget)
+            pcall(GlowLib.PixelGlow_Start, glowTarget, rgba, 8, 0.25, (10 / 50) * size, math.max(2, (1 / 50) * size), 1, 1, false, nil, 2)
             button._glowColorKey = colorKey
             button._glowSize = size
         end
@@ -439,6 +442,12 @@ function TrinketMonitor:CreateButton(slotInfo)
     overlayFrame:SetFrameLevel(button:GetFrameLevel() + 20)
     overlayFrame:EnableMouse(false)
     button.overlayFrame = overlayFrame
+
+    local glowHost = CreateFrame("Frame", nil, button)
+    glowHost:SetAllPoints(button)
+    glowHost:SetFrameLevel(button:GetFrameLevel() + 10)
+    glowHost:EnableMouse(false)
+    button._readyGlowTarget = glowHost
 
     local shadow = button:CreateTexture(nil, "BACKGROUND")
     shadow:SetAllPoints(button)
