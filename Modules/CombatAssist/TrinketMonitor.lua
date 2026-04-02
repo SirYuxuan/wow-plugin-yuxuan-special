@@ -1,7 +1,5 @@
 local _, NS = ...
 local Core = NS.Core
-local GlowLib = LibStub and LibStub("LibCustomGlow-1.0", true)
-
 local TrinketMonitor = {}
 NS.Modules.CombatAssist.TrinketMonitor = TrinketMonitor
 
@@ -314,10 +312,6 @@ local function StopReadyHighlight(button)
         return
     end
 
-    if GlowLib then
-        pcall(GlowLib.PixelGlow_Stop, button)
-    end
-
     if button._readyDashes then
         for _, dash in ipairs(button._readyDashes) do
             dash:Hide()
@@ -344,40 +338,10 @@ local function SetReadyAnimationEnabled(button, enabled, color)
 
     button._readyAnimationEnabled = true
     button._dashPhase = button._dashPhase or 0
-    button._usingFallbackDashes = false
-
-    if GlowLib then
-        local rgba = {
-            color and color.r or 1,
-            color and color.g or 1,
-            color and color.b or 1,
-            color and color.a or 1,
-        }
-        local colorKey = table.concat(rgba, ":")
-        local size = button:GetWidth() or 50
-
-        if button._glowColorKey ~= colorKey or button._glowSize ~= size then
-            pcall(GlowLib.PixelGlow_Stop, button)
-
-            local count = 8
-            local frequency = 0.25
-            local length = (10 / 50) * size
-            local thickness = (1 / 50) * size
-
-            pcall(GlowLib.PixelGlow_Start, button, rgba, count, frequency, length, thickness, 0, 0, true)
-            button._glowColorKey = colorKey
-            button._glowSize = size
-        end
-
-        for _, dash in ipairs(button._readyDashes) do
-            dash:Hide()
-        end
-
-        button:SetScript("OnUpdate", nil)
-        return
-    end
-
     button._usingFallbackDashes = true
+    button._glowColorKey = nil
+    button._glowSize = nil
+    SetReadyDashColor(button, color or {})
 
     for _, dash in ipairs(button._readyDashes) do
         dash:Show()
@@ -514,38 +478,59 @@ function TrinketMonitor:CreateButton(slotInfo)
 end
 
 function TrinketMonitor:LayoutReadyDashes(button)
-    local size = button:GetWidth()
-    local outerOffset = 0
-    local thickness = math.max(2, math.floor(size * 0.06))
-    local usable = size + outerOffset * 2
-    local segmentLength = math.max(4, math.floor((usable - thickness * 4) / 4))
+    local owner = button.overlayFrame or button
+    local width = owner:GetWidth() > 0 and owner:GetWidth() or button:GetWidth()
+    local height = owner:GetHeight() > 0 and owner:GetHeight() or button:GetHeight()
+    local baseSize = math.min(width, height)
+    local inset = 1
+    local thickness = math.max(2, math.floor(baseSize * 0.06))
     local dashes = button._readyDashes
     if not dashes then
         return
     end
 
-    local function layout(index, point, relativePoint, x, y, width, height)
+    local usableWidth = math.max(12, math.floor(width - inset * 2))
+    local usableHeight = math.max(12, math.floor(height - inset * 2))
+    local horizontalGap = math.max(2, math.floor(usableWidth * 0.10))
+    local verticalGap = math.max(2, math.floor(usableHeight * 0.10))
+    local horizontalLength = math.max(4, math.floor((usableWidth - horizontalGap * 2) / 3))
+    local verticalLength = math.max(4, math.floor((usableHeight - verticalGap * 2) / 3))
+    local usedWidth = horizontalLength * 3 + horizontalGap * 2
+    local usedHeight = verticalLength * 3 + verticalGap * 2
+    local horizontalStart = inset + math.floor((usableWidth - usedWidth) * 0.5)
+    local verticalStart = inset + math.floor((usableHeight - usedHeight) * 0.5)
+
+    local function layout(index, x, y, dashWidth, dashHeight)
         local dash = dashes[index]
         dash:ClearAllPoints()
-        dash:SetPoint(point, button, relativePoint, x, y)
-        dash:SetSize(width, height)
+        dash:SetPoint("TOPLEFT", owner, "TOPLEFT", x, -y)
+        dash:SetSize(dashWidth, dashHeight)
     end
 
-    layout(1, "TOPLEFT", "TOPLEFT", -outerOffset, outerOffset, segmentLength, thickness)
-    layout(2, "TOP", "TOP", 0, outerOffset, segmentLength, thickness)
-    layout(3, "TOPRIGHT", "TOPRIGHT", outerOffset, outerOffset, segmentLength, thickness)
+    local topY = verticalStart
+    local leftX = horizontalStart
+    local rightX = horizontalStart + usedWidth - thickness
+    local bottomY = verticalStart + usedHeight - thickness
+    local topX2 = leftX + horizontalLength + horizontalGap
+    local topX3 = leftX + (horizontalLength + horizontalGap) * 2
+    local leftY2 = topY + verticalLength + verticalGap
+    local leftY3 = topY + (verticalLength + verticalGap) * 2
 
-    layout(4, "TOPRIGHT", "TOPRIGHT", outerOffset, outerOffset, thickness, segmentLength)
-    layout(5, "RIGHT", "RIGHT", outerOffset, 0, thickness, segmentLength)
-    layout(6, "BOTTOMRIGHT", "BOTTOMRIGHT", outerOffset, -outerOffset, thickness, segmentLength)
+    layout(1, leftX, topY, horizontalLength, thickness)
+    layout(2, topX2, topY, horizontalLength, thickness)
+    layout(3, topX3, topY, horizontalLength, thickness)
 
-    layout(7, "BOTTOMRIGHT", "BOTTOMRIGHT", outerOffset, -outerOffset, segmentLength, thickness)
-    layout(8, "BOTTOM", "BOTTOM", 0, -outerOffset, segmentLength, thickness)
-    layout(9, "BOTTOMLEFT", "BOTTOMLEFT", -outerOffset, -outerOffset, segmentLength, thickness)
+    layout(4, rightX, topY, thickness, verticalLength)
+    layout(5, rightX, leftY2, thickness, verticalLength)
+    layout(6, rightX, leftY3, thickness, verticalLength)
 
-    layout(10, "BOTTOMLEFT", "BOTTOMLEFT", -outerOffset, -outerOffset, thickness, segmentLength)
-    layout(11, "LEFT", "LEFT", -outerOffset, 0, thickness, segmentLength)
-    layout(12, "TOPLEFT", "TOPLEFT", -outerOffset, outerOffset, thickness, segmentLength)
+    layout(7, leftX, bottomY, horizontalLength, thickness)
+    layout(8, topX2, bottomY, horizontalLength, thickness)
+    layout(9, topX3, bottomY, horizontalLength, thickness)
+
+    layout(10, leftX, topY, thickness, verticalLength)
+    layout(11, leftX, leftY2, thickness, verticalLength)
+    layout(12, leftX, leftY3, thickness, verticalLength)
 end
 
 function TrinketMonitor:CreateFrames()
