@@ -1258,6 +1258,7 @@ function NS.BuildInterfaceEnhanceOptions()
                     mouseTooltip = BuildTab("鼠标提示", 20, BuildMouseTooltipArgs()),
                 },
             },
+            itemLevelPlanner = NS.BuildItemLevelPlannerOptions(),
             specTalentBar = NS.BuildSpecTalentBarOptions(),
             questTools = NS.BuildQuestToolsOptions(),
             attributeDisplay = NS.BuildAttributeDisplayOptions(),

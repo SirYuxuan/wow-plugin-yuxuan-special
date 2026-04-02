@@ -23,6 +23,7 @@ Modules\InterfaceEnhance\DistanceMonitor.lua
 Modules\InterfaceEnhance\EventTrackerData.lua
 Modules\InterfaceEnhance\EventTracker.lua
 Modules\InterfaceEnhance\GameBar.lua
+Modules\InterfaceEnhance\ItemLevelPlanner.lua
 Modules\InterfaceEnhance\MouseTooltip.lua
 Modules\InterfaceEnhance\PerformanceMonitor.lua
 Modules\InterfaceEnhance\QuickChat.lua
@@ -41,6 +42,7 @@ Options\DistanceMonitor.lua
 Options\EventTracker.lua
 Options\GameBar.lua
 Options\General.lua
+Options\ItemLevelPlanner.lua
 Options\InterfaceEnhance.lua
 Options\Mage.lua
 Options\MapAssist.lua

@@ -238,6 +238,24 @@ NS.DEFAULTS = {
             color9 = { 0.00, 0.00, 0.00 },
             color10 = { 0.00, 0.00, 0.00 },
         },
+        itemLevelPlanner = {
+            enabled = true,
+            showCharacterButton = true,
+            showTooltipPreview = true,
+            locked = false,
+            fontPreset = "CHAT",
+            fontSize = 13,
+            decimalPlaces = 1,
+            selectedSlot = "HEAD",
+            targetItemLevel = 665,
+            windowShown = false,
+            point = {
+                point = "CENTER",
+                relativePoint = "CENTER",
+                x = 320,
+                y = 0,
+            },
+        },
         specTalentBar = {
             enabled = true,
             locked = true,
@@ -1090,6 +1108,12 @@ function Core:ResetCursorTrailConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.cursorTrail = CloneTable(NS.DEFAULTS.interfaceEnhance.cursorTrail)
     return self.db.interfaceEnhance.cursorTrail
+end
+
+function Core:ResetItemLevelPlannerConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.itemLevelPlanner = CloneTable(NS.DEFAULTS.interfaceEnhance.itemLevelPlanner)
+    return self.db.interfaceEnhance.itemLevelPlanner
 end
 
 function Core:ResetSpecTalentBarConfig()

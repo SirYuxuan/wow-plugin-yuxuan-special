@@ -172,6 +172,11 @@ function Core:OnPlayerLogin()
         cursorTrail:OnPlayerLogin()
     end
 
+    local itemLevelPlanner = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.ItemLevelPlanner
+    if itemLevelPlanner and itemLevelPlanner.OnPlayerLogin then
+        itemLevelPlanner:OnPlayerLogin()
+    end
+
     local specTalentBar = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.SpecTalentBar
     if specTalentBar and specTalentBar.OnPlayerLogin then
         specTalentBar:OnPlayerLogin()
