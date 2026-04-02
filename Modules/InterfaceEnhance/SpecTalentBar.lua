@@ -8,7 +8,9 @@ local PADDING_X = 10
 local PADDING_Y = 8
 local ICON_SIZE = 16
 local TALENT_NAME_MAX_CHARS = 10
-local FLASH_INTERVAL = 0.5
+local FLASH_INTERVAL = 1.2
+local FLASH_MIN_ALPHA = 0.35
+local FLASH_MAX_ALPHA = 1
 
 local DURABILITY_SLOTS = {
     [1] = "头部",
@@ -132,6 +134,47 @@ function SpecTalentBar:GetCurrentSpecializationName()
 
     local _, specName, _, specIcon = GetSpecializationInfo(specIndex)
     return specName or "未激活专精", specIcon
+end
+
+function SpecTalentBar:GetLootSpecializationEntries()
+    local entries = {}
+    local currentSpecName = self:GetCurrentSpecializationName()
+    local lootSpecID = GetLootSpecialization and GetLootSpecialization() or 0
+
+    entries[#entries + 1] = {
+        id = 0,
+        name = string.format("当前专精 (%s)", currentSpecName or "未激活专精"),
+        active = lootSpecID == 0,
+    }
+
+    for _, entry in ipairs(self:GetSpecializationEntries()) do
+        entries[#entries + 1] = {
+            index = entry.index,
+            id = entry.id,
+            name = entry.name,
+            icon = entry.icon,
+            active = lootSpecID ~= 0 and entry.id == lootSpecID,
+        }
+    end
+
+    return entries
+end
+
+function SpecTalentBar:GetCurrentLootSpecializationName()
+    local lootSpecID = GetLootSpecialization and GetLootSpecialization() or 0
+    if lootSpecID == 0 then
+        local currentSpecName = self:GetCurrentSpecializationName()
+        return string.format("当前专精：%s", currentSpecName or "未激活专精")
+    end
+
+    if GetSpecializationInfoByID then
+        local _, specName = GetSpecializationInfoByID(lootSpecID)
+        if specName and specName ~= "" then
+            return specName
+        end
+    end
+
+    return string.format("专精 ID：%d", lootSpecID)
 end
 
 function SpecTalentBar:GetTalentLoadoutState()
@@ -304,6 +347,24 @@ function SpecTalentBar:SwitchTalentLoadout(configID)
     end
 end
 
+function SpecTalentBar:SetLootSpecialization(specID)
+    if not SetLootSpecialization then
+        return
+    end
+
+    local lootSpecID = tonumber(specID) or 0
+    if GetLootSpecialization and GetLootSpecialization() == lootSpecID then
+        return
+    end
+
+    SetLootSpecialization(lootSpecID)
+    if C_Timer and C_Timer.After then
+        C_Timer.After(0, function()
+            SpecTalentBar:UpdateLayout()
+        end)
+    end
+end
+
 function SpecTalentBar:GetDurabilityEntries()
     local entries = {}
     local totalCurrent, totalMax = 0, 0
@@ -396,7 +457,12 @@ function SpecTalentBar:ShowMenu(anchor, title, entries, onClick)
         end
     end, "MENU")
 
-    ToggleDropDownMenu(1, nil, menu, anchor, 0, 2)
+    ToggleDropDownMenu(1, nil, menu, anchor, 0, 0)
+
+    if menu and menu.ClearAllPoints and menu.SetPoint then
+        menu:ClearAllPoints()
+        menu:SetPoint("BOTTOM", self.frame or anchor, "TOP", 0, 8)
+    end
 end
 
 function SpecTalentBar:SavePosition()
@@ -448,10 +514,10 @@ function SpecTalentBar:UpdateLayout()
     frame.durabilityButton.text:SetTextColor(1, 1, 1, 1)
 
     if durabilityPercent < 60 then
-        frame.durabilityButton.text:SetAlpha(frame._flashVisible and 1 or 0.3)
+        frame.durabilityButton.text:SetAlpha(frame._flashAlpha or FLASH_MAX_ALPHA)
     else
-        frame.durabilityButton.text:SetAlpha(1)
-        frame._flashVisible = true
+        frame.durabilityButton.text:SetAlpha(FLASH_MAX_ALPHA)
+        frame._flashAlpha = FLASH_MAX_ALPHA
         frame._flashElapsed = 0
     end
 
@@ -527,7 +593,7 @@ function SpecTalentBar:CreateFrame()
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
-    frame._flashVisible = true
+    frame._flashAlpha = FLASH_MAX_ALPHA
     frame._flashElapsed = 0
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
@@ -586,8 +652,14 @@ function SpecTalentBar:CreateFrame()
         SpecTalentBar:SavePosition()
     end)
 
+    local function AnchorTooltipAboveBar(owner)
+        GameTooltip:SetOwner(owner, "ANCHOR_NONE")
+        GameTooltip:ClearAllPoints()
+        GameTooltip:SetPoint("BOTTOM", frame, "TOP", 0, 8)
+    end
+
     frame.specButton:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_BOTTOM")
+        AnchorTooltipAboveBar(button)
         GameTooltip:AddLine("专精 / 天赋", 1, 0.82, 0)
         GameTooltip:AddLine(" ")
         for _, entry in ipairs(SpecTalentBar:GetSpecializationEntries()) do
@@ -595,6 +667,9 @@ function SpecTalentBar:CreateFrame()
             local iconText = entry.icon and ("|T" .. entry.icon .. ":16:16:0:0|t ") or ""
             GameTooltip:AddLine(iconText .. prefix .. entry.name, entry.active and 0.2 or 1, 1, entry.active and 0.6 or 1)
         end
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("拾取专精", 1, 0.82, 0)
+        GameTooltip:AddLine(SpecTalentBar:GetCurrentLootSpecializationName(), 1, 1, 1)
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("天赋方案", 1, 0.82, 0)
         local loadouts = SpecTalentBar:GetTalentLoadouts()
@@ -608,6 +683,7 @@ function SpecTalentBar:CreateFrame()
         end
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("左键：切换专精", 0.75, 1, 0.75)
+        GameTooltip:AddLine("Shift + 左键：更改拾取专精", 0.75, 1, 0.75)
         GameTooltip:AddLine("右键：切换天赋方案", 0.75, 1, 0.75)
         GameTooltip:Show()
     end)
@@ -624,6 +700,10 @@ function SpecTalentBar:CreateFrame()
                     SpecTalentBar:SwitchTalentLoadout(entry.id)
                 end
             end)
+        elseif mouseButton == "LeftButton" and IsShiftKeyDown and IsShiftKeyDown() then
+            SpecTalentBar:ShowMenu(button, "更改拾取专精", SpecTalentBar:GetLootSpecializationEntries(), function(entry)
+                SpecTalentBar:SetLootSpecialization(entry.id)
+            end)
         else
             SpecTalentBar:ShowMenu(button, "切换专精", SpecTalentBar:GetSpecializationEntries(), function(entry)
                 SpecTalentBar:SwitchSpecialization(entry.index)
@@ -632,7 +712,7 @@ function SpecTalentBar:CreateFrame()
     end)
 
     frame.durabilityButton:SetScript("OnEnter", function(button)
-        GameTooltip:SetOwner(button, "ANCHOR_BOTTOM")
+        AnchorTooltipAboveBar(button)
         local overall, entries = SpecTalentBar:GetDurabilityEntries()
         GameTooltip:AddLine("耐久度", 1, 0.82, 0)
         GameTooltip:AddLine(string.format("当前平均耐久：%d%%", overall), 1, 1, 1)
@@ -668,16 +748,21 @@ function SpecTalentBar:CreateFrame()
     frame:SetScript("OnUpdate", function(selfFrame, elapsed)
         local durabilityPercent = select(1, SpecTalentBar:GetDurabilityEntries())
         if durabilityPercent >= 60 then
-            selfFrame._flashVisible = true
+            selfFrame._flashAlpha = FLASH_MAX_ALPHA
             selfFrame._flashElapsed = 0
+            selfFrame.durabilityButton.text:SetAlpha(FLASH_MAX_ALPHA)
             return
         end
 
         selfFrame._flashElapsed = (selfFrame._flashElapsed or 0) + elapsed
-        if selfFrame._flashElapsed >= FLASH_INTERVAL then
-            selfFrame._flashElapsed = selfFrame._flashElapsed - FLASH_INTERVAL
-            selfFrame._flashVisible = not selfFrame._flashVisible
-            SpecTalentBar:UpdateLayout()
+        local phase = (selfFrame._flashElapsed % FLASH_INTERVAL) / FLASH_INTERVAL
+        local wave = 0.5 - 0.5 * math.cos(phase * math.pi * 2)
+        local easedWave = wave * wave * (3 - 2 * wave)
+        local alpha = FLASH_MIN_ALPHA + (FLASH_MAX_ALPHA - FLASH_MIN_ALPHA) * easedWave
+
+        if not selfFrame._flashAlpha or math.abs(selfFrame._flashAlpha - alpha) > 0.01 then
+            selfFrame._flashAlpha = alpha
+            selfFrame.durabilityButton.text:SetAlpha(alpha)
         end
     end)
 
@@ -692,6 +777,7 @@ function SpecTalentBar:OnPlayerLogin()
             or event == "ACTIVE_TALENT_GROUP_CHANGED"
             or event == "TRAIT_CONFIG_UPDATED"
             or event == "TRAIT_CONFIG_LIST_UPDATED"
+            or event == "PLAYER_LOOT_SPEC_UPDATED"
             or event == "PLAYER_EQUIPMENT_CHANGED"
             or event == "UPDATE_INVENTORY_DURABILITY"
             or event == "PLAYER_ENTERING_WORLD"
@@ -705,6 +791,7 @@ function SpecTalentBar:OnPlayerLogin()
     self.eventFrame:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED")
     self.eventFrame:RegisterEvent("TRAIT_CONFIG_UPDATED")
     self.eventFrame:RegisterEvent("TRAIT_CONFIG_LIST_UPDATED")
+    self.eventFrame:RegisterEvent("PLAYER_LOOT_SPEC_UPDATED")
     self.eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
     self.eventFrame:RegisterEvent("UPDATE_INVENTORY_DURABILITY")
 

@@ -114,6 +114,14 @@ NS.DEFAULTS = {
             npcTimeShowNPCID = false,
             npcTimeUseModifier = false,
         },
+        interfaceBeautify = {
+            enabled = true,
+            hideAddonCompartment = true,
+            hideChatChannelButton = true,
+            hideChatMenuButton = true,
+            simplifyChatChannel = false,
+            chatLinkTooltip = false,
+        },
         distanceMonitor = {
             enabled = false,
             locked = true,
@@ -290,6 +298,31 @@ NS.DEFAULTS = {
                 relativePoint = "CENTER",
                 x = 0,
                 y = -110,
+            },
+        },
+        huntAssist = {
+            enabled = false,
+            locked = true,
+            fontPreset = "CHAT",
+            fontSize = 12,
+            minimap = {
+                enabled = true,
+                hideWhenEmpty = true,
+                monitorTrap = true,
+                monitorPrey = true,
+            },
+            autoTrack = {
+                enabled = true,
+                worldQuest = true,
+                stageQuest = true,
+                chatNotify = true,
+            },
+            point = {
+                point = "TOP",
+                relativeTo = "Minimap",
+                relativePoint = "BOTTOM",
+                x = 0,
+                y = -8,
             },
         },
         eventTracker = {
@@ -736,6 +769,7 @@ function Core:InitializeDatabase()
     self.dbRoot.profiles.global = self.dbRoot.profiles.global or CloneTable(NS.DEFAULTS)
     self.dbRoot.profiles.named = self.dbRoot.profiles.named or {}
     self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
+    self.dbRoot.defaultProfileKey = self.dbRoot.defaultProfileKey or PROFILE_KEY_GLOBAL
 
     self:MigrateLegacyCharacterProfiles()
 
@@ -852,29 +886,82 @@ function Core:GetProfileChoices()
     return values
 end
 
+function Core:GetGlobalDefaultProfileKey()
+    local profileKey = self.dbRoot.defaultProfileKey
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
+        self.dbRoot.defaultProfileKey = PROFILE_KEY_GLOBAL
+        return PROFILE_KEY_GLOBAL
+    end
+
+    if self:GetNamedProfile(profileKey, false) then
+        return profileKey
+    end
+
+    self.dbRoot.defaultProfileKey = PROFILE_KEY_GLOBAL
+    return PROFILE_KEY_GLOBAL
+end
+
+function Core:SetGlobalDefaultProfileKey(profileKey)
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
+        self.dbRoot.defaultProfileKey = PROFILE_KEY_GLOBAL
+    elseif self:GetNamedProfile(profileKey, false) then
+        self.dbRoot.defaultProfileKey = profileKey
+    else
+        return false
+    end
+
+    self:RefreshActiveDatabase()
+    return true
+end
+
 function Core:GetCurrentCharacterKey()
     return self.currentCharacterKey
 end
 
-function Core:GetCurrentCharacterProfileKey()
+function Core:GetCurrentCharacterAssignedProfileKey()
     self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
 
     local assigned = self.dbRoot.profileAssignments[self.currentCharacterKey]
+    if assigned == PROFILE_KEY_GLOBAL then
+        return PROFILE_KEY_GLOBAL
+    end
+
     if assigned and self:GetNamedProfile(assigned, false) then
         return assigned
     end
 
     self.dbRoot.profileAssignments[self.currentCharacterKey] = nil
-    return PROFILE_KEY_GLOBAL
+    return nil
+end
+
+function Core:IsCurrentCharacterUsingGlobalDefault()
+    return self:GetCurrentCharacterAssignedProfileKey() == nil
+end
+
+function Core:GetCurrentCharacterProfileKey()
+    local assigned = self:GetCurrentCharacterAssignedProfileKey()
+    if assigned then
+        return assigned
+    end
+
+    return self:GetGlobalDefaultProfileKey()
+end
+
+function Core:ClearCurrentCharacterProfileKey()
+    self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
+    self.dbRoot.profileAssignments[self.currentCharacterKey] = nil
+    self:RefreshActiveDatabase()
 end
 
 function Core:SetCurrentCharacterProfileKey(profileKey)
     self.dbRoot.profileAssignments = self.dbRoot.profileAssignments or {}
 
-    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
-        self.dbRoot.profileAssignments[self.currentCharacterKey] = nil
+    if profileKey == PROFILE_KEY_GLOBAL then
+        self.dbRoot.profileAssignments[self.currentCharacterKey] = PROFILE_KEY_GLOBAL
     elseif self:GetNamedProfile(profileKey, false) then
         self.dbRoot.profileAssignments[self.currentCharacterKey] = profileKey
+    else
+        self.dbRoot.profileAssignments[self.currentCharacterKey] = nil
     end
 
     self:RefreshActiveDatabase()
@@ -931,6 +1018,9 @@ function Core:RenameNamedProfile(oldName, newName)
     self.dbRoot.profiles.named[normalized] = oldProfile
     if normalized ~= oldName then
         self.dbRoot.profiles.named[oldName] = nil
+        if self.dbRoot.defaultProfileKey == oldName then
+            self.dbRoot.defaultProfileKey = normalized
+        end
         for characterKey, profileKey in pairs(self.dbRoot.profileAssignments or {}) do
             if profileKey == oldName then
                 self.dbRoot.profileAssignments[characterKey] = normalized
@@ -949,6 +1039,9 @@ function Core:DeleteNamedProfile(profileName)
     end
 
     self.dbRoot.profiles.named[profileName] = nil
+    if self.dbRoot.defaultProfileKey == profileName then
+        self.dbRoot.defaultProfileKey = PROFILE_KEY_GLOBAL
+    end
     for characterKey, assignedProfile in pairs(self.dbRoot.profileAssignments or {}) do
         if assignedProfile == profileName then
             self.dbRoot.profileAssignments[characterKey] = nil
@@ -995,15 +1088,15 @@ end
 
 -- 兼容上一版“当前角色独立配置”的调用方式。
 function Core:DoesCurrentCharacterUseOwnProfile()
-    return self:GetCurrentCharacterProfileKey() ~= PROFILE_KEY_GLOBAL
+    return not self:IsCurrentCharacterUsingGlobalDefault()
 end
 
 function Core:SetCurrentCharacterUseOwnProfile(enabled)
     if enabled then
-        local profileKey = self:GetCurrentCharacterProfileKey()
-        if profileKey == PROFILE_KEY_GLOBAL then
+        local profileKey = self:GetCurrentCharacterAssignedProfileKey()
+        if not profileKey then
             local newName = self:FindAvailableProfileName(self.currentCharacterKey)
-            local created, errorMessage = self:CreateNamedProfile(newName, PROFILE_KEY_GLOBAL)
+            local created, errorMessage = self:CreateNamedProfile(newName, self:GetCurrentCharacterProfileKey())
             if not created then
                 return nil, errorMessage
             end
@@ -1014,13 +1107,13 @@ function Core:SetCurrentCharacterUseOwnProfile(enabled)
         return profileKey
     end
 
-    self:SetCurrentCharacterProfileKey(PROFILE_KEY_GLOBAL)
-    return PROFILE_KEY_GLOBAL
+    self:ClearCurrentCharacterProfileKey()
+    return self:GetGlobalDefaultProfileKey()
 end
 
 function Core:CopyGlobalToCurrentCharacter()
-    local profileKey = self:GetCurrentCharacterProfileKey()
-    if profileKey == PROFILE_KEY_GLOBAL then
+    local profileKey = self:GetCurrentCharacterAssignedProfileKey()
+    if not profileKey or profileKey == PROFILE_KEY_GLOBAL then
         profileKey = self:SetCurrentCharacterUseOwnProfile(true)
     end
 
@@ -1079,6 +1172,12 @@ function Core:ResetMouseTooltipConfig()
     return self.db.interfaceEnhance.mouseTooltip
 end
 
+function Core:ResetInterfaceBeautifyConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.interfaceBeautify = CloneTable(NS.DEFAULTS.interfaceEnhance.interfaceBeautify)
+    return self.db.interfaceEnhance.interfaceBeautify
+end
+
 function Core:ResetDistanceMonitorConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.distanceMonitor = CloneTable(NS.DEFAULTS.interfaceEnhance.distanceMonitor)
@@ -1119,6 +1218,12 @@ function Core:ResetQuestToolsConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.questTools = CloneTable(NS.DEFAULTS.interfaceEnhance.questTools)
     return self.db.interfaceEnhance.questTools
+end
+
+function Core:ResetHuntAssistConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.huntAssist = CloneTable(NS.DEFAULTS.interfaceEnhance.huntAssist)
+    return self.db.interfaceEnhance.huntAssist
 end
 
 function Core:ResetEventTrackerConfig()

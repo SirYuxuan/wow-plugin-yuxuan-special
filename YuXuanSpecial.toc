@@ -2,7 +2,7 @@
 ## Title: 雨轩工具箱
 ## Notes: 提供地图辅助、界面增强、战斗辅助与法师冰霜相关功能
 ## Author: Sir丶雨轩
-## Version: 1.0.0
+## Version: 1.1.0
 ## SavedVariables: YuXuanSpecialDB
 
 Libs\LibStub\LibStub.lua
@@ -12,6 +12,7 @@ Libs\LibRangeCheck-3.0\LibRangeCheck-3.0.lua
 
 Core\Init.lua
 Core\Database.lua
+Core\Layout.lua
 Core\Media.lua
 Core\Commands.lua
 
@@ -29,6 +30,7 @@ Modules\InterfaceEnhance\MouseTooltip.lua
 Modules\InterfaceEnhance\PerformanceMonitor.lua
 Modules\InterfaceEnhance\QuickChat.lua
 Modules\InterfaceEnhance\ChatInputBeautify.lua
+Modules\InterfaceEnhance\HuntAssist.lua
 Modules\InterfaceEnhance\QuestTools.lua
 Modules\InterfaceEnhance\RaidMarkers.lua
 Modules\InterfaceEnhance\SpecTalentBar.lua
@@ -44,6 +46,7 @@ Options\DistanceMonitor.lua
 Options\EventTracker.lua
 Options\GameBar.lua
 Options\General.lua
+Options\HuntAssist.lua
 Options\ItemLevelPlanner.lua
 Options\InterfaceEnhance.lua
 Options\Mage.lua

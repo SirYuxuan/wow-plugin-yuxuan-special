@@ -15,6 +15,7 @@ local Core = NS.Core
 ]]
 
 local PROFILE_KEY_GLOBAL = "GLOBAL"
+local PROFILE_KEY_FOLLOW_DEFAULT = "__FOLLOW_DEFAULT__"
 
 local createSourceKey = PROFILE_KEY_GLOBAL
 local editTargetKey = PROFILE_KEY_GLOBAL
@@ -75,6 +76,11 @@ local function RefreshAllSettings(notifyOptions)
         mouseTooltip:RefreshFromSettings()
     end
 
+    local interfaceBeautify = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.InterfaceBeautify
+    if interfaceBeautify and interfaceBeautify.RefreshFromSettings then
+        interfaceBeautify:RefreshFromSettings()
+    end
+
     local cursorTrail = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CursorTrail
     if cursorTrail and cursorTrail.RefreshFromSettings then
         cursorTrail:RefreshFromSettings()
@@ -121,8 +127,28 @@ local function GetProfileChoices()
     return Core:GetProfileChoices()
 end
 
+local function GetCharacterProfileChoices()
+    local values = {
+        [PROFILE_KEY_FOLLOW_DEFAULT] = "跟随全局默认",
+    }
+
+    for profileKey, label in pairs(GetProfileChoices()) do
+        values[profileKey] = label
+    end
+
+    return values
+end
+
 local function GetCurrentProfileKey()
     return Core:GetCurrentCharacterProfileKey() or PROFILE_KEY_GLOBAL
+end
+
+local function GetCurrentBindingKey()
+    if Core.IsCurrentCharacterUsingGlobalDefault and Core:IsCurrentCharacterUsingGlobalDefault() then
+        return PROFILE_KEY_FOLLOW_DEFAULT
+    end
+
+    return GetCurrentProfileKey()
 end
 
 local function GetProfileLabel(profileKey)
@@ -182,10 +208,16 @@ end
 
 local function GetProfileStatusText()
     local characterKey = Core:GetCurrentCharacterKey() or "当前角色"
+    local defaultProfileKey = Core.GetGlobalDefaultProfileKey and Core:GetGlobalDefaultProfileKey() or PROFILE_KEY_GLOBAL
+    local defaultLabel = GetProfileLabel(defaultProfileKey)
+    local currentProfileLabel = GetProfileLabel(GetCurrentProfileKey())
+    local modeText = GetCurrentBindingKey() == PROFILE_KEY_FOLLOW_DEFAULT and "跟随全局默认" or "手动指定"
     return string.format(
-        "当前角色 %s 正在使用 %s。所有角色默认都走全局配置，只有手动切换后才会使用自定义配置。",
+        "当前角色 %s 当前为%s，实际使用 %s。全局默认配置是 %s；未手动切换过的角色都会跟随这份配置。",
         characterKey,
-        GetProfileLabel(GetCurrentProfileKey())
+        modeText,
+        currentProfileLabel,
+        defaultLabel
     )
 end
 
@@ -332,10 +364,34 @@ function NS.BuildGeneralOptions()
                     },
                 },
             },
+            layoutSettings = {
+                type = "group",
+                name = "布局设置",
+                order = 2,
+                args = {
+                    intro = {
+                        type = "description",
+                        order = 1,
+                        fontSize = "medium",
+                        name = "这里提供通用编辑模式布局的快速导入入口。",
+                    },
+                    loadDefaultLayout = {
+                        type = "execute",
+                        order = 10,
+                        name = "加载通用布局",
+                        confirm = true,
+                        confirmText = "确认导入并激活通用布局吗？这会创建并切换到一份新的编辑模式布局。",
+                        func = function()
+                            Core:ImportDefaultCommonLayout()
+                            RefreshAllSettings(true)
+                        end,
+                    },
+                },
+            },
             profileManager = {
                 type = "group",
                 name = "配置管理",
-                order = 2,
+                order = 3,
                 args = {
                     status = {
                         type = "description",
@@ -345,18 +401,42 @@ function NS.BuildGeneralOptions()
                             return GetProfileStatusText()
                         end,
                     },
+                    globalDefaultProfile = {
+                        type = "select",
+                        order = 5,
+                        name = "全局默认配置",
+                        values = function()
+                            return GetProfileChoices()
+                        end,
+                        get = function()
+                            return Core:GetGlobalDefaultProfileKey()
+                        end,
+                        set = function(_, value)
+                            if Core:SetGlobalDefaultProfileKey(value) then
+                                local currentKey = GetCurrentProfileKey()
+                                SetCreateSourceKey(currentKey)
+                                SetEditTargetKey(currentKey)
+                                SetTransferTargetKey(currentKey)
+                                RefreshAllSettings(true)
+                            end
+                        end,
+                    },
                     currentProfile = {
                         type = "select",
                         order = 10,
                         name = "当前角色使用配置",
                         values = function()
-                            return GetProfileChoices()
+                            return GetCharacterProfileChoices()
                         end,
                         get = function()
-                            return GetCurrentProfileKey()
+                            return GetCurrentBindingKey()
                         end,
                         set = function(_, value)
-                            Core:SetCurrentCharacterProfileKey(value)
+                            if value == PROFILE_KEY_FOLLOW_DEFAULT then
+                                Core:ClearCurrentCharacterProfileKey()
+                            else
+                                Core:SetCurrentCharacterProfileKey(value)
+                            end
                             local currentKey = GetCurrentProfileKey()
                             SetCreateSourceKey(currentKey)
                             SetEditTargetKey(currentKey)

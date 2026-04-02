@@ -362,6 +362,11 @@ function RaidMarkers:RefreshVisibility()
     end
 
     local config = GetConfig()
+    if InCombatLockdown and InCombatLockdown() then
+        self.pendingRefresh = true
+        return
+    end
+
     if config.enabled and ((type(IsInGroup) == "function" and IsInGroup()) or config.showWhenSolo) then
         self.frame:Show()
     else
@@ -461,15 +466,9 @@ function RaidMarkers:CreateFrame()
 
         button:SetScript("OnEnter", function(selfButton)
             SetRaidMarkerButtonHoverTarget(selfButton, 1.18)
-            GameTooltip:SetOwner(selfButton, "ANCHOR_BOTTOM", 0, -8)
-            GameTooltip:AddLine(selfButton.tooltipTitle or "团队标记", 1, 0.82, 0)
-            GameTooltip:AddLine(selfButton.tooltipText or "", 1, 1, 1)
-            GameTooltip:AddLine("左键设置，右键清除。", 0.75, 1, 0.75)
-            GameTooltip:Show()
         end)
         button:SetScript("OnLeave", function(selfButton)
             SetRaidMarkerButtonHoverTarget(selfButton, 1)
-            GameTooltip:Hide()
         end)
 
         frame.buttons[#frame.buttons + 1] = button
@@ -499,20 +498,9 @@ function RaidMarkers:CreateFrame()
 
         button:SetScript("OnEnter", function(selfButton)
             SetRaidMarkerButtonHoverTarget(selfButton, 1.18)
-            GameTooltip:SetOwner(selfButton, "ANCHOR_BOTTOM", 0, -8)
-            GameTooltip:AddLine(selfButton.tooltipTitle or "团队功能", 1, 0.82, 0)
-            GameTooltip:AddLine(selfButton.tooltipText or "", 1, 1, 1)
-            if info.key == "COUNTDOWN" then
-                GameTooltip:AddLine(string.format("当前秒数：%d 秒",
-                    math.max(3, math.min(15, tonumber(GetConfig().countdown) or RAID_MARKERS_DEFAULT_COUNTDOWN))), 0.75, 1, 0.75)
-            elseif info.key == "CLEAR" then
-                GameTooltip:AddLine("右键团队标记按钮也能直接清除。", 0.75, 1, 0.75)
-            end
-            GameTooltip:Show()
         end)
         button:SetScript("OnLeave", function(selfButton)
             SetRaidMarkerButtonHoverTarget(selfButton, 1)
-            GameTooltip:Hide()
         end)
 
         frame.buttons[#frame.buttons + 1] = button
@@ -545,7 +533,11 @@ function RaidMarkers:RefreshFromSettings()
 
     if not config.enabled then
         if self.frame then
-            self.frame:Hide()
+            if InCombatLockdown and InCombatLockdown() then
+                self.pendingRefresh = true
+            else
+                self.frame:Hide()
+            end
         end
         return
     end

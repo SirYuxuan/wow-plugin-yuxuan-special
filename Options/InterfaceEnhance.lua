@@ -32,6 +32,14 @@ local function GetMouseTooltipConfig()
     return Core:GetConfig("interfaceEnhance", "mouseTooltip")
 end
 
+local function GetInterfaceBeautifyModule()
+    return NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.InterfaceBeautify
+end
+
+local function GetInterfaceBeautifyConfig()
+    return Core:GetConfig("interfaceEnhance", "interfaceBeautify")
+end
+
 local function RefreshQuickChat(notifyOptions)
     local quickChat = GetQuickChatModule()
     if quickChat and quickChat.RefreshFromSettings then
@@ -58,6 +66,17 @@ local function RefreshMouseTooltip(notifyOptions)
     local mouseTooltip = GetMouseTooltipModule()
     if mouseTooltip and mouseTooltip.RefreshFromSettings then
         mouseTooltip:RefreshFromSettings()
+    end
+
+    if notifyOptions and NS.Options and NS.Options.NotifyChanged then
+        NS.Options:NotifyChanged()
+    end
+end
+
+local function RefreshInterfaceBeautify(notifyOptions)
+    local interfaceBeautify = GetInterfaceBeautifyModule()
+    if interfaceBeautify and interfaceBeautify.RefreshFromSettings then
+        interfaceBeautify:RefreshFromSettings()
     end
 
     if notifyOptions and NS.Options and NS.Options.NotifyChanged then
@@ -1242,12 +1261,148 @@ local function BuildQuickChatAddCustomArgs()
     }
 end
 
+local function BuildInterfaceBeautifyArgs()
+    return {
+        stateRow = {
+            type = "group",
+            order = 10,
+            name = "",
+            layout = "row",
+            args = {
+                enabled = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "启用界面美化",
+                    get = function()
+                        return GetInterfaceBeautifyConfig().enabled
+                    end,
+                    set = function(_, value)
+                        GetInterfaceBeautifyConfig().enabled = value and true or false
+                        RefreshInterfaceBeautify(true)
+                    end,
+                },
+                hideAddonCompartment = {
+                    type = "toggle",
+                    order = 2,
+                    width = 1.0,
+                    name = "隐藏右上角插件入口",
+                    disabled = function()
+                        return not GetInterfaceBeautifyConfig().enabled
+                    end,
+                    get = function()
+                        return GetInterfaceBeautifyConfig().hideAddonCompartment
+                    end,
+                    set = function(_, value)
+                        GetInterfaceBeautifyConfig().hideAddonCompartment = value and true or false
+                        RefreshInterfaceBeautify(false)
+                    end,
+                },
+            },
+        },
+        chatTitle = {
+            type = "description",
+            order = 20,
+            fontSize = "medium",
+            name = "|cFFFFD200聊天区域|r",
+        },
+        chatRow = {
+            type = "group",
+            order = 30,
+            name = "",
+            layout = "row",
+            args = {
+                hideChatChannelButton = {
+                    type = "toggle",
+                    order = 1,
+                    width = 1.0,
+                    name = "隐藏聊天频道按钮",
+                    disabled = function()
+                        return not GetInterfaceBeautifyConfig().enabled
+                    end,
+                    get = function()
+                        return GetInterfaceBeautifyConfig().hideChatChannelButton
+                    end,
+                    set = function(_, value)
+                        GetInterfaceBeautifyConfig().hideChatChannelButton = value and true or false
+                        RefreshInterfaceBeautify(false)
+                    end,
+                },
+                hideChatMenuButton = {
+                    type = "toggle",
+                    order = 2,
+                    width = 1.0,
+                    name = "隐藏聊天菜单气泡按钮",
+                    disabled = function()
+                        return not GetInterfaceBeautifyConfig().enabled
+                    end,
+                    get = function()
+                        return GetInterfaceBeautifyConfig().hideChatMenuButton
+                    end,
+                    set = function(_, value)
+                        GetInterfaceBeautifyConfig().hideChatMenuButton = value and true or false
+                        RefreshInterfaceBeautify(false)
+                    end,
+                },
+                simplifyChatChannel = {
+                    type = "toggle",
+                    order = 3,
+                    width = 1.0,
+                    name = "简化聊天频道",
+                    disabled = function()
+                        return not GetInterfaceBeautifyConfig().enabled
+                    end,
+                    get = function()
+                        return GetInterfaceBeautifyConfig().simplifyChatChannel
+                    end,
+                    set = function(_, value)
+                        GetInterfaceBeautifyConfig().simplifyChatChannel = value and true or false
+                        RefreshInterfaceBeautify(false)
+                    end,
+                },
+                chatLinkTooltip = {
+                    type = "toggle",
+                    order = 4,
+                    width = 1.0,
+                    name = "聊天链接鼠标提示",
+                    disabled = function()
+                        return not GetInterfaceBeautifyConfig().enabled
+                    end,
+                    get = function()
+                        return GetInterfaceBeautifyConfig().chatLinkTooltip
+                    end,
+                    set = function(_, value)
+                        GetInterfaceBeautifyConfig().chatLinkTooltip = value and true or false
+                        RefreshInterfaceBeautify(false)
+                    end,
+                },
+            },
+        },
+        reset = {
+            type = "execute",
+            order = 100,
+            width = 1.0,
+            name = "恢复默认设置",
+            func = function()
+                Core:ResetInterfaceBeautifyConfig()
+                RefreshInterfaceBeautify(true)
+            end,
+        },
+    }
+end
+
 function NS.BuildInterfaceEnhanceOptions()
     return {
         type = "group",
         name = "界面增强",
         order = 12,
         args = {
+            interfaceBeautify = {
+                type = "group",
+                name = "界面美化",
+                order = 4,
+                args = BuildInterfaceBeautifyArgs(),
+            },
             mouseCursor = {
                 type = "group",
                 name = "鼠标指针",
@@ -1261,6 +1416,7 @@ function NS.BuildInterfaceEnhanceOptions()
             itemLevelPlanner = NS.BuildItemLevelPlannerOptions(),
             specTalentBar = NS.BuildSpecTalentBarOptions(),
             questTools = NS.BuildQuestToolsOptions(),
+            huntAssist = NS.BuildHuntAssistOptions(),
             attributeDisplay = NS.BuildAttributeDisplayOptions(),
             currencyDisplay = NS.BuildCurrencyDisplayOptions(),
             distanceMonitor = NS.BuildDistanceMonitorOptions(),

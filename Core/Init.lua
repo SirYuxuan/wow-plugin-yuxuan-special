@@ -126,7 +126,7 @@ function Core:RefreshMinimapButton()
     button:Show()
 end
 
-function Core:HideFrameObject(frame)
+function Core:SetFrameObjectHidden(frame, hidden)
     if not frame then
         return
     end
@@ -134,21 +134,44 @@ function Core:HideFrameObject(frame)
     self.hiddenSystemFrame = self.hiddenSystemFrame or CreateFrame("Frame", ADDON_NAME .. "HiddenSystemFrame", UIParent)
     self.hiddenSystemFrame:Hide()
 
-    if frame.GetParent and frame.SetParent and not frame.__YuXuanOriginalParent then
-        frame.__YuXuanOriginalParent = frame:GetParent()
+    if hidden then
+        if frame.GetParent and frame.SetParent and not frame.__YuXuanOriginalParent then
+            frame.__YuXuanOriginalParent = frame:GetParent()
+        end
+
+        if frame.GetAlpha and frame.SetAlpha and frame.__YuXuanOriginalAlpha == nil then
+            frame.__YuXuanOriginalAlpha = frame:GetAlpha()
+        end
+
+        if frame.SetParent then
+            pcall(frame.SetParent, frame, self.hiddenSystemFrame)
+        end
+
+        if frame.Hide then
+            pcall(frame.Hide, frame)
+        end
+
+        if frame.SetAlpha then
+            pcall(frame.SetAlpha, frame, 0)
+        end
+        return
     end
 
-    if frame.SetParent then
-        pcall(frame.SetParent, frame, self.hiddenSystemFrame)
-    end
-
-    if frame.Hide then
-        pcall(frame.Hide, frame)
+    if frame.SetParent and frame.__YuXuanOriginalParent then
+        pcall(frame.SetParent, frame, frame.__YuXuanOriginalParent)
     end
 
     if frame.SetAlpha then
-        pcall(frame.SetAlpha, frame, 0)
+        pcall(frame.SetAlpha, frame, frame.__YuXuanOriginalAlpha ~= nil and frame.__YuXuanOriginalAlpha or 1)
     end
+
+    if frame.Show then
+        pcall(frame.Show, frame)
+    end
+end
+
+function Core:HideFrameObject(frame)
+    self:SetFrameObjectHidden(frame, true)
 end
 
 function Core:HideAddonCompartment()
@@ -192,9 +215,9 @@ function Core:OnPlayerLogin()
         quickChat:OnPlayerLogin()
     end
 
-    local chatInputBeautify = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.ChatInputBeautify
-    if chatInputBeautify and chatInputBeautify.OnPlayerLogin then
-        chatInputBeautify:OnPlayerLogin()
+    local interfaceBeautify = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.InterfaceBeautify
+    if interfaceBeautify and interfaceBeautify.OnPlayerLogin then
+        interfaceBeautify:OnPlayerLogin()
     end
 
     local distanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.DistanceMonitor
@@ -237,6 +260,11 @@ function Core:OnPlayerLogin()
         questTools:OnPlayerLogin()
     end
 
+    local huntAssist = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.HuntAssist
+    if huntAssist and huntAssist.OnPlayerLogin then
+        huntAssist:OnPlayerLogin()
+    end
+
     local attributeDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.AttributeDisplay
     if attributeDisplay and attributeDisplay.OnPlayerLogin then
         attributeDisplay:OnPlayerLogin()
@@ -275,7 +303,6 @@ function Core:OnPlayerLogin()
     end
 
     self:RefreshMinimapButton()
-    self:HideAddonCompartment()
 
     print(string.format(
         "|cFF33FF99%s|r |cFFFFD200V%s|r |cFF7CFC00已加载|r |cFFFFFFFF打开设置|r |cFFFFFF00/yxs|r",

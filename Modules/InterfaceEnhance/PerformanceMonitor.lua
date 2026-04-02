@@ -193,6 +193,22 @@ function Core:UpdatePerformanceMonitorVisibility()
     self.performanceMonitorFrame:SetShown(GetConfig().enabled)
 end
 
+function Core:UpdatePerformanceMonitorPosition()
+    if not self.performanceMonitorFrame then
+        return
+    end
+
+    local position = GetConfig().point or {}
+    self.performanceMonitorFrame:ClearAllPoints()
+    self.performanceMonitorFrame:SetPoint(
+        position.point or "CENTER",
+        UIParent,
+        position.relativePoint or "CENTER",
+        position.x or 220,
+        position.y or -20
+    )
+end
+
 function Core:UpdatePerformanceMonitorLayout()
     if not self.performanceMonitorFrame then
         return
@@ -370,6 +386,7 @@ function Core:ApplyPerformanceMonitorSettings()
         self:CreatePerformanceMonitorFrame()
     end
 
+    self:UpdatePerformanceMonitorPosition()
     self:RefreshPerformanceMonitor()
     self:UpdatePerformanceMonitorLayout()
     self:UpdatePerformanceMonitorVisibility()
