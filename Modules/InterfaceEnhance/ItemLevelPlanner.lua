@@ -652,11 +652,11 @@ function ItemLevelPlanner:TogglePanel(forceShown)
     end
 
     if config.windowShown then
-        if CharacterFrame and not CharacterFrame:IsShown() and ToggleCharacter then
-            ToggleCharacter("PaperDollFrame")
-        end
         self:CreatePanel()
         self:RefreshPanel()
+        if not (CharacterFrame and CharacterFrame:IsShown()) and Core and Core.Print then
+            Core:Print("装等预估已准备好，打开角色面板后会自动显示。")
+        end
     end
 
     self:RefreshVisibility()
