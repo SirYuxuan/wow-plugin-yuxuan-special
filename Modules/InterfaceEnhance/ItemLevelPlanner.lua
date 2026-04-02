@@ -77,6 +77,10 @@ local ROW_HEIGHT = 22
 local ROW_SPACING = 3
 local PANEL_PADDING = 12
 
+local function GetConfig()
+    return Core:GetConfig("interfaceEnhance", "itemLevelPlanner")
+end
+
 local function EnsurePanelPoint()
     local config = GetConfig()
     if config.point then
@@ -100,10 +104,6 @@ local function EnsurePanelPoint()
         y = math.floor(y + 0.5),
     }
     return config.point
-end
-
-local function GetConfig()
-    return Core:GetConfig("interfaceEnhance", "itemLevelPlanner")
 end
 
 local function GetOptionsPrivate()
