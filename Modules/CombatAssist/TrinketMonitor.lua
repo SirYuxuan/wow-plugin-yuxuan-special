@@ -1,5 +1,6 @@
 local _, NS = ...
 local Core = NS.Core
+local GlowLib = LibStub and LibStub("LibCustomGlow-1.0", true)
 local TrinketMonitor = {}
 NS.Modules.CombatAssist.TrinketMonitor = TrinketMonitor
 
@@ -312,6 +313,10 @@ local function StopReadyHighlight(button)
         return
     end
 
+    if GlowLib then
+        pcall(GlowLib.PixelGlow_Stop, button)
+    end
+
     if button._readyDashes then
         for _, dash in ipairs(button._readyDashes) do
             dash:Hide()
@@ -338,6 +343,33 @@ local function SetReadyAnimationEnabled(button, enabled, color)
 
     button._readyAnimationEnabled = true
     button._dashPhase = button._dashPhase or 0
+    button._usingFallbackDashes = false
+
+    if GlowLib then
+        local rgba = {
+            color and color.r or 1,
+            color and color.g or 1,
+            color and color.b or 1,
+            color and color.a or 1,
+        }
+        local colorKey = table.concat(rgba, ":")
+        local size = button:GetWidth() or 50
+
+        if button._glowColorKey ~= colorKey or button._glowSize ~= size then
+            pcall(GlowLib.PixelGlow_Stop, button)
+            pcall(GlowLib.PixelGlow_Start, button, rgba, 8, 0.25, (10 / 50) * size, (1 / 50) * size, 0, 0, false)
+            button._glowColorKey = colorKey
+            button._glowSize = size
+        end
+
+        for _, dash in ipairs(button._readyDashes) do
+            dash:Hide()
+        end
+
+        button:SetScript("OnUpdate", nil)
+        return
+    end
+
     button._usingFallbackDashes = true
     button._glowColorKey = nil
     button._glowSize = nil
