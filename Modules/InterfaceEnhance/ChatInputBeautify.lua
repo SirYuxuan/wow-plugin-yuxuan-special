@@ -61,7 +61,7 @@ local TARGETS = {
 local GetConfig
 
 local function GetShortChannelName(channelName)
-    if type(channelName) ~= "string" or channelName == "" then
+    if type(channelName) ~= "string" or #channelName == 0 then
         return nil
     end
 
@@ -102,7 +102,8 @@ end
 
 GetConfig = function()
     local config = NS.Core:GetConfig("interfaceEnhance", "interfaceBeautify")
-    local defaults = NS.DEFAULTS and NS.DEFAULTS.interfaceEnhance and NS.DEFAULTS.interfaceEnhance.interfaceBeautify or {}
+    local defaults = NS.DEFAULTS and NS.DEFAULTS.interfaceEnhance and NS.DEFAULTS.interfaceEnhance.interfaceBeautify or
+    {}
 
     for key, value in pairs(defaults) do
         if config[key] == nil then
@@ -114,7 +115,7 @@ GetConfig = function()
 end
 
 local function IsTooltipLinkSupported(link)
-    if type(link) ~= "string" or link == "" then
+    if type(link) ~= "string" or #link == 0 then
         return false
     end
 
@@ -143,7 +144,7 @@ local function ReplaceCustomChannelLabels(text)
 end
 
 function InterfaceBeautify:SimplifyRenderedMessage(text)
-    if type(text) ~= "string" or text == "" then
+    if type(text) ~= "string" or #text == 0 then
         return text
     end
 
