@@ -1306,7 +1306,7 @@ local function BuildInterfaceBeautifyArgs()
             fontSize = "medium",
             name = "|cFFFFD200聊天区域|r",
         },
-        chatRow = {
+        chatRowTop = {
             type = "group",
             order = 30,
             name = "",
@@ -1344,6 +1344,14 @@ local function BuildInterfaceBeautifyArgs()
                         RefreshInterfaceBeautify(false)
                     end,
                 },
+            },
+        },
+        chatRowBottom = {
+            type = "group",
+            order = 31,
+            name = "",
+            layout = "row",
+            args = {
                 simplifyChatChannel = {
                     type = "toggle",
                     order = 3,

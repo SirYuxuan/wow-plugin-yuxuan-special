@@ -98,18 +98,13 @@ end
 
 local function EnsureChannelVisibleInPrimaryChatFrame(channelName)
     local frame = GetPrimaryChatFrame()
-    if not frame or Trim(channelName) == "" then
+    local rawName = Trim(channelName)
+    if not frame or rawName == "" then
         return
     end
 
     if ChatFrame_AddChannel then
-        pcall(ChatFrame_AddChannel, frame, channelName)
-        return
-    end
-
-    local frameID = frame.GetID and frame:GetID()
-    if FCF_AddChatWindowChannel and frameID then
-        pcall(FCF_AddChatWindowChannel, frameID, channelName)
+        pcall(ChatFrame_AddChannel, frame, rawName)
     end
 end
 
@@ -228,17 +223,10 @@ function QuickChat:GetWorldChannelInfo()
     return channelID or 0, joinedName or channelName, channelName
 end
 
-function QuickChat:EnsureWorldChannelVisible()
-    local channelID, joinedName, channelName = self:GetWorldChannelInfo()
-    if channelID > 0 then
-        EnsureChannelVisibleInPrimaryChatFrame(joinedName or channelName)
-    end
-end
-
 function QuickChat:JoinWorldChannel()
-    local channelID, joinedName, channelName = self:GetWorldChannelInfo()
+    local channelID, _, channelName = self:GetWorldChannelInfo()
     if channelID > 0 then
-        EnsureChannelVisibleInPrimaryChatFrame(joinedName or channelName)
+        EnsureChannelVisibleInPrimaryChatFrame(channelName)
         self:OpenChatWithSlash("/" .. tostring(channelID) .. " ")
         return
     end
@@ -249,9 +237,9 @@ function QuickChat:JoinWorldChannel()
     Core:Print("正在加入 " .. channelName)
 
     C_Timer.After(0.6, function()
-        local newID, newJoinedName = GetChannelName(channelName)
+        local newID = GetChannelName(channelName)
         if newID and newID > 0 then
-            EnsureChannelVisibleInPrimaryChatFrame(newJoinedName or channelName)
+            EnsureChannelVisibleInPrimaryChatFrame(channelName)
             QuickChat:OpenChatWithSlash("/" .. tostring(newID) .. " ")
             Core:Print("已加入 " .. channelName .. " (频道 " .. newID .. ")")
         else
@@ -472,7 +460,6 @@ function QuickChat:UpdateBar()
     if GetConfig().enabled then
         self.barFrame:Show()
         self:LayoutButtons()
-        self:EnsureWorldChannelVisible()
     else
         self.barFrame:Hide()
     end
@@ -523,7 +510,6 @@ end
 
 function QuickChat:RefreshFromSettings()
     self:EnsureData()
-    self:EnsureWorldChannelVisible()
     if not self.barFrame then
         return
     end
@@ -541,6 +527,5 @@ end
 
 function QuickChat:OnPlayerLogin()
     self:EnsureData()
-    self:EnsureWorldChannelVisible()
     self:CreateBar()
 end

@@ -101,14 +101,17 @@ local function SimplifyChannelMessage(_, _, message, author, languageName, chann
     end
 
     local shortBaseName = NormalizeChannelName(channelBaseName or channelName)
+    if shortBaseName == (channelBaseName or channelName) then
+        return false
+    end
+
     local newChannelName = shortBaseName
     local index = tonumber(channelIndex)
-
     if index and index > 0 then
         newChannelName = tostring(index) .. "." .. shortBaseName
     end
 
-    return false, message, author, languageName, newChannelName, target, flags, zoneID, channelIndex, shortBaseName, ...
+    return false, message, author, languageName, newChannelName, target, flags, zoneID, channelIndex, channelBaseName, ...
 end
 
 GetConfig = function()
@@ -132,6 +135,41 @@ local function IsTooltipLinkSupported(link)
 
     local linkType = link:match("^(.-):")
     return linkType and LINK_TOOLTIP_TYPES[linkType] == true
+end
+
+local function ReplaceChannelLinkLabel(text, linkTarget, label)
+    return (text:gsub("(|Hchannel:" .. linkTarget .. "|h)%b[](|h)", "%1[" .. label .. "]%2"))
+end
+
+local function ReplaceWorldChannelLabel(text)
+    local updated = text
+    updated = updated:gsub("(|Hchannel:CHANNEL:%d+|h)(%b[])(|h)", function(prefix, bracketText, suffix)
+        if bracketText:find("世界频道", 1, true) or bracketText:find("大脚世界频道", 1, true) then
+            return prefix .. "[世界]" .. suffix
+        end
+        return prefix .. bracketText .. suffix
+    end)
+
+    return updated
+end
+
+function InterfaceBeautify:SimplifyRenderedMessage(text)
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
+
+    local updated = text
+    updated = ReplaceChannelLinkLabel(updated, "GUILD", "会")
+    updated = ReplaceChannelLinkLabel(updated, "OFFICER", "官")
+    updated = ReplaceChannelLinkLabel(updated, "PARTY", "队")
+    updated = ReplaceChannelLinkLabel(updated, "RAID", "团")
+    updated = ReplaceChannelLinkLabel(updated, "RAID_WARNING", "警")
+    updated = ReplaceChannelLinkLabel(updated, "INSTANCE_CHAT", "副")
+    updated = ReplaceChannelLinkLabel(updated, "YELL", "喊")
+    updated = ReplaceChannelLinkLabel(updated, "WHISPER", "密")
+    updated = ReplaceWorldChannelLabel(updated)
+
+    return updated
 end
 
 function InterfaceBeautify:ApplyChatFormatOverrides()
@@ -177,6 +215,18 @@ function InterfaceBeautify:HookChatFrame(frame)
     end
 
     frame.__YuXuanChatLinkTooltipHooked = true
+    if type(frame.AddMessage) == "function" and not frame.__YuXuanAddMessageWrapped then
+        frame.__YuXuanAddMessageWrapped = true
+        frame.__YuXuanOriginalAddMessage = frame.AddMessage
+        frame.AddMessage = function(chatFrame, text, ...)
+            local config = GetConfig()
+            if config.enabled and config.simplifyChatChannel then
+                text = InterfaceBeautify:SimplifyRenderedMessage(text)
+            end
+            return chatFrame:__YuXuanOriginalAddMessage(text, ...)
+        end
+    end
+
     frame:HookScript("OnHyperlinkEnter", function(self, link)
         InterfaceBeautify:HandleHyperlinkEnter(self, link)
     end)
