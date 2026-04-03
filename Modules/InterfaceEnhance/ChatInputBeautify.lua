@@ -10,21 +10,6 @@ local GameTooltip = rawget(_G, "GameTooltip")
 local GameTooltip_Hide = rawget(_G, "GameTooltip_Hide")
 local NUM_CHAT_WINDOWS = rawget(_G, "NUM_CHAT_WINDOWS") or 10
 
-local CHAT_FORMATS = {
-    CHAT_YELL_GET = "|Hchannel:YELL|h[喊]|h %s:\32",
-    CHAT_GUILD_GET = "|Hchannel:GUILD|h[会]|h %s:\32",
-    CHAT_OFFICER_GET = "|Hchannel:OFFICER|h[官]|h %s:\32",
-    CHAT_PARTY_GET = "|Hchannel:PARTY|h[队]|h %s:\32",
-    CHAT_PARTY_LEADER_GET = "|Hchannel:PARTY|h[队]|h %s:\32",
-    CHAT_RAID_GET = "|Hchannel:RAID|h[团]|h %s:\32",
-    CHAT_RAID_LEADER_GET = "|Hchannel:RAID|h[团]|h %s:\32",
-    CHAT_RAID_WARNING_GET = "|Hchannel:RAID_WARNING|h[警]|h %s:\32",
-    CHAT_INSTANCE_CHAT_GET = "|Hchannel:INSTANCE_CHAT|h[副]|h %s:\32",
-    CHAT_INSTANCE_CHAT_LEADER_GET = "|Hchannel:INSTANCE_CHAT|h[副]|h %s:\32",
-    CHAT_WHISPER_GET = "|Hchannel:WHISPER|h[密]|h %s:\32",
-    CHAT_BN_WHISPER_GET = "|HBNplayer:%s|h[网]|h %s:\32",
-}
-
 local LINK_TOOLTIP_TYPES = {
     achievement = true,
     battlepet = true,
@@ -42,8 +27,21 @@ local LINK_TOOLTIP_TYPES = {
     transmogillusion = true,
 }
 
-local ORIGINAL_CHAT_FORMATS = {}
-local GetConfig
+local FIXED_CHANNEL_LABELS = {
+    PARTY = "队",
+    PARTY_LEADER = "队",
+    RAID = "团",
+    RAID_LEADER = "团",
+    RAID_WARNING = "警",
+    INSTANCE_CHAT = "副",
+    INSTANCE_CHAT_LEADER = "副",
+    GUILD = "会",
+    OFFICER = "官",
+    BATTLEGROUND = "战",
+    BATTLEGROUND_LEADER = "战",
+    YELL = "喊",
+    WHISPER = "密",
+}
 
 local TARGETS = {
     {
@@ -60,64 +58,51 @@ local TARGETS = {
     },
 }
 
-local function SaveOriginalChatFormats()
-    for key in pairs(CHAT_FORMATS) do
-        if ORIGINAL_CHAT_FORMATS[key] == nil then
-            ORIGINAL_CHAT_FORMATS[key] = _G[key]
-        end
-    end
-end
+local GetConfig
 
-local function NormalizeChannelName(channelName)
-    local text = tostring(channelName or "")
-    if text == "" then
-        return text
+local function GetShortChannelName(channelName)
+    if type(channelName) ~= "string" or channelName == "" then
+        return nil
     end
 
-    if text:find("大脚世界频道", 1, true) or text:find("世界频道", 1, true) or text == "世界" then
+    if channelName:find("世界", 1, true) then
         return "世界"
-    elseif text:find("公会招募", 1, true) then
-        return "招募"
-    elseif text:find("本地防务", 1, true) or text:find("防务", 1, true) then
-        return "防务"
-    elseif text:find("寻求组队", 1, true) or text:find("组队", 1, true) then
-        return "组队"
-    elseif text:find("交易", 1, true) then
-        return "交易"
-    elseif text:find("综合", 1, true) then
-        return "综合"
-    elseif text:find("工会", 1, true) or text:find("公会", 1, true) then
-        return "公会"
     end
 
-    return text
-end
-
-local function SimplifyChannelMessage(_, _, message, author, languageName, channelName, target, flags, zoneID,
-                                      channelIndex, channelBaseName, ...)
-    local config = GetConfig()
-    if not (config.enabled and config.simplifyChatChannel) then
-        return false
+    if channelName:find("综合", 1, true) then
+        return "综"
     end
 
-    local shortBaseName = NormalizeChannelName(channelBaseName or channelName)
-    if shortBaseName == (channelBaseName or channelName) then
-        return false
+    if channelName:find("交易", 1, true) then
+        return "交"
     end
 
-    local newChannelName = shortBaseName
-    local index = tonumber(channelIndex)
-    if index and index > 0 then
-        newChannelName = tostring(index) .. "." .. shortBaseName
+    if channelName:find("本地防务", 1, true) or channelName:find("防务", 1, true) then
+        return "防"
     end
 
-    return false, message, author, languageName, newChannelName, target, flags, zoneID, channelIndex, channelBaseName, ...
+    if channelName:find("寻求组队", 1, true) or channelName:find("组队", 1, true) then
+        return "组"
+    end
+
+    if channelName:find("公会招募", 1, true) then
+        return "招"
+    end
+
+    if channelName:find("公会", 1, true) then
+        return "会"
+    end
+
+    if channelName:find("官员", 1, true) then
+        return "官"
+    end
+
+    return nil
 end
 
 GetConfig = function()
     local config = NS.Core:GetConfig("interfaceEnhance", "interfaceBeautify")
-    local defaults = NS.DEFAULTS and NS.DEFAULTS.interfaceEnhance and NS.DEFAULTS.interfaceEnhance.interfaceBeautify or
-    {}
+    local defaults = NS.DEFAULTS and NS.DEFAULTS.interfaceEnhance and NS.DEFAULTS.interfaceEnhance.interfaceBeautify or {}
 
     for key, value in pairs(defaults) do
         if config[key] == nil then
@@ -138,18 +123,22 @@ local function IsTooltipLinkSupported(link)
 end
 
 local function ReplaceChannelLinkLabel(text, linkTarget, label)
-    return (text:gsub("(|Hchannel:" .. linkTarget .. "|h)%b[](|h)", "%1[" .. label .. "]%2"))
+    return (text:gsub("(|Hchannel:" .. linkTarget .. "|h)%[[^%]]+%](|h)", "%1[" .. label .. "]%2"))
 end
 
-local function ReplaceWorldChannelLabel(text)
-    local updated = text
-    updated = updated:gsub("(|Hchannel:CHANNEL:%d+|h)(%b[])(|h)", function(prefix, bracketText, suffix)
-        if bracketText:find("世界频道", 1, true) or bracketText:find("大脚世界频道", 1, true) then
-            return prefix .. "[世界]" .. suffix
+local function ReplaceCustomChannelLabels(text)
+    local function replacer(prefix, channelName, suffix)
+        local shortName = GetShortChannelName(channelName)
+        if shortName then
+            return prefix .. "[" .. shortName .. "]" .. suffix
         end
-        return prefix .. bracketText .. suffix
-    end)
 
+        return prefix .. "[" .. channelName .. "]" .. suffix
+    end
+
+    local updated = text
+    updated = updated:gsub("(|Hchannel:channel:%d+|h)%[([^%]]+)%](|h)", replacer)
+    updated = updated:gsub("(|Hchannel:CHANNEL:%d+|h)%[([^%]]+)%](|h)", replacer)
     return updated
 end
 
@@ -159,22 +148,16 @@ function InterfaceBeautify:SimplifyRenderedMessage(text)
     end
 
     local updated = text
-    updated = ReplaceChannelLinkLabel(updated, "GUILD", "会")
-    updated = ReplaceChannelLinkLabel(updated, "OFFICER", "官")
-    updated = ReplaceChannelLinkLabel(updated, "PARTY", "队")
-    updated = ReplaceChannelLinkLabel(updated, "RAID", "团")
-    updated = ReplaceChannelLinkLabel(updated, "RAID_WARNING", "警")
-    updated = ReplaceChannelLinkLabel(updated, "INSTANCE_CHAT", "副")
-    updated = ReplaceChannelLinkLabel(updated, "YELL", "喊")
-    updated = ReplaceChannelLinkLabel(updated, "WHISPER", "密")
-    updated = ReplaceWorldChannelLabel(updated)
+    for channelKey, label in pairs(FIXED_CHANNEL_LABELS) do
+        updated = ReplaceChannelLinkLabel(updated, channelKey, label)
+    end
 
+    updated = ReplaceCustomChannelLabels(updated)
     return updated
 end
 
 function InterfaceBeautify:ApplyChatFormatOverrides()
-    -- Avoid tainting Blizzard chat history/state by mutating global CHAT_* format strings.
-    -- Channel name simplification is handled through CHAT_MSG_CHANNEL filtering only.
+    -- Keep Blizzard chat event payloads untouched to avoid taint and history errors.
 end
 
 function InterfaceBeautify:UpdateChannelFilter()
@@ -183,8 +166,8 @@ function InterfaceBeautify:UpdateChannelFilter()
     end
 
     if self.channelFilterRegistered then
-        ChatFrame_RemoveMessageEventFilter("CHAT_MSG_CHANNEL", SimplifyChannelMessage)
-        self.channelFilterRegistered = false
+        ChatFrame_RemoveMessageEventFilter("CHAT_MSG_CHANNEL", self.channelFilterRegistered)
+        self.channelFilterRegistered = nil
     end
 end
 
@@ -210,20 +193,21 @@ function InterfaceBeautify:HandleHyperlinkLeave()
 end
 
 function InterfaceBeautify:HookChatFrame(frame)
-    if not frame or frame.__YuXuanChatLinkTooltipHooked then
+    if not frame or frame.__YuXuanInterfaceBeautifyHooked then
         return
     end
 
-    frame.__YuXuanChatLinkTooltipHooked = true
-    if type(frame.AddMessage) == "function" and not frame.__YuXuanAddMessageWrapped then
-        frame.__YuXuanAddMessageWrapped = true
+    frame.__YuXuanInterfaceBeautifyHooked = true
+
+    if type(frame.AddMessage) == "function" and not frame.__YuXuanOriginalAddMessage then
         frame.__YuXuanOriginalAddMessage = frame.AddMessage
         frame.AddMessage = function(chatFrame, text, ...)
             local config = GetConfig()
             if config.enabled and config.simplifyChatChannel then
                 text = InterfaceBeautify:SimplifyRenderedMessage(text)
             end
-            return chatFrame:__YuXuanOriginalAddMessage(text, ...)
+
+            return chatFrame.__YuXuanOriginalAddMessage(chatFrame, text, ...)
         end
     end
 
@@ -260,11 +244,11 @@ local function ApplyTarget(target)
         NS.Core:HideFrameObject(frame)
     end
 
-    if frame.__YuXuanInterfaceBeautifyHooked then
+    if frame.__YuXuanInterfaceBeautifyTargetHooked then
         return
     end
 
-    frame.__YuXuanInterfaceBeautifyHooked = true
+    frame.__YuXuanInterfaceBeautifyTargetHooked = true
     frame:HookScript("OnShow", function(self)
         local currentConfig = GetConfig()
         local hideOnShow = currentConfig.enabled and currentConfig[target.configKey]
