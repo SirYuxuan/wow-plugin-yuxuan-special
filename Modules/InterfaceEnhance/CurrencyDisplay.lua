@@ -503,7 +503,9 @@ ShowCurrencyTooltip = function(frame)
     end
 
     local entries = Core:GetCurrencyDisplayEntries()
-    GameTooltip:SetOwner(frame, "ANCHOR_BOTTOM", 0, -8)
+    GameTooltip:SetOwner(frame, "ANCHOR_NONE")
+    GameTooltip:ClearAllPoints()
+    GameTooltip:SetPoint("BOTTOM", frame, "TOP", 0, 8)
     GameTooltip:ClearLines()
     GameTooltip:AddLine("货币状态条", 1, 0.82, 0)
     GameTooltip:AddLine(" ")

@@ -224,7 +224,9 @@ function Core:UpdatePerformanceMonitorLayout()
     frame.text:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
 
     local width = math.max(110, math.ceil((frame.text:GetStringWidth() or 0) + 14))
-    frame:SetSize(width, 24)
+    local textHeight = frame.text:GetStringHeight() or config.fontSize or 14
+    local height = math.max(16, math.ceil(textHeight + 4))
+    frame:SetSize(width, height)
 
     if config.showBackground then
         local background = config.backgroundColor or { r = 0, g = 0, b = 0, a = 0.32 }
@@ -321,7 +323,7 @@ function Core:CreatePerformanceMonitorFrame()
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
-    frame:SetSize(110, 24)
+    frame:SetSize(110, 20)
     frame:SetPoint(position.point or "CENTER", UIParent, position.relativePoint or "CENTER", position.x or 220, position.y or -20)
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
