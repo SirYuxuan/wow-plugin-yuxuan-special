@@ -92,6 +92,27 @@ local function ApplyConfiguredFont(fontString, size)
     fontString:SetFont(STANDARD_TEXT_FONT, size or 14, "OUTLINE")
 end
 
+local function GetPrimaryChatFrame()
+    return DEFAULT_CHAT_FRAME or _G.ChatFrame1
+end
+
+local function EnsureChannelVisibleInPrimaryChatFrame(channelName)
+    local frame = GetPrimaryChatFrame()
+    if not frame or Trim(channelName) == "" then
+        return
+    end
+
+    if ChatFrame_AddChannel then
+        pcall(ChatFrame_AddChannel, frame, channelName)
+        return
+    end
+
+    local frameID = frame.GetID and frame:GetID()
+    if FCF_AddChatWindowChannel and frameID then
+        pcall(FCF_AddChatWindowChannel, frameID, channelName)
+    end
+end
+
 function QuickChat:EnsureData()
     local config = GetConfig()
     config.buttonColors = config.buttonColors or {}
@@ -193,7 +214,7 @@ end
 
 function QuickChat:OpenChatWithSlash(slashText)
     if ChatFrame_OpenChat then
-        ChatFrame_OpenChat(slashText or "", DEFAULT_CHAT_FRAME)
+        ChatFrame_OpenChat(slashText or "", GetPrimaryChatFrame())
     end
 end
 
@@ -207,20 +228,30 @@ function QuickChat:GetWorldChannelInfo()
     return channelID or 0, joinedName or channelName, channelName
 end
 
-function QuickChat:JoinWorldChannel()
-    local channelID, _, channelName = self:GetWorldChannelInfo()
+function QuickChat:EnsureWorldChannelVisible()
+    local channelID, joinedName, channelName = self:GetWorldChannelInfo()
     if channelID > 0 then
+        EnsureChannelVisibleInPrimaryChatFrame(joinedName or channelName)
+    end
+end
+
+function QuickChat:JoinWorldChannel()
+    local channelID, joinedName, channelName = self:GetWorldChannelInfo()
+    if channelID > 0 then
+        EnsureChannelVisibleInPrimaryChatFrame(joinedName or channelName)
         self:OpenChatWithSlash("/" .. tostring(channelID) .. " ")
         return
     end
 
-    local frameID = (DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.GetID and DEFAULT_CHAT_FRAME:GetID()) or 1
+    local frame = GetPrimaryChatFrame()
+    local frameID = (frame and frame.GetID and frame:GetID()) or 1
     JoinChannelByName(channelName, nil, frameID, false)
     Core:Print("正在加入 " .. channelName)
 
     C_Timer.After(0.6, function()
-        local newID = GetChannelName(channelName)
+        local newID, newJoinedName = GetChannelName(channelName)
         if newID and newID > 0 then
+            EnsureChannelVisibleInPrimaryChatFrame(newJoinedName or channelName)
             QuickChat:OpenChatWithSlash("/" .. tostring(newID) .. " ")
             Core:Print("已加入 " .. channelName .. " (频道 " .. newID .. ")")
         else
@@ -441,6 +472,7 @@ function QuickChat:UpdateBar()
     if GetConfig().enabled then
         self.barFrame:Show()
         self:LayoutButtons()
+        self:EnsureWorldChannelVisible()
     else
         self.barFrame:Hide()
     end
@@ -491,6 +523,7 @@ end
 
 function QuickChat:RefreshFromSettings()
     self:EnsureData()
+    self:EnsureWorldChannelVisible()
     if not self.barFrame then
         return
     end
@@ -508,5 +541,6 @@ end
 
 function QuickChat:OnPlayerLogin()
     self:EnsureData()
+    self:EnsureWorldChannelVisible()
     self:CreateBar()
 end

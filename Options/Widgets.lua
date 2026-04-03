@@ -23,7 +23,8 @@ function UI.ShowTooltip(owner, text)
     end
 
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
-    GameTooltip:SetText(text, 1, 0.82, 0.18, true)
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine(text, 1, 0.82, 0.18, true)
     GameTooltip:Show()
 end
 

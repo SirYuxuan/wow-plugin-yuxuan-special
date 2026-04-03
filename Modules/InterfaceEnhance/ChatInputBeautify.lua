@@ -135,19 +135,8 @@ local function IsTooltipLinkSupported(link)
 end
 
 function InterfaceBeautify:ApplyChatFormatOverrides()
-    SaveOriginalChatFormats()
-
-    local config = GetConfig()
-    if config.enabled and config.simplifyChatChannel then
-        for key, value in pairs(CHAT_FORMATS) do
-            _G[key] = value
-        end
-        return
-    end
-
-    for key, value in pairs(ORIGINAL_CHAT_FORMATS) do
-        _G[key] = value
-    end
+    -- Avoid tainting Blizzard chat history/state by mutating global CHAT_* format strings.
+    -- Channel name simplification is handled through CHAT_MSG_CHANNEL filtering only.
 end
 
 function InterfaceBeautify:UpdateChannelFilter()
@@ -155,13 +144,7 @@ function InterfaceBeautify:UpdateChannelFilter()
         return
     end
 
-    local config = GetConfig()
-    local shouldEnable = config.enabled and config.simplifyChatChannel
-
-    if shouldEnable and not self.channelFilterRegistered then
-        ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL", SimplifyChannelMessage)
-        self.channelFilterRegistered = true
-    elseif not shouldEnable and self.channelFilterRegistered then
+    if self.channelFilterRegistered then
         ChatFrame_RemoveMessageEventFilter("CHAT_MSG_CHANNEL", SimplifyChannelMessage)
         self.channelFilterRegistered = false
     end
