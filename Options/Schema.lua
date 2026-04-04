@@ -54,6 +54,30 @@ local function BuildAboutOptions()
                 fontSize = "medium",
                 name = "|cFFFFFF00/yxs|r - 打开或关闭设置窗口",
             },
+            cmd2 = {
+                type = "description",
+                order = 12,
+                fontSize = "medium",
+                name = "|cFFFFFF00/yxs log|r - 打开更新记录",
+            },
+            changelogHeader = {
+                type = "header",
+                order = 15,
+                name = "更新记录",
+            },
+            changelogButton = {
+                type = "execute",
+                order = 16,
+                name = "打开更新记录",
+                func = function()
+                    local updateLog = NS.Modules
+                        and NS.Modules.InterfaceEnhance
+                        and NS.Modules.InterfaceEnhance.UpdateLog
+                    if updateLog and updateLog.Open then
+                        updateLog:Open(false)
+                    end
+                end,
+            },
             feedbackHeader = {
                 type = "header",
                 order = 20,

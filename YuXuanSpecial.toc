@@ -24,6 +24,7 @@ Modules\InterfaceEnhance\CurrencyDisplay.lua
 Modules\InterfaceEnhance\DistanceMonitor.lua
 Modules\InterfaceEnhance\EventTrackerData.lua
 Modules\InterfaceEnhance\EventTracker.lua
+Modules\InterfaceEnhance\UpdateLog.lua
 Modules\InterfaceEnhance\GameBar.lua
 Modules\InterfaceEnhance\ItemLevelPlanner.lua
 Modules\InterfaceEnhance\MouseTooltip.lua

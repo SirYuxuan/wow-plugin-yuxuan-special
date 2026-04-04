@@ -38,6 +38,10 @@ NS.DEFAULTS = {
                 a = 1.00,
             },
         },
+        updateLog = {
+            autoShow = true,
+            lastSeenVersion = "",
+        },
     },
     mapAssist = {
         quickWaypoint = {

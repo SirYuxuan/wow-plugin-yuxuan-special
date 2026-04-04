@@ -14,6 +14,22 @@ NS.Options = NS.Options or {}
 local Core = {}
 NS.Core = Core
 
+local function GetAddOnMetadataCompat(addonName, field)
+    if C_AddOns and C_AddOns.GetAddOnMetadata then
+        local value = C_AddOns.GetAddOnMetadata(addonName, field)
+        if type(value) == "table" then
+            return value[field] or value.Version or value.version
+        end
+        return value
+    end
+
+    if GetAddOnMetadata then
+        return GetAddOnMetadata(addonName, field)
+    end
+end
+
+NS.VERSION = tostring(GetAddOnMetadataCompat(ADDON_NAME, "Version") or NS.VERSION)
+
 --[[
 核心入口只负责三件事
 1. 初始化 SavedVariables
@@ -283,6 +299,11 @@ function Core:OnPlayerLogin()
     local eventTracker = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EventTracker
     if eventTracker and eventTracker.OnPlayerLogin then
         eventTracker:OnPlayerLogin()
+    end
+
+    local updateLog = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.UpdateLog
+    if updateLog and updateLog.OnPlayerLogin then
+        updateLog:OnPlayerLogin()
     end
 
     local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus

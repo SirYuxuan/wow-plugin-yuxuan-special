@@ -43,6 +43,14 @@ local function OpenSettingsByCommand(message)
         if NS.Options:OpenMageFrostAssist() then
             return
         end
+    elseif input == "log" or input == "update" or input == "changelog" then
+        local updateLog = NS.Modules
+            and NS.Modules.InterfaceEnhance
+            and NS.Modules.InterfaceEnhance.UpdateLog
+        if updateLog and updateLog.Open then
+            updateLog:Open(false)
+            return
+        end
     elseif input == "close" then
         NS.Options:Close()
         return
