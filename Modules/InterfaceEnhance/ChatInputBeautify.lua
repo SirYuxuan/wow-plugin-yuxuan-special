@@ -144,19 +144,19 @@ local function ReplaceCustomChannelLabels(text)
 end
 
 function InterfaceBeautify:SimplifyRenderedMessage(text)
-    if type(text) ~= "string" then
+    if text == nil then
         return text
     end
 
-    -- Some Blizzard chat payloads are protected "secret strings".
-    -- String length/pattern operations on them can throw, so fall back to
-    -- the original payload when the message cannot be safely inspected.
+    -- Some Blizzard chat payloads are protected secret strings. Convert them
+    -- to a plain Lua string first, then simplify the rendered prefix only.
     local ok, updated = pcall(function()
-        if text == "" then
+        local rawText = tostring(text)
+        if type(rawText) ~= "string" or rawText == "" then
             return text
         end
 
-        local result = text
+        local result = rawText
         for channelKey, label in pairs(FIXED_CHANNEL_LABELS) do
             result = ReplaceChannelLinkLabel(result, channelKey, label)
         end
@@ -173,7 +173,7 @@ function InterfaceBeautify:SimplifyRenderedMessage(text)
 end
 
 function InterfaceBeautify:ApplyChatFormatOverrides()
-    -- Keep Blizzard chat event payloads untouched to avoid taint and history errors.
+    -- Keep Blizzard chat globals untouched to avoid tainting HistoryKeeper.
 end
 
 function InterfaceBeautify:UpdateChannelFilter()
