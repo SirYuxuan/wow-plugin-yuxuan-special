@@ -69,17 +69,161 @@ local function BuildAboutOptions()
     }
 end
 
+local function BuildMapNavigationOptions()
+    local group = NS.BuildMapAssistOptions()
+    group.name = "地图导航"
+    group.order = 10
+    if group.args and group.args.mapIDDisplay then
+        group.args.mapIDDisplay.name = "地图信息"
+    end
+    return group
+end
+
+local function BuildChatSocialOptions(interfaceEnhance)
+    local quickChat = interfaceEnhance.args.quickChat
+    quickChat.name = "快捷聊天"
+    quickChat.order = 20
+
+    return {
+        type = "group",
+        name = "聊天社交",
+        order = 20,
+        args = {
+            chatWindow = {
+                type = "group",
+                name = "聊天窗口",
+                order = 10,
+                args = interfaceEnhance.args.interfaceBeautify.args,
+            },
+            quickChat = quickChat,
+        },
+    }
+end
+
+local function BuildCharacterInfoOptions(interfaceEnhance)
+    return {
+        type = "group",
+        name = "角色信息",
+        order = 30,
+        args = {
+            characterPanel = {
+                type = "group",
+                name = "角色面板",
+                order = 10,
+                childGroups = "tab",
+                args = {
+                    itemLevelPlanner = interfaceEnhance.args.itemLevelPlanner,
+                    specTalentBar = interfaceEnhance.args.specTalentBar,
+                    attributeDisplay = interfaceEnhance.args.attributeDisplay,
+                },
+            },
+            resourceDisplay = {
+                type = "group",
+                name = "资源显示",
+                order = 20,
+                args = interfaceEnhance.args.currencyDisplay.args,
+            },
+        },
+    }
+end
+
+local function BuildUtilityToolsOptions(interfaceEnhance)
+    return {
+        type = "group",
+        name = "便捷工具",
+        order = 40,
+        args = {
+            toolBar = {
+                type = "group",
+                name = "工具条",
+                order = 10,
+                args = interfaceEnhance.args.gameBar.args,
+            },
+            questAndExploration = {
+                type = "group",
+                name = "任务与探索",
+                order = 20,
+                childGroups = "tab",
+                args = {
+                    questTools = interfaceEnhance.args.questTools,
+                    huntAssist = interfaceEnhance.args.huntAssist,
+                },
+            },
+            teamTools = {
+                type = "group",
+                name = "团队工具",
+                order = 30,
+                args = interfaceEnhance.args.raidMarkers.args,
+            },
+        },
+    }
+end
+
+local function BuildMonitorAndTipsOptions(interfaceEnhance)
+    return {
+        type = "group",
+        name = "监控与提示",
+        order = 50,
+        args = {
+            mouseTooltip = {
+                type = "group",
+                name = "鼠标提示",
+                order = 10,
+                args = interfaceEnhance.args.mouseCursor.args.mouseTooltip.args,
+            },
+            statusMonitor = {
+                type = "group",
+                name = "状态监控",
+                order = 20,
+                childGroups = "tab",
+                args = {
+                    distanceMonitor = interfaceEnhance.args.distanceMonitor,
+                    performanceMonitor = interfaceEnhance.args.performanceMonitor,
+                    eventTracker = interfaceEnhance.args.eventTracker,
+                },
+            },
+            visualEffects = {
+                type = "group",
+                name = "视觉效果",
+                order = 30,
+                args = interfaceEnhance.args.mouseCursor.args.cursorTrail.args,
+            },
+        },
+    }
+end
+
+local function BuildCombatToolsOptions()
+    local group = NS.BuildCombatAssistOptions()
+    group.name = "战斗辅助"
+    group.order = 60
+    return group
+end
+
+local function BuildClassToolsOptions()
+    local group = NS.BuildClassAssistOptions()
+    group.name = "职业辅助"
+    group.order = 70
+    return group
+end
+
 local function GetOptionsTable()
+    local interfaceEnhance = NS.BuildInterfaceEnhanceOptions()
+    local general = NS.BuildGeneralOptions()
+    general.name = "通用"
+
     return {
         name = string.format("%s v%s", NS.DISPLAY_NAME, NS.VERSION),
         type = "group",
         childGroups = "tree",
         args = {
-            general = NS.BuildGeneralOptions(),
-            mapAssist = NS.BuildMapAssistOptions(),
-            interfaceEnhance = NS.BuildInterfaceEnhanceOptions(),
-            combatAssist = NS.BuildCombatAssistOptions(),
-            classAssist = NS.BuildClassAssistOptions(),
+            general = general,
+            mapNavigation = BuildMapNavigationOptions(),
+            chatSocial = BuildChatSocialOptions(interfaceEnhance),
+            characterInfo = BuildCharacterInfoOptions(interfaceEnhance),
+            utilityTools = BuildUtilityToolsOptions(interfaceEnhance),
+            monitorAndTips = BuildMonitorAndTipsOptions(interfaceEnhance),
+            combatAssist = BuildCombatToolsOptions(),
+            classAssist = BuildClassToolsOptions(),
             about = BuildAboutOptions(),
         },
     }

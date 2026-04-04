@@ -110,11 +110,11 @@ end
 这样以后如果页面路径有调整，只需要改这一处映射关系。
 ]]
 function Options:OpenMapAssist()
-    return self:Open("mapAssist")
+    return self:Open("mapNavigation")
 end
 
 function Options:OpenQuickWaypoint()
-    return self:Open("mapAssist", "quickWaypoint")
+    return self:Open("mapNavigation", "quickWaypoint")
 end
 
 function Options:OpenMageAssist()
