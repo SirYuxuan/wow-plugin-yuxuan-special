@@ -182,6 +182,16 @@ local function SetWrappedText(textRegion, width, text)
     return math.ceil(textRegion:GetStringHeight() or 0)
 end
 
+local function GetContentWidth(frame)
+    local scrollFrame = frame and frame.scrollFrame
+    local width = scrollFrame and scrollFrame:GetWidth() or 734
+    width = tonumber(width) or 734
+    if width < 200 then
+        width = 734
+    end
+    return math.floor(width)
+end
+
 function UpdateLog:GetCurrentEntry()
     for _, entry in ipairs(CHANGELOG) do
         if entry.version == NS.VERSION then
@@ -219,7 +229,7 @@ function UpdateLog:BuildCards()
     end
     child._yxsCards = {}
 
-    local width = 694
+    local width = GetContentWidth(self.frame)
     local cursorY = -4
 
     for _, entry in ipairs(CHANGELOG) do
@@ -340,7 +350,7 @@ function UpdateLog:EnsureFrame()
     frame.title = CreateText(frame, "OVERLAY", 24, "OUTLINE", COLORS.text)
     frame.title:SetPoint("TOPLEFT", frame.badge, "BOTTOMLEFT", 0, -16)
     frame.title:SetPoint("TOPRIGHT", -148, 0)
-    frame.title:SetText("更新记录")
+    frame.title:SetText("雨轩工具箱 - 更新日志")
 
     frame.subtitle = CreateText(frame, "OVERLAY", 13, "", COLORS.muted)
     frame.subtitle:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -8)
@@ -369,7 +379,9 @@ function UpdateLog:EnsureFrame()
     frame.scrollFrame = scrollFrame
 
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetSize(694, 1)
+    scrollChild:SetPoint("TOPLEFT", 0, 0)
+    scrollChild:SetPoint("TOPRIGHT", 0, 0)
+    scrollChild:SetHeight(1)
     scrollFrame:SetScrollChild(scrollChild)
     frame.scrollChild = scrollChild
 
@@ -410,11 +422,16 @@ function UpdateLog:EnsureFrame()
         end
     end
 
-    autoToggle:SetScript("OnClick", function()
+    local function ToggleAutoShow()
         local config = GetConfig()
         config.autoShow = not (config.autoShow ~= false)
         UpdateLog:RefreshToggle()
-    end)
+    end
+
+    autoToggle:SetScript("OnClick", ToggleAutoShow)
+    if autoToggle.control and autoToggle.control.SetScript then
+        autoToggle.control:SetScript("OnClick", ToggleAutoShow)
+    end
     frame.autoToggle = autoToggle
 
     frame.commandHint = CreateText(frame, "OVERLAY", 11, "", COLORS.muted)
@@ -454,6 +471,7 @@ function UpdateLog:Refresh()
     else
         frame.subtitle:SetText("当前版本的更新说明尚未整理，这里先展示最近一次发布的更新记录。")
     end
+    self:BuildCards()
     self:RefreshToggle()
 end
 
