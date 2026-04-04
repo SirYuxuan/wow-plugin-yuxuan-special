@@ -185,25 +185,6 @@ function InterfaceBeautify:SimplifyRenderedMessage(text)
     return text
 end
 
-function InterfaceBeautify:AddMessageEdits(text)
-    local config = GetConfig()
-    if not (config.enabled and config.simplifyChatChannel) then
-        return text
-    end
-
-    return self:SimplifyRenderedMessage(text)
-end
-
-function InterfaceBeautify.ChatAddMessage(chatFrame, text, ...)
-    local body = InterfaceBeautify:AddMessageEdits(text)
-    local original = chatFrame and chatFrame.__YuXuanOriginalAddMessage
-    if type(original) ~= "function" then
-        return
-    end
-
-    return original(chatFrame, body, ...)
-end
-
 function InterfaceBeautify:ApplyChatFormatOverrides()
     -- Keep Blizzard chat globals untouched to avoid tainting HistoryKeeper.
 end
@@ -241,25 +222,30 @@ function InterfaceBeautify:HandleHyperlinkLeave()
 end
 
 function InterfaceBeautify:HookChatFrame(frame)
-    if not frame then
+    if not frame or frame.__YuXuanInterfaceBeautifyHooked then
         return
     end
 
-    if type(frame.AddMessage) == "function" and frame.AddMessage ~= InterfaceBeautify.ChatAddMessage then
+    frame.__YuXuanInterfaceBeautifyHooked = true
+
+    if type(frame.AddMessage) == "function" and not frame.__YuXuanOriginalAddMessage then
         frame.__YuXuanOriginalAddMessage = frame.AddMessage
-        frame.AddMessage = InterfaceBeautify.ChatAddMessage
+        frame.AddMessage = function(chatFrame, text, ...)
+            local config = GetConfig()
+            if config.enabled and config.simplifyChatChannel then
+                text = InterfaceBeautify:SimplifyRenderedMessage(text)
+            end
+
+            return chatFrame.__YuXuanOriginalAddMessage(chatFrame, text, ...)
+        end
     end
 
-    if not frame.__YuXuanInterfaceBeautifyHooked then
-        frame.__YuXuanInterfaceBeautifyHooked = true
-
-        frame:HookScript("OnHyperlinkEnter", function(self, link)
-            InterfaceBeautify:HandleHyperlinkEnter(self, link)
-        end)
-        frame:HookScript("OnHyperlinkLeave", function()
-            InterfaceBeautify:HandleHyperlinkLeave()
-        end)
-    end
+    frame:HookScript("OnHyperlinkEnter", function(self, link)
+        InterfaceBeautify:HandleHyperlinkEnter(self, link)
+    end)
+    frame:HookScript("OnHyperlinkLeave", function()
+        InterfaceBeautify:HandleHyperlinkLeave()
+    end)
 end
 
 function InterfaceBeautify:HookChatFrames()
@@ -330,15 +316,9 @@ function InterfaceBeautify:OnPlayerLogin()
     eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     eventFrame:RegisterEvent("UPDATE_CHAT_WINDOWS")
     eventFrame:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS")
-    eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
     eventFrame:SetScript("OnEvent", function()
         InterfaceBeautify:Refresh()
     end)
 
     self.eventFrame = eventFrame
-
-    self.chatHookTicker = self.chatHookTicker or C_Timer.NewTicker(2, function()
-        InterfaceBeautify:HookChatFrames()
-    end)
 end
