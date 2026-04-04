@@ -76,6 +76,8 @@ local HEADER_HEIGHT = 98
 local ROW_HEIGHT = 24
 local ROW_SPACING = 4
 local PANEL_PADDING = 16
+local DEFAULT_CHARACTER_BUTTON_OFFSET_X = 58
+local DEFAULT_CHARACTER_BUTTON_OFFSET_Y = -34
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "itemLevelPlanner")
@@ -131,6 +133,12 @@ local function ClampNumber(value, minValue, maxValue)
         number = math.min(maxValue, number)
     end
     return math.max(minValue, number)
+end
+
+local function GetCharacterButtonOffsets()
+    local config = GetConfig()
+    return ClampNumber(config.characterButtonOffsetX or DEFAULT_CHARACTER_BUTTON_OFFSET_X, -1000, 1000),
+        ClampNumber(config.characterButtonOffsetY or DEFAULT_CHARACTER_BUTTON_OFFSET_Y, -1000, 1000)
 end
 
 local function FormatNumber(value, decimals)
@@ -697,7 +705,6 @@ function ItemLevelPlanner:CreateCharacterButton()
 
     local button = CreateFrame("Button", addonName .. "ItemLevelPlannerButton", CharacterFrame, "BackdropTemplate")
     button:SetSize(58, 20)
-    button:SetPoint("TOPLEFT", CharacterFrame, "TOPLEFT", 58, -34)
     button:SetFrameStrata("DIALOG")
     button:SetFrameLevel((CharacterFrame:GetFrameLevel() or 1) + 15)
     button:SetBackdrop({
@@ -724,6 +731,17 @@ function ItemLevelPlanner:CreateCharacterButton()
     end)
 
     self.characterButton = button
+    self:ApplyCharacterButtonPosition()
+end
+
+function ItemLevelPlanner:ApplyCharacterButtonPosition()
+    if not (self.characterButton and CharacterFrame) then
+        return
+    end
+
+    local offsetX, offsetY = GetCharacterButtonOffsets()
+    self.characterButton:ClearAllPoints()
+    self.characterButton:SetPoint("TOPLEFT", CharacterFrame, "TOPLEFT", offsetX, offsetY)
 end
 
 function ItemLevelPlanner:EnsureCharacterHooks()
@@ -824,6 +842,7 @@ function ItemLevelPlanner:RefreshFromSettings()
 
     if self.characterButton then
         ApplyConfiguredFont(self.characterButton.text, ClampNumber(config.fontSize or 13, 10, 18) - 1, "OUTLINE")
+        self:ApplyCharacterButtonPosition()
     end
 
     self:RefreshVisibility()

@@ -144,17 +144,32 @@ local function ReplaceCustomChannelLabels(text)
 end
 
 function InterfaceBeautify:SimplifyRenderedMessage(text)
-    if type(text) ~= "string" or #text == 0 then
+    if type(text) ~= "string" then
         return text
     end
 
-    local updated = text
-    for channelKey, label in pairs(FIXED_CHANNEL_LABELS) do
-        updated = ReplaceChannelLinkLabel(updated, channelKey, label)
+    -- Some Blizzard chat payloads are protected "secret strings".
+    -- String length/pattern operations on them can throw, so fall back to
+    -- the original payload when the message cannot be safely inspected.
+    local ok, updated = pcall(function()
+        if text == "" then
+            return text
+        end
+
+        local result = text
+        for channelKey, label in pairs(FIXED_CHANNEL_LABELS) do
+            result = ReplaceChannelLinkLabel(result, channelKey, label)
+        end
+
+        result = ReplaceCustomChannelLabels(result)
+        return result
+    end)
+
+    if ok then
+        return updated
     end
 
-    updated = ReplaceCustomChannelLabels(updated)
-    return updated
+    return text
 end
 
 function InterfaceBeautify:ApplyChatFormatOverrides()

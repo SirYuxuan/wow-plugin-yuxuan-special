@@ -144,6 +144,52 @@ function NS.BuildItemLevelPlannerOptions()
                     },
                 },
             },
+            buttonOffsetRow = {
+                type = "group",
+                order = 25,
+                name = "",
+                layout = "row",
+                args = {
+                    characterButtonOffsetX = {
+                        type = "range",
+                        order = 1,
+                        width = 1.0,
+                        name = "按钮 X 偏移",
+                        min = -1000,
+                        max = 1000,
+                        step = 1,
+                        disabled = function()
+                            return not GetConfig().enabled or GetConfig().showCharacterButton == false
+                        end,
+                        get = function()
+                            return GetConfig().characterButtonOffsetX or 58
+                        end,
+                        set = function(_, value)
+                            GetConfig().characterButtonOffsetX = value
+                            RefreshModule(false)
+                        end,
+                    },
+                    characterButtonOffsetY = {
+                        type = "range",
+                        order = 2,
+                        width = 1.0,
+                        name = "按钮 Y 偏移",
+                        min = -1000,
+                        max = 1000,
+                        step = 1,
+                        disabled = function()
+                            return not GetConfig().enabled or GetConfig().showCharacterButton == false
+                        end,
+                        get = function()
+                            return GetConfig().characterButtonOffsetY or -34
+                        end,
+                        set = function(_, value)
+                            GetConfig().characterButtonOffsetY = value
+                            RefreshModule(false)
+                        end,
+                    },
+                },
+            },
             actionRow = {
                 type = "group",
                 order = 30,
