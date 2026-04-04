@@ -194,7 +194,7 @@ function InterfaceBeautify:AddMessageEdits(text)
     return self:SimplifyRenderedMessage(text)
 end
 
-function InterfaceBeautify:ChatAddMessage(chatFrame, text, ...)
+function InterfaceBeautify.ChatAddMessage(chatFrame, text, ...)
     local body = InterfaceBeautify:AddMessageEdits(text)
     local original = chatFrame and chatFrame.__YuXuanOriginalAddMessage
     if type(original) ~= "function" then
