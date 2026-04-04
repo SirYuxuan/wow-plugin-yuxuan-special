@@ -246,8 +246,15 @@ function UpdateLog:BuildCards()
 
         local y = -18
 
-        local tag = CreatePill(card, entry.version == NS.VERSION and "CURRENT BUILD" or "HISTORY", "TOPLEFT", 18, -16, entry.version == NS.VERSION and COLORS.accent or COLORS.muted)
-        tag:SetWidth(entry.version == NS.VERSION and 118 or 88)
+        local tag = CreatePill(
+            card,
+            entry.version == NS.VERSION and "当前版本" or "历史版本",
+            "TOPLEFT",
+            18,
+            -16,
+            entry.version == NS.VERSION and COLORS.accent or COLORS.muted
+        )
+        tag:SetWidth(92)
 
         local versionText = CreateText(card, "OVERLAY", 21, "OUTLINE", COLORS.text)
         versionText:SetPoint("TOPLEFT", tag, "BOTTOMLEFT", 0, -14)
@@ -258,13 +265,10 @@ function UpdateLog:BuildCards()
         titleText:SetPoint("TOPRIGHT", -18, 0)
         titleText:SetText(entry.tag or "")
 
-        local summaryText = CreateText(card, "OVERLAY", 12, "", COLORS.muted)
-        summaryText:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -12)
-        local summaryHeight = SetWrappedText(summaryText, width - 36, entry.summary)
-        y = y - 24 - 26 - 20 - summaryHeight - 18
+        y = y - 24 - 26 - 18
 
         local divider = card:CreateTexture(nil, "BORDER")
-        divider:SetPoint("TOPLEFT", summaryText, "BOTTOMLEFT", 0, -14)
+        divider:SetPoint("TOPLEFT", titleText, "BOTTOMLEFT", 0, -14)
         divider:SetPoint("TOPRIGHT", -18, 0)
         divider:SetHeight(1)
         divider:SetColorTexture(COLORS.border[1], COLORS.border[2], COLORS.border[3], 0.8)
@@ -292,13 +296,6 @@ function UpdateLog:BuildCards()
         child._yxsCards[#child._yxsCards + 1] = card
         cursorY = cursorY - cardHeight - 14
     end
-
-    local tailText = CreateText(child, "OVERLAY", 11, "", COLORS.muted)
-    tailText:SetPoint("TOPLEFT", 4, cursorY - 4)
-    tailText:SetWidth(width - 8)
-    tailText:SetText("后续版本的改动会继续累积在这里。你也可以通过 /yxs log 随时重新打开这个窗口。")
-    cursorY = cursorY - math.ceil(tailText:GetStringHeight() or 0) - 16
-    child.tailText = tailText
 
     child:SetSize(width, math.max(1, math.abs(cursorY)))
 
@@ -344,17 +341,10 @@ function UpdateLog:EnsureFrame()
     frame.banner:SetBlendMode("ADD")
     frame.banner:SetVertexColor(COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 0.12)
 
-    frame.badge = CreatePill(frame, "UPDATE NOTES", "TOPLEFT", 22, -18, COLORS.accent)
-    frame.badge:SetWidth(128)
-
     frame.title = CreateText(frame, "OVERLAY", 24, "OUTLINE", COLORS.text)
-    frame.title:SetPoint("TOPLEFT", frame.badge, "BOTTOMLEFT", 0, -16)
+    frame.title:SetPoint("TOPLEFT", 22, -20)
     frame.title:SetPoint("TOPRIGHT", -148, 0)
     frame.title:SetText("雨轩工具箱 - 更新日志")
-
-    frame.subtitle = CreateText(frame, "OVERLAY", 13, "", COLORS.muted)
-    frame.subtitle:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -8)
-    frame.subtitle:SetPoint("TOPRIGHT", -148, 0)
 
     frame.versionPill = CreatePill(frame, "v" .. tostring(NS.VERSION or ""), "TOPRIGHT", -58, -20, COLORS.accent)
     frame.versionPill:SetWidth(84)
@@ -434,10 +424,6 @@ function UpdateLog:EnsureFrame()
     end
     frame.autoToggle = autoToggle
 
-    frame.commandHint = CreateText(frame, "OVERLAY", 11, "", COLORS.muted)
-    frame.commandHint:SetPoint("BOTTOMLEFT", 22, 6)
-    frame.commandHint:SetText("快捷命令：/yxs log")
-
     local settingsButton = CreateButton(frame, "打开设置", 112, 30, false)
     settingsButton:SetPoint("BOTTOMRIGHT", -146, 22)
     settingsButton:SetScript("OnClick", function()
@@ -463,14 +449,8 @@ end
 
 function UpdateLog:Refresh()
     local frame = self:EnsureFrame()
-    local currentEntry = self:GetCurrentEntry()
 
     frame.versionPill.label:SetText("v" .. tostring(NS.VERSION or ""))
-    if currentEntry and currentEntry.version == NS.VERSION then
-        frame.subtitle:SetText(currentEntry.summary or "当前版本亮点与近期改动。")
-    else
-        frame.subtitle:SetText("当前版本的更新说明尚未整理，这里先展示最近一次发布的更新记录。")
-    end
     self:BuildCards()
     self:RefreshToggle()
 end
