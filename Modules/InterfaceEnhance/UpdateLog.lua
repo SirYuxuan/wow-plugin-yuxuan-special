@@ -55,6 +55,11 @@ local function GetOptionsPrivate()
     return NS.Options and NS.Options.Private
 end
 
+local function GetOptionsUI()
+    local optionsPrivate = GetOptionsPrivate()
+    return optionsPrivate and optionsPrivate.UI
+end
+
 local function GetFontPreset()
     local optionsPrivate = GetOptionsPrivate()
     local appearance = Core.GetAppearanceConfig and Core:GetAppearanceConfig() or {}
@@ -197,16 +202,11 @@ function UpdateLog:RefreshToggle()
     local enabled = config.autoShow ~= false
     local toggle = self.frame.autoToggle
 
-    toggle.fill:SetShown(enabled)
-    toggle.check:SetShown(enabled)
+    toggle.control:SetValue(enabled, false)
     toggle.state:SetText(enabled and "已开启" or "已关闭")
     toggle.label:SetText("新版本登录时自动弹出更新记录")
-
     toggle:SetBackdropColor(unpack(enabled and COLORS.accentBg or COLORS.cardSoft))
     toggle:SetBackdropBorderColor(unpack(enabled and COLORS.accent or COLORS.border))
-    toggle.box:SetBackdropColor(unpack(enabled and COLORS.accentSoft or COLORS.card))
-    toggle.box:SetBackdropBorderColor(unpack(enabled and COLORS.accent or COLORS.border))
-
     SetColor(toggle.label, enabled and COLORS.text or COLORS.muted)
     SetColor(toggle.state, enabled and COLORS.accent or COLORS.muted)
 end
@@ -219,7 +219,7 @@ function UpdateLog:BuildCards()
     end
     child._yxsCards = {}
 
-    local width = 700
+    local width = 694
     local cursorY = -4
 
     for _, entry in ipairs(CHANGELOG) do
@@ -291,6 +291,10 @@ function UpdateLog:BuildCards()
     child.tailText = tailText
 
     child:SetSize(width, math.max(1, math.abs(cursorY)))
+
+    if self.frame and self.frame.scrollBar and self.frame.scrollBar.UpdateScrollBar then
+        self.frame.scrollBar:UpdateScrollBar()
+    end
 end
 
 function UpdateLog:EnsureFrame()
@@ -353,15 +357,26 @@ function UpdateLog:EnsureFrame()
         frame:Hide()
     end)
 
-    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 22, -118)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -34, 86)
+    local scrollArea = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    scrollArea:SetPoint("TOPLEFT", 22, -118)
+    scrollArea:SetPoint("BOTTOMRIGHT", -22, 86)
+    CreateBackdrop(scrollArea, COLORS.bg, COLORS.border)
+    frame.scrollArea = scrollArea
+
+    local scrollFrame = CreateFrame("ScrollFrame", nil, scrollArea)
+    scrollFrame:SetPoint("TOPLEFT", 12, -12)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -18, 12)
     frame.scrollFrame = scrollFrame
 
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
-    scrollChild:SetSize(700, 1)
+    scrollChild:SetSize(694, 1)
     scrollFrame:SetScrollChild(scrollChild)
     frame.scrollChild = scrollChild
+
+    local ui = GetOptionsUI()
+    if ui and ui.AttachCustomScrollBar then
+        frame.scrollBar = ui.AttachCustomScrollBar(scrollFrame, scrollArea, scrollArea)
+    end
 
     local footerLine = frame:CreateTexture(nil, "BORDER")
     footerLine:SetPoint("BOTTOMLEFT", 18, 72)
@@ -370,34 +385,30 @@ function UpdateLog:EnsureFrame()
     footerLine:SetColorTexture(COLORS.border[1], COLORS.border[2], COLORS.border[3], 0.9)
 
     local autoToggle = CreateFrame("Button", nil, frame, "BackdropTemplate")
-    autoToggle:SetSize(292, 36)
+    autoToggle:SetSize(316, 36)
     autoToggle:SetPoint("BOTTOMLEFT", 22, 22)
     CreateBackdrop(autoToggle, COLORS.cardSoft, COLORS.border)
 
-    autoToggle.box = CreateFrame("Frame", nil, autoToggle, "BackdropTemplate")
-    autoToggle.box:SetSize(18, 18)
-    autoToggle.box:SetPoint("LEFT", 12, 0)
-    CreateBackdrop(autoToggle.box, COLORS.card, COLORS.border)
-
-    autoToggle.fill = autoToggle.box:CreateTexture(nil, "ARTWORK")
-    autoToggle.fill:SetPoint("TOPLEFT", 4, -4)
-    autoToggle.fill:SetPoint("BOTTOMRIGHT", -4, 4)
-    SetColor(autoToggle.fill, COLORS.accent)
-
-    autoToggle.check = CreateText(autoToggle.box, "OVERLAY", 12, "OUTLINE", COLORS.text)
-    autoToggle.check:SetPoint("CENTER", 0, 0)
-    autoToggle.check:SetJustifyH("CENTER")
-    autoToggle.check:SetJustifyV("MIDDLE")
-    autoToggle.check:SetText("✓")
-
     autoToggle.label = CreateText(autoToggle, "OVERLAY", 11, "", COLORS.text)
-    autoToggle.label:SetPoint("LEFT", autoToggle.box, "RIGHT", 10, 1)
+    autoToggle.label:SetPoint("LEFT", 12, 1)
     autoToggle.label:SetJustifyV("MIDDLE")
 
     autoToggle.state = CreateText(autoToggle, "OVERLAY", 11, "OUTLINE", COLORS.accent)
-    autoToggle.state:SetPoint("RIGHT", -12, 1)
+    autoToggle.state:SetPoint("RIGHT", -72, 1)
     autoToggle.state:SetJustifyH("RIGHT")
     autoToggle.state:SetJustifyV("MIDDLE")
+
+    if ui and ui.CreateSwitch then
+        autoToggle.control = ui.CreateSwitch(autoToggle)
+        autoToggle.control:SetPoint("RIGHT", -12, 0)
+    else
+        autoToggle.control = CreateButton(autoToggle, "", 54, 24, true)
+        autoToggle.control:SetPoint("RIGHT", -12, 0)
+        function autoToggle.control:SetValue(value)
+            self:SetBackdropColor(unpack(value and COLORS.success or COLORS.card))
+            self:SetBackdropBorderColor(unpack(value and COLORS.accent or COLORS.border))
+        end
+    end
 
     autoToggle:SetScript("OnClick", function()
         local config = GetConfig()
