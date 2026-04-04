@@ -13,39 +13,7 @@ local UIParent = rawget(_G, "UIParent")
 local UISpecialFrames = rawget(_G, "UISpecialFrames")
 local unpack = table.unpack or unpack
 
-local CHANGELOG = {
-    {
-        version = "1.1.5",
-        tag = "界面整理与稳定性修正",
-        summary = "这次更新重点整理了设置导航、角色面板入口和常用工具的摆放，同时补上了近期几个反复出现的稳定性问题。",
-        sections = {
-            {
-                title = "界面与设置",
-                items = {
-                    "设置导航改成按使用场景分组，更容易找到聊天、角色信息、监控与战斗辅助。",
-                    "装等预估的角色框体按钮新增独立 X / Y 偏移设置，可直接微调贴边位置。",
-                    "鼠标提示新增“战斗中禁用”开关，避免战斗时被提示信息干扰。",
-                },
-            },
-            {
-                title = "显示与体验",
-                items = {
-                    "性能监控面板的底部布局做了固定宽度处理，减少数值变化时的轻微跳动。",
-                    "新增独立的更新记录窗口，版本更新后会自动弹出，也可以随时手动查看。",
-                    "关于页面增加了更新记录入口，并补充了快捷命令提示。",
-                },
-            },
-            {
-                title = "兼容与稳定",
-                items = {
-                    "聊天频道简写改为走聊天事件包装层，减少被其他聊天修改静默覆盖的概率。",
-                    "战斗中拦截自定义下拉菜单，避免触发 Blizzard 受保护菜单链路的报错。",
-                    "版本号改为直接读取插件元数据，避免代码里写死版本导致更新判断失准。",
-                },
-            },
-        },
-    },
-}
+local CHANGELOG = NS.UpdateLogEntries or {}
 
 local COLORS = {
     bg = { 0.06, 0.07, 0.09, 0.96 },
@@ -55,6 +23,7 @@ local COLORS = {
     border = { 0.25, 0.27, 0.32, 1.00 },
     accent = { 0.95, 0.76, 0.18, 1.00 },
     accentSoft = { 0.27, 0.20, 0.06, 0.92 },
+    accentBg = { 0.22, 0.17, 0.06, 0.96 },
     text = { 0.95, 0.96, 0.99, 1.00 },
     muted = { 0.66, 0.69, 0.76, 1.00 },
     shadow = { 0.00, 0.00, 0.00, 0.40 },
@@ -226,9 +195,20 @@ end
 function UpdateLog:RefreshToggle()
     local config = GetConfig()
     local enabled = config.autoShow ~= false
-    self.frame.autoToggle.fill:SetShown(enabled)
-    self.frame.autoToggle.label:SetText(enabled and "版本更新后自动弹出" or "版本更新后不自动弹出")
-    SetColor(self.frame.autoToggle.label, enabled and COLORS.text or COLORS.muted)
+    local toggle = self.frame.autoToggle
+
+    toggle.fill:SetShown(enabled)
+    toggle.check:SetShown(enabled)
+    toggle.state:SetText(enabled and "已开启" or "已关闭")
+    toggle.label:SetText("新版本登录时自动弹出更新记录")
+
+    toggle:SetBackdropColor(unpack(enabled and COLORS.accentBg or COLORS.cardSoft))
+    toggle:SetBackdropBorderColor(unpack(enabled and COLORS.accent or COLORS.border))
+    toggle.box:SetBackdropColor(unpack(enabled and COLORS.accentSoft or COLORS.card))
+    toggle.box:SetBackdropBorderColor(unpack(enabled and COLORS.accent or COLORS.border))
+
+    SetColor(toggle.label, enabled and COLORS.text or COLORS.muted)
+    SetColor(toggle.state, enabled and COLORS.accent or COLORS.muted)
 end
 
 function UpdateLog:BuildCards()
@@ -253,13 +233,6 @@ function UpdateLog:BuildCards()
         card.stripe:SetPoint("BOTTOMLEFT", 1, 1)
         card.stripe:SetWidth(entry.version == NS.VERSION and 4 or 2)
         SetColor(card.stripe, entry.version == NS.VERSION and COLORS.accent or COLORS.border)
-
-        card.glow = card:CreateTexture(nil, "BACKGROUND")
-        card.glow:SetTexture(ASSETS.circle)
-        card.glow:SetSize(180, 180)
-        card.glow:SetPoint("TOPRIGHT", 40, 40)
-        card.glow:SetBlendMode("ADD")
-        card.glow:SetVertexColor(COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 0.08)
 
         local y = -18
 
@@ -325,40 +298,17 @@ function UpdateLog:EnsureFrame()
         return self.frame
     end
 
-    local backdrop = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-    backdrop:SetAllPoints(UIParent)
-    backdrop:SetFrameStrata("FULLSCREEN_DIALOG")
-    backdrop:SetFrameLevel(90)
-    backdrop:EnableMouse(true)
-    backdrop:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-    })
-    backdrop:SetBackdropColor(0, 0, 0, 0.52)
-    backdrop:SetScript("OnMouseDown", function()
-        if UpdateLog.frame then
-            UpdateLog.frame:Hide()
-        end
-    end)
-    backdrop:Hide()
-    self.backdrop = backdrop
-
     local frame = CreateFrame("Frame", "YuXuanSpecialUpdateLogFrame", UIParent, "BackdropTemplate")
-    frame:SetSize(820, 620)
+    frame:SetSize(812, 608)
     frame:SetPoint("CENTER", 0, 16)
-    frame:SetFrameStrata("FULLSCREEN_DIALOG")
-    frame:SetFrameLevel(100)
+    frame:SetFrameStrata("DIALOG")
+    frame:SetFrameLevel(120)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-    frame:SetScript("OnShow", function()
-        backdrop:Show()
-    end)
-    frame:SetScript("OnHide", function()
-        backdrop:Hide()
-    end)
     CreateBackdrop(frame, COLORS.panel, COLORS.border)
     CreateShadow(frame)
 
@@ -376,33 +326,27 @@ function UpdateLog:EnsureFrame()
     frame.banner:SetTexture(ASSETS.line)
     frame.banner:SetPoint("TOPLEFT", 0, 0)
     frame.banner:SetPoint("TOPRIGHT", 0, 0)
-    frame.banner:SetHeight(154)
+    frame.banner:SetHeight(132)
     frame.banner:SetBlendMode("ADD")
-    frame.banner:SetVertexColor(COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 0.18)
-
-    frame.circle = frame:CreateTexture(nil, "BACKGROUND")
-    frame.circle:SetTexture(ASSETS.circle)
-    frame.circle:SetSize(280, 280)
-    frame.circle:SetPoint("TOPRIGHT", 120, 110)
-    frame.circle:SetBlendMode("ADD")
-    frame.circle:SetVertexColor(COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 0.10)
+    frame.banner:SetVertexColor(COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 0.12)
 
     frame.badge = CreatePill(frame, "UPDATE NOTES", "TOPLEFT", 22, -18, COLORS.accent)
     frame.badge:SetWidth(128)
 
     frame.title = CreateText(frame, "OVERLAY", 24, "OUTLINE", COLORS.text)
     frame.title:SetPoint("TOPLEFT", frame.badge, "BOTTOMLEFT", 0, -16)
-    frame.title:SetPoint("TOPRIGHT", -180, 0)
+    frame.title:SetPoint("TOPRIGHT", -148, 0)
     frame.title:SetText("更新记录")
 
     frame.subtitle = CreateText(frame, "OVERLAY", 13, "", COLORS.muted)
     frame.subtitle:SetPoint("TOPLEFT", frame.title, "BOTTOMLEFT", 0, -8)
-    frame.subtitle:SetPoint("TOPRIGHT", -180, 0)
+    frame.subtitle:SetPoint("TOPRIGHT", -148, 0)
 
-    frame.versionPill = CreatePill(frame, "v" .. tostring(NS.VERSION or ""), "TOPRIGHT", -20, -22, COLORS.accent)
+    frame.versionPill = CreatePill(frame, "v" .. tostring(NS.VERSION or ""), "TOPRIGHT", -58, -20, COLORS.accent)
+    frame.versionPill:SetWidth(84)
 
     local closeButton = CreateButton(frame, "×", 28, 28, false)
-    closeButton:SetPoint("TOPRIGHT", -18, -58)
+    closeButton:SetPoint("TOPRIGHT", -18, -18)
     closeButton.text:SetText("×")
     closeButton.text:SetTextColor(1, 0.86, 0.86, 1)
     closeButton:SetScript("OnClick", function()
@@ -411,7 +355,7 @@ function UpdateLog:EnsureFrame()
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", 22, -118)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -34, 74)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -34, 86)
     frame.scrollFrame = scrollFrame
 
     local scrollChild = CreateFrame("Frame", nil, scrollFrame)
@@ -420,28 +364,40 @@ function UpdateLog:EnsureFrame()
     frame.scrollChild = scrollChild
 
     local footerLine = frame:CreateTexture(nil, "BORDER")
-    footerLine:SetPoint("BOTTOMLEFT", 18, 62)
-    footerLine:SetPoint("BOTTOMRIGHT", -18, 62)
+    footerLine:SetPoint("BOTTOMLEFT", 18, 72)
+    footerLine:SetPoint("BOTTOMRIGHT", -18, 72)
     footerLine:SetHeight(1)
     footerLine:SetColorTexture(COLORS.border[1], COLORS.border[2], COLORS.border[3], 0.9)
 
     local autoToggle = CreateFrame("Button", nil, frame, "BackdropTemplate")
-    autoToggle:SetSize(220, 22)
-    autoToggle:SetPoint("BOTTOMLEFT", 22, 24)
+    autoToggle:SetSize(292, 36)
+    autoToggle:SetPoint("BOTTOMLEFT", 22, 22)
+    CreateBackdrop(autoToggle, COLORS.cardSoft, COLORS.border)
 
     autoToggle.box = CreateFrame("Frame", nil, autoToggle, "BackdropTemplate")
     autoToggle.box:SetSize(18, 18)
-    autoToggle.box:SetPoint("LEFT", 0, 0)
-    CreateBackdrop(autoToggle.box, COLORS.cardSoft, COLORS.border)
+    autoToggle.box:SetPoint("LEFT", 12, 0)
+    CreateBackdrop(autoToggle.box, COLORS.card, COLORS.border)
 
     autoToggle.fill = autoToggle.box:CreateTexture(nil, "ARTWORK")
     autoToggle.fill:SetPoint("TOPLEFT", 4, -4)
     autoToggle.fill:SetPoint("BOTTOMRIGHT", -4, 4)
     SetColor(autoToggle.fill, COLORS.accent)
 
+    autoToggle.check = CreateText(autoToggle.box, "OVERLAY", 12, "OUTLINE", COLORS.text)
+    autoToggle.check:SetPoint("CENTER", 0, 0)
+    autoToggle.check:SetJustifyH("CENTER")
+    autoToggle.check:SetJustifyV("MIDDLE")
+    autoToggle.check:SetText("✓")
+
     autoToggle.label = CreateText(autoToggle, "OVERLAY", 11, "", COLORS.text)
     autoToggle.label:SetPoint("LEFT", autoToggle.box, "RIGHT", 10, 1)
     autoToggle.label:SetJustifyV("MIDDLE")
+
+    autoToggle.state = CreateText(autoToggle, "OVERLAY", 11, "OUTLINE", COLORS.accent)
+    autoToggle.state:SetPoint("RIGHT", -12, 1)
+    autoToggle.state:SetJustifyH("RIGHT")
+    autoToggle.state:SetJustifyV("MIDDLE")
 
     autoToggle:SetScript("OnClick", function()
         local config = GetConfig()
@@ -451,11 +407,11 @@ function UpdateLog:EnsureFrame()
     frame.autoToggle = autoToggle
 
     frame.commandHint = CreateText(frame, "OVERLAY", 11, "", COLORS.muted)
-    frame.commandHint:SetPoint("BOTTOMLEFT", 22, 8)
+    frame.commandHint:SetPoint("BOTTOMLEFT", 22, 6)
     frame.commandHint:SetText("快捷命令：/yxs log")
 
     local settingsButton = CreateButton(frame, "打开设置", 112, 30, false)
-    settingsButton:SetPoint("BOTTOMRIGHT", -146, 18)
+    settingsButton:SetPoint("BOTTOMRIGHT", -146, 22)
     settingsButton:SetScript("OnClick", function()
         frame:Hide()
         if NS.Options and NS.Options.Open then
