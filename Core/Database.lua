@@ -105,6 +105,7 @@ NS.DEFAULTS = {
         mouseTooltip = {
             enabled = false,
             disableAllTooltips = false,
+            disableInCombat = false,
             tooltipFollowCursor = false,
             opaqueTooltipBackground = false,
             showTooltipHealthBar = false,

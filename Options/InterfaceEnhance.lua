@@ -740,9 +740,26 @@ local function BuildMouseTooltipArgs()
                         RefreshMouseTooltip(true)
                     end,
                 },
-                tooltipFollowCursor = {
+                disableInCombat = {
                     type = "toggle",
                     order = 3,
+                    width = 1.0,
+                    name = "战斗中禁用鼠标提示",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().disableInCombat
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().disableInCombat = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
+                tooltipFollowCursor = {
+                    type = "toggle",
+                    order = 4,
                     width = 1.0,
                     name = "提示跟随鼠标",
                     disabled = function()

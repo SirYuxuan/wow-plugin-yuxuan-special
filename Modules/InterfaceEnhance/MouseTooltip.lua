@@ -35,6 +35,18 @@ local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "mouseTooltip")
 end
 
+local function AreTooltipsBlocked(config)
+    if not (config and config.enabled) then
+        return false
+    end
+
+    if config.disableAllTooltips then
+        return true
+    end
+
+    return config.disableInCombat and InCombatLockdown and InCombatLockdown()
+end
+
 local function AddColoredDoubleLine(tooltip, leftText, rightText, leftColor, rightColor, wrap)
     leftColor = leftColor or NORMAL_FONT_COLOR
     rightColor = rightColor or HIGHLIGHT_FONT_COLOR
@@ -135,7 +147,7 @@ function Core:SetTooltipAnchor(tooltip, owner, fallbackAnchor)
         return
     end
 
-    if config.disableAllTooltips then
+    if AreTooltipsBlocked(config) then
         tooltip:Hide()
         return
     end
@@ -153,7 +165,7 @@ function MouseTooltip:AppendNPCAliveTimeToTooltip(tooltip)
         return
     end
 
-    if config.disableAllTooltips then
+    if AreTooltipsBlocked(config) then
         return
     end
 
@@ -267,14 +279,14 @@ function MouseTooltip:ApplyTooltipHealthBarVisibility()
         tooltipHealthBarHooked = true
         statusBar:HookScript("OnShow", function(bar)
             local config = GetConfig()
-            if not (config and config.enabled and config.showTooltipHealthBar and not config.disableAllTooltips) then
+            if not (config and config.enabled and config.showTooltipHealthBar and not AreTooltipsBlocked(config)) then
                 bar:Hide()
             end
         end)
     end
 
     local config = GetConfig()
-    local showHealthBar = config and config.enabled and config.showTooltipHealthBar and not config.disableAllTooltips
+    local showHealthBar = config and config.enabled and config.showTooltipHealthBar and not AreTooltipsBlocked(config)
     if showHealthBar then
         statusBar:Show()
     else
@@ -294,7 +306,7 @@ function MouseTooltip:ApplyGlobalTooltipHook()
             return
         end
 
-        if config.disableAllTooltips then
+        if AreTooltipsBlocked(config) then
             return
         end
 
@@ -311,7 +323,7 @@ function MouseTooltip:ApplyTooltipVisibilityHook()
 
     local function HideTooltipIfDisabled(self)
         local config = GetConfig()
-        if config and config.enabled and config.disableAllTooltips then
+        if AreTooltipsBlocked(config) then
             self:Hide()
         end
     end
@@ -328,7 +340,7 @@ function MouseTooltip:UpdateTooltipVisibility()
     self:ApplyTooltipVisibilityHook()
 
     local config = GetConfig()
-    if not (config and config.enabled and config.disableAllTooltips) then
+    if not AreTooltipsBlocked(config) then
         return
     end
 
@@ -355,5 +367,13 @@ function MouseTooltip:RefreshFromSettings()
 end
 
 function MouseTooltip:OnPlayerLogin()
+    self.eventFrame = self.eventFrame or CreateFrame("Frame")
+    self.eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+    self.eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    self.eventFrame:SetScript("OnEvent", function()
+        MouseTooltip:UpdateTooltipVisibility()
+        MouseTooltip:ApplyTooltipHealthBarVisibility()
+    end)
+
     self:ApplyAllSettings()
 end
