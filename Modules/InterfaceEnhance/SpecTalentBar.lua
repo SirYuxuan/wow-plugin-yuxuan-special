@@ -426,6 +426,10 @@ function SpecTalentBar:ShowMenu(anchor, title, entries, onClick)
         return
     end
 
+    if InCombatLockdown and InCombatLockdown() then
+        return
+    end
+
     self._menuTitle = title
     self._menuEntries = entries
     self._menuHandler = onClick

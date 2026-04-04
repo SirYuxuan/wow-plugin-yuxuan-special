@@ -636,6 +636,10 @@ function Private.ShowDropdownMenu(anchor, items)
         return false
     end
 
+    if InCombatLockdown and InCombatLockdown() then
+        return false
+    end
+
     local dropdown = Private.EnsureDropdownHelper()
     local levelOneList = _G["DropDownList1"]
     if levelOneList and not levelOneList._yxsHooked then
