@@ -10,9 +10,7 @@ local C_Timer = rawget(_G, "C_Timer")
 local GameTooltip = rawget(_G, "GameTooltip")
 local GameTooltip_Hide = rawget(_G, "GameTooltip_Hide")
 local NUM_CHAT_WINDOWS = rawget(_G, "NUM_CHAT_WINDOWS") or 10
-local hooksecurefunc = rawget(_G, "hooksecurefunc")
 local issecretvalue = rawget(_G, "issecretvalue")
-local unpack = table.unpack or unpack
 
 local LINK_TOOLTIP_TYPES = {
     achievement = true,
@@ -188,54 +186,6 @@ function InterfaceBeautify:SimplifyRenderedMessage(text)
     return text
 end
 
-function InterfaceBeautify:ShouldSimplifyChatEvent(event)
-    return type(event) == "string" and event:find("^CHAT_MSG_") ~= nil
-end
-
-function InterfaceBeautify:HandleChatFrameEvent(frame, event, ...)
-    local original = frame and frame.__YuXuanOriginalOnEvent
-    if type(original) ~= "function" then
-        return
-    end
-
-    local config = GetConfig()
-    if not (config.enabled and config.simplifyChatChannel and self:ShouldSimplifyChatEvent(event)) then
-        return original(frame, event, ...)
-    end
-
-    if frame.__YuXuanBeautifyHandlingEvent then
-        return original(frame, event, ...)
-    end
-
-    local originalAddMessage = frame.AddMessage
-    if type(originalAddMessage) ~= "function" then
-        return original(frame, event, ...)
-    end
-
-    frame.__YuXuanBeautifyHandlingEvent = true
-
-    local temporaryAddMessage = function(chatFrame, text, ...)
-        text = InterfaceBeautify:SimplifyRenderedMessage(text)
-        return originalAddMessage(chatFrame, text, ...)
-    end
-
-    frame.AddMessage = temporaryAddMessage
-
-    local results = { pcall(original, frame, event, ...) }
-
-    if frame.AddMessage == temporaryAddMessage then
-        frame.AddMessage = originalAddMessage
-    end
-
-    frame.__YuXuanBeautifyHandlingEvent = nil
-
-    if not results[1] then
-        error(results[2])
-    end
-
-    return unpack(results, 2)
-end
-
 function InterfaceBeautify:ApplyChatFormatOverrides()
     -- Keep Blizzard chat globals untouched to avoid tainting HistoryKeeper.
 end
@@ -286,41 +236,29 @@ function InterfaceBeautify:HookChatFrame(frame)
         frame:HookScript("OnHyperlinkLeave", function()
             InterfaceBeautify:HandleHyperlinkLeave()
         end)
+    end
 
-        if type(hooksecurefunc) == "function" and not frame.__YuXuanInterfaceBeautifySetScriptHooked then
-            frame.__YuXuanInterfaceBeautifySetScriptHooked = true
-            hooksecurefunc(frame, "SetScript", function(self, script, func)
-                if script ~= "OnEvent" or func == self.__YuXuanInterfaceBeautifyOnEventWrapper then
-                    return
-                end
+    if not frame.__YuXuanInterfaceBeautifyAddMessageWrapper then
+        frame.__YuXuanInterfaceBeautifyAddMessageWrapper = function(chatFrame, text, ...)
+            local config = GetConfig()
+            local originalAddMessage = chatFrame.__YuXuanOriginalAddMessage
+            if type(originalAddMessage) ~= "function" then
+                return
+            end
 
-                if C_Timer and C_Timer.After then
-                    C_Timer.After(0, function()
-                        if self and self.GetScript then
-                            InterfaceBeautify:HookChatFrame(self)
-                        end
-                    end)
-                else
-                    InterfaceBeautify:HookChatFrame(self)
-                end
-            end)
+            if config.enabled and config.simplifyChatChannel then
+                text = InterfaceBeautify:SimplifyRenderedMessage(text)
+            end
+
+            return originalAddMessage(chatFrame, text, ...)
         end
     end
 
-    local currentOnEvent = frame.GetScript and frame:GetScript("OnEvent")
-    local wrappedOnEvent = frame.__YuXuanInterfaceBeautifyOnEventWrapper
-
-    if type(currentOnEvent) == "function" and currentOnEvent ~= wrappedOnEvent then
-        frame.__YuXuanOriginalOnEvent = currentOnEvent
-
-        if not wrappedOnEvent then
-            wrappedOnEvent = function(chatFrame, event, ...)
-                return InterfaceBeautify:HandleChatFrameEvent(chatFrame, event, ...)
-            end
-            frame.__YuXuanInterfaceBeautifyOnEventWrapper = wrappedOnEvent
-        end
-
-        frame:SetScript("OnEvent", wrappedOnEvent)
+    local currentAddMessage = frame.AddMessage
+    local wrapper = frame.__YuXuanInterfaceBeautifyAddMessageWrapper
+    if type(currentAddMessage) == "function" and currentAddMessage ~= wrapper then
+        frame.__YuXuanOriginalAddMessage = currentAddMessage
+        frame.AddMessage = wrapper
     end
 end
 
@@ -397,4 +335,10 @@ function InterfaceBeautify:OnPlayerLogin()
     end)
 
     self.eventFrame = eventFrame
+
+    if C_Timer and C_Timer.NewTicker then
+        self.chatHookTicker = self.chatHookTicker or C_Timer.NewTicker(2, function()
+            InterfaceBeautify:HookChatFrames()
+        end)
+    end
 end
