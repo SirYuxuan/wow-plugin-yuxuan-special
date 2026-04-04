@@ -70,22 +70,21 @@ local function ApplyTextColor(fontString, color)
     fontString:SetTextColor(color.r or 1, color.g or 1, color.b or 1, color.a or 1)
 end
 
-local function GetCenterOffset(frame)
+local function GetPrimaryAnchorOffset(frame, iconSize)
     local scale = frame:GetScale()
     if not scale or scale == 0 then
         return 0, 0
     end
 
-    local left, right = frame:GetLeft(), frame:GetRight()
-    local top, bottom = frame:GetTop(), frame:GetBottom()
-    if not (left and right and top and bottom) then
+    local left, top, bottom = frame:GetLeft(), frame:GetTop(), frame:GetBottom()
+    if not (left and top and bottom) then
         return 0, 0
     end
 
-    left, right, top, bottom = left * scale, right * scale, top * scale, bottom * scale
+    left, top, bottom = left * scale, top * scale, bottom * scale
     local parentWidth, parentHeight = UIParent:GetSize()
-    local offsetX = ((left + right) * 0.5 - parentWidth * 0.5) / scale
-    local offsetY = ((bottom + top) * 0.5 - parentHeight * 0.5) / scale
+    local offsetX = (left + (Clamp(iconSize or 44, 20, 120) * 0.5) * scale - parentWidth * 0.5) / scale
+    local offsetY = (((bottom + top) * 0.5) - parentHeight * 0.5) / scale
     return offsetX, offsetY
 end
 
@@ -499,8 +498,9 @@ function TrinketMonitor:CreateButton(slotInfo)
     button:SetScript("OnDragStop", function()
         if TrinketMonitor:GetConfig().unlocked then
             TrinketMonitor._mainFrame:StopMovingOrSizing()
-            local offsetX, offsetY = GetCenterOffset(TrinketMonitor._mainFrame)
             local config = TrinketMonitor:GetConfig()
+            local iconSize = Clamp(config.iconSize or 44, 20, 120)
+            local offsetX, offsetY = GetPrimaryAnchorOffset(TrinketMonitor._mainFrame, iconSize)
             config.offsetX = RoundOffset(offsetX)
             config.offsetY = RoundOffset(offsetY)
         end
@@ -589,8 +589,9 @@ function TrinketMonitor:CreateFrames()
         end)
         mainFrame:SetScript("OnDragStop", function(frame)
             frame:StopMovingOrSizing()
-            local offsetX, offsetY = GetCenterOffset(frame)
             local config = self:GetConfig()
+            local iconSize = Clamp(config.iconSize or 44, 20, 120)
+            local offsetX, offsetY = GetPrimaryAnchorOffset(frame, iconSize)
             config.offsetX = RoundOffset(offsetX)
             config.offsetY = RoundOffset(offsetY)
         end)
@@ -672,9 +673,16 @@ function TrinketMonitor:RefreshLayout()
     local readyTextColor = config.readyTextColor or { r = 1, g = 0.82, b = 0.2, a = 1 }
     local highlightColor = config.highlightColor or { r = 1, g = 0.82, b = 0.2, a = 1 }
 
-    self._mainFrame:SetSize(iconSize * #TRINKET_SLOTS + spacing * math.max(0, #TRINKET_SLOTS - 1), iconSize)
+    local fullWidth = iconSize * #TRINKET_SLOTS + spacing * math.max(0, #TRINKET_SLOTS - 1)
+    self._mainFrame:SetSize(fullWidth, iconSize)
     self._mainFrame:ClearAllPoints()
-    self._mainFrame:SetPoint("CENTER", UIParent, "CENTER", RoundOffset(config.offsetX or 0), RoundOffset(config.offsetY or 0))
+    self._mainFrame:SetPoint(
+        "LEFT",
+        UIParent,
+        "CENTER",
+        RoundOffset((config.offsetX or 0) - iconSize * 0.5),
+        RoundOffset(config.offsetY or 0)
+    )
 
     for _, button in ipairs(self._buttons or {}) do
         button:SetSize(iconSize, iconSize)
