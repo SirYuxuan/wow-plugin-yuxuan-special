@@ -9,6 +9,7 @@ local CreateFrame = rawget(_G, "CreateFrame")
 local GameTooltip = rawget(_G, "GameTooltip")
 local GameTooltip_Hide = rawget(_G, "GameTooltip_Hide")
 local NUM_CHAT_WINDOWS = rawget(_G, "NUM_CHAT_WINDOWS") or 10
+local issecretvalue = rawget(_G, "issecretvalue")
 
 local LINK_TOOLTIP_TYPES = {
     achievement = true,
@@ -143,25 +144,37 @@ local function ReplaceCustomChannelLabels(text)
     return updated
 end
 
+local function IsProtectedChatValue(value)
+    return type(issecretvalue) == "function" and issecretvalue(value)
+end
+
+local function MessageIsProtected(message)
+    if IsProtectedChatValue(message) then
+        return true
+    end
+
+    return type(message) == "string" and message:find("|K", 1, true) ~= nil
+end
+
 function InterfaceBeautify:SimplifyRenderedMessage(text)
-    if text == nil then
+    if text == nil or MessageIsProtected(text) then
         return text
     end
 
-    -- Some Blizzard chat payloads are protected secret strings. Convert them
-    -- to a plain Lua string first, then simplify the rendered prefix only.
-    local ok, updated = pcall(function()
-        local rawText = tostring(text)
-        if type(rawText) ~= "string" or rawText == "" then
-            return text
-        end
+    if type(text) ~= "string" or text == "" then
+        return text
+    end
 
-        local result = rawText
+    -- Follow ElvUI's approach: only rewrite chat prefixes for messages that
+    -- are confirmed to be non-protected.
+    local ok, updated = pcall(function()
+        local result = text
         for channelKey, label in pairs(FIXED_CHANNEL_LABELS) do
             result = ReplaceChannelLinkLabel(result, channelKey, label)
         end
 
         result = ReplaceCustomChannelLabels(result)
+        result = result:gsub("CHANNEL:", "")
         return result
     end)
 

@@ -170,6 +170,28 @@ local function ApplyPerformanceMonitorFont(frame)
     elseif not frame.text:SetFont(STANDARD_TEXT_FONT, config.fontSize or 14, "OUTLINE") then
         frame.text:SetFont(STANDARD_TEXT_FONT, config.fontSize or 14, "OUTLINE")
     end
+
+    if frame.measureText then
+        local fontName, fontHeight, fontFlags = frame.text:GetFont()
+        if fontName then
+            frame.measureText:SetFont(fontName, fontHeight or (config.fontSize or 14), fontFlags or "OUTLINE")
+        end
+    end
+end
+
+local function GetPerformanceMonitorSize(frame)
+    if not (frame and frame.measureText) then
+        return 110, 20
+    end
+
+    -- Use a stable template width so bottom-anchored layouts do not jitter
+    -- when FPS / latency digit counts fluctuate during updates.
+    frame.measureText:SetText("FPS 0000  MS 0000")
+
+    local width = math.max(110, math.ceil((frame.measureText:GetStringWidth() or 0) + 14))
+    local textHeight = frame.measureText:GetStringHeight() or 0
+    local height = math.max(16, math.ceil(textHeight + 4))
+    return width, height
 end
 
 function Core:SavePerformanceMonitorPosition()
@@ -223,9 +245,7 @@ function Core:UpdatePerformanceMonitorLayout()
     frame.text:SetPoint("LEFT", frame, "LEFT", 6, 0)
     frame.text:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
 
-    local width = math.max(110, math.ceil((frame.text:GetStringWidth() or 0) + 14))
-    local textHeight = frame.text:GetStringHeight() or config.fontSize or 14
-    local height = math.max(16, math.ceil(textHeight + 4))
+    local width, height = GetPerformanceMonitorSize(frame)
     frame:SetSize(width, height)
 
     if config.showBackground then
@@ -256,7 +276,6 @@ function Core:RefreshPerformanceMonitor()
     self.performanceMonitorFrame.text:SetTextColor(1, 1, 1, 1)
     self.performanceMonitorFrame.text:SetText(BuildPerformanceText(fps, latency))
 
-    self:UpdatePerformanceMonitorLayout()
     self:UpdatePerformanceMonitorVisibility()
 end
 
@@ -335,6 +354,9 @@ function Core:CreatePerformanceMonitorFrame()
     frame.text:SetJustifyV("MIDDLE")
     frame.text:SetPoint("CENTER", frame, "CENTER", 0, 0)
     frame.text:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE")
+
+    frame.measureText = frame:CreateFontString(nil, "OVERLAY")
+    frame.measureText:Hide()
 
     frame:SetScript("OnEnter", function(selfFrame)
         Core:RefreshPerformanceMonitorTooltip()
