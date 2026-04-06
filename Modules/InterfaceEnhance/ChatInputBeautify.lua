@@ -154,7 +154,18 @@ local function MessageIsProtected(message)
         return true
     end
 
-    return type(message) == "string" and message:find("|K", 1, true) ~= nil
+    if type(message) ~= "string" then
+        return false
+    end
+
+    local ok, hasProtectedToken = pcall(string.find, message, "|K", 1, true)
+    if not ok then
+        -- If the client refuses string operations, treat the value as protected
+        -- and leave it untouched.
+        return true
+    end
+
+    return hasProtectedToken ~= nil
 end
 
 function InterfaceBeautify:SimplifyRenderedMessage(text)
