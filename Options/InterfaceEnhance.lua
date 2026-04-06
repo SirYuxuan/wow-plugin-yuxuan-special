@@ -822,6 +822,23 @@ local function BuildMouseTooltipArgs()
                         RefreshMouseTooltip(false)
                     end,
                 },
+                showPlayerRaidProgress = {
+                    type = "toggle",
+                    order = 3,
+                    width = 1.0,
+                    name = "显示玩家团本记录",
+                    disabled = function()
+                        local config = GetMouseTooltipConfig()
+                        return not config.enabled or config.disableAllTooltips
+                    end,
+                    get = function()
+                        return GetMouseTooltipConfig().showPlayerRaidProgress
+                    end,
+                    set = function(_, value)
+                        GetMouseTooltipConfig().showPlayerRaidProgress = value and true or false
+                        RefreshMouseTooltip(false)
+                    end,
+                },
             },
         },
         npcTitle = {

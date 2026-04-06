@@ -113,6 +113,7 @@ NS.DEFAULTS = {
             tooltipFollowCursor = false,
             opaqueTooltipBackground = false,
             showTooltipHealthBar = false,
+            showPlayerRaidProgress = false,
             showNPCAliveTime = false,
             npcTimeShowCurrentTime = false,
             npcTimeShowLayer = false,

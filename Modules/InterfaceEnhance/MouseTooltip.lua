@@ -17,6 +17,8 @@ local TOOLTIP_FRAME_NAMES = {
 }
 
 local NPC_TIME_FORMAT = "%H:%M, %d.%m"
+local RAID_PROGRESS_REQUEST_COOLDOWN = 15
+local RAID_PROGRESS_CACHE_TTL = 600
 local bitlib = bit or bit32
 local band = bitlib and bitlib.band
 local rshift = bitlib and bitlib.rshift
@@ -26,9 +28,10 @@ local tooltipVisibilityHooked = false
 local tooltipNPCAliveHooked = false
 local tooltipHealthBarHooked = false
 
-local npcTimeFormatter = CreateFromMixins and SecondsFormatterMixin and CreateFromMixins(SecondsFormatterMixin) or nil
-if npcTimeFormatter and npcTimeFormatter.Init and SecondsFormatter and SecondsFormatter.Abbreviation then
-    npcTimeFormatter:Init(1, SecondsFormatter.Abbreviation.Truncate)
+local RAID_PROGRESS_ENTRIES = {
+    {
+        key = "nerubar",
+        label = "灏奸瞾宸村皵鐜嬪",
 end
 
 local function GetConfig()
@@ -136,29 +139,30 @@ local function FormatAliveTime(seconds)
     return string.format("%ds", remainSeconds)
 end
 
-function Core:SetTooltipAnchor(tooltip, owner, fallbackAnchor)
-    if not tooltip then
-        return
+local function BuildDateText(month, day, year)
+    month = tonumber(month)
+    day = tonumber(day)
+    year = tonumber(year)
+    if not (month and day and year) then
+        return nil
     end
 
-    local config = GetConfig()
-    if not (config and config.enabled) then
-        tooltip:SetOwner(owner or UIParent, fallbackAnchor or "ANCHOR_RIGHT")
-        return
-    end
-
-    if AreTooltipsBlocked(config) then
-        tooltip:Hide()
-        return
-    end
-
-    if config.tooltipFollowCursor then
-        tooltip:SetOwner(owner or UIParent, "ANCHOR_CURSOR_RIGHT")
-    else
-        tooltip:SetOwner(owner or UIParent, fallbackAnchor or "ANCHOR_RIGHT")
-    end
+    return string.format("%04d-%02d-%02d", year, month, day)
 end
 
+local function GetAchievementStatus(achievementID, useComparison)
+    if type(achievementID) ~= "number" then
+        return false, nil
+    end
+
+    local getter = useComparison and GetComparisonAchievementInfo or GetAchievementInfo
+    if type(getter) ~= "function" then
+        return false, nil
+    end
+
+    local _, _, _, completed, month, day, year = getter(achievementID)
+    if completed then
+        return true, BuildDateText(month, day, year)
 function MouseTooltip:AppendNPCAliveTimeToTooltip(tooltip)
     local config = GetConfig()
     if not (config and config.enabled and config.showNPCAliveTime) then
@@ -221,6 +225,7 @@ function MouseTooltip:ApplyNPCTooltipHook()
 
     local function HookTooltipUnit(tooltip)
         MouseTooltip:AppendNPCAliveTimeToTooltip(tooltip)
+        MouseTooltip:AppendRaidProgressToTooltip(tooltip)
     end
 
     local tooltipDataProcessor = _G["TooltipDataProcessor"]
@@ -370,7 +375,13 @@ function MouseTooltip:OnPlayerLogin()
     self.eventFrame = self.eventFrame or CreateFrame("Frame")
     self.eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
     self.eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    self.eventFrame:SetScript("OnEvent", function()
+    self.eventFrame:RegisterEvent("INSPECT_ACHIEVEMENT_READY")
+    self.eventFrame:SetScript("OnEvent", function(_, event, ...)
+        if event == "INSPECT_ACHIEVEMENT_READY" then
+            MouseTooltip:HandleInspectAchievementReady(...)
+            return
+        end
+
         MouseTooltip:UpdateTooltipVisibility()
         MouseTooltip:ApplyTooltipHealthBarVisibility()
     end)
