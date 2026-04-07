@@ -97,6 +97,75 @@ local function AreTooltipsBlocked(config)
     return config.disableInCombat and InCombatLockdown and InCombatLockdown()
 end
 
+local function GetTooltipUnit(tooltip)
+    if not (tooltip and type(tooltip.GetUnit) == "function") then
+        return nil
+    end
+
+    local ok, _, unit = pcall(tooltip.GetUnit, tooltip)
+    if ok then
+        return unit
+    end
+end
+
+local function SafeUnitExists(unit)
+    if not unit then
+        return false
+    end
+
+    local ok, result = pcall(UnitExists, unit)
+    return ok and result or false
+end
+
+local function SafeUnitGUID(unit)
+    if not unit then
+        return nil
+    end
+
+    local ok, guid = pcall(UnitGUID, unit)
+    if ok then
+        return guid
+    end
+end
+
+local function SafeUnitIsDead(unit)
+    if not unit then
+        return false
+    end
+
+    local ok, result = pcall(UnitIsDead, unit)
+    return ok and result or false
+end
+
+local function SafeUnitIsPlayer(unit)
+    if not unit then
+        return false
+    end
+
+    local ok, result = pcall(UnitIsPlayer, unit)
+    return ok and result or false
+end
+
+local function SafeUnitIsUnit(unit, otherUnit)
+    if not (unit and otherUnit) then
+        return false
+    end
+
+    local ok, result = pcall(UnitIsUnit, unit, otherUnit)
+    return ok and result or false
+end
+
+local function SafeUnitName(unit)
+    if not unit then
+        return nil, nil
+    end
+
+    local ok, name, realm = pcall(UnitName, unit)
+    if ok then
+        return name, realm
+    end
+end
+
 local function AddColoredDoubleLine(tooltip, leftText, rightText, leftColor, rightColor, wrap)
     leftColor = leftColor or NORMAL_FONT_COLOR
     rightColor = rightColor or HIGHLIGHT_FONT_COLOR
@@ -320,8 +389,8 @@ function MouseTooltip:RefreshRaidProgressTooltip(guid)
         return
     end
 
-    local _, unit = tooltip:GetUnit()
-    if unit and UnitExists(unit) then
+    local unit = GetTooltipUnit(tooltip)
+    if SafeUnitExists(unit) then
         pcall(tooltip.SetUnit, tooltip, unit)
     end
 end
@@ -352,7 +421,7 @@ function MouseTooltip:RequestRaidProgressForUnit(unit, guid)
 
     local ok = pcall(SetAchievementComparisonUnit, unit)
     if not ok then
-        local name, realm = UnitName(unit)
+        local name, realm = SafeUnitName(unit)
         local fullName = name
         if name and realm and realm ~= "" then
             fullName = name .. "-" .. realm
@@ -379,12 +448,12 @@ function MouseTooltip:AppendRaidProgressToTooltip(tooltip)
         return
     end
 
-    local _, unit = tooltip:GetUnit()
-    if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then
+    local unit = GetTooltipUnit(tooltip)
+    if not SafeUnitExists(unit) or not SafeUnitIsPlayer(unit) then
         return
     end
 
-    local guid = UnitGUID(unit)
+    local guid = SafeUnitGUID(unit)
     if not guid then
         return
     end
@@ -392,7 +461,7 @@ function MouseTooltip:AppendRaidProgressToTooltip(tooltip)
     tooltip.YXSRaidProgressGUID = guid
 
     local snapshot
-    if UnitIsUnit(unit, "player") then
+    if SafeUnitIsUnit(unit, "player") then
         snapshot = BuildRaidProgressSnapshot(false)
     else
         if type(SetAchievementComparisonUnit) ~= "function" or type(GetComparisonStatistic) ~= "function" then
@@ -496,12 +565,12 @@ function MouseTooltip:AppendNPCAliveTimeToTooltip(tooltip)
         return
     end
 
-    local _, unit = tooltip:GetUnit()
-    if not unit or not UnitExists(unit) or UnitIsPlayer(unit) or UnitIsDead(unit) then
+    local unit = GetTooltipUnit(tooltip)
+    if not SafeUnitExists(unit) or SafeUnitIsPlayer(unit) or SafeUnitIsDead(unit) then
         return
     end
 
-    local guid = UnitGUID(unit)
+    local guid = SafeUnitGUID(unit)
     local info = DecodeNPCSpawnInfo(guid)
     if not info then
         return
