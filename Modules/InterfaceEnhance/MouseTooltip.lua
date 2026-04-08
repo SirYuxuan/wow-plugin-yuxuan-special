@@ -34,7 +34,7 @@ local L_HEROIC = "\232\139\177\233\155\132"
 local L_MYTHIC = "\229\143\178\232\175\151"
 local L_LFR = "\233\154\143\230\156\186"
 local L_NO_DATA = "\230\154\130\230\151\160\230\149\176\230\141\174"
-local L_RAID_RECORD_TITLE = "\229\155\162\230\156\172\229\142\134\229\143\178\230\156\128\233\171\152\231\186\170\229\189\149"
+local L_RAID_RECORD_TITLE = "\229\155\162\230\156\172\232\174\176\229\189\149"
 local L_RAID_RECORD_FAILED = "\230\154\130\230\151\182\230\151\160\230\179\149\232\175\187\229\143\150\232\175\165\231\142\169\229\174\182\231\154\132\229\142\134\229\143\178\229\155\162\230\156\172\231\186\170\229\189\149\227\128\130"
 local L_RAID_RECORD_LOADING = "\230\173\163\229\156\168\232\175\187\229\143\150\232\175\165\231\142\169\229\174\182\231\154\132\229\142\134\229\143\178\229\155\162\230\156\172\231\186\170\229\189\149\46\46\46"
 
@@ -46,7 +46,7 @@ local tooltipHealthBarHooked = false
 local RAID_PROGRESS_RAIDS = {
     {
         key = "voidspire",
-        ejID = 1308,
+        ejID = 1307,
         fallbackLabel = "The Voidspire",
         bosses = {
             { 61276, 61277, 61278, 61279 },
@@ -67,7 +67,7 @@ local RAID_PROGRESS_RAIDS = {
     },
     {
         key = "queldanas",
-        ejID = 1307,
+        ejID = 1308,
         fallbackLabel = "March on Quel'Danas",
         bosses = {
             { 61300, 61301, 61302, 61303 },
@@ -365,7 +365,7 @@ local function BuildRaidProgressStatusText(progress)
 
     local total = progress.totalBosses or 0
     return string.format(
-        "|cFFFFFFFF%s|r %d/%d  |cFF66CCFF%s|r %d/%d  |cFFFF8040%s|r %d/%d",
+        "|cFF9CA3AF%s|r |cFFFFFFFF%d/%d|r   |cFF66CCFF%s|r |cFFFFFFFF%d/%d|r   |cFFFF8040%s|r |cFFFFFFFF%d/%d|r",
         L_NORMAL,
         progress.normalKilled or 0,
         total,
@@ -476,7 +476,7 @@ function MouseTooltip:AppendRaidProgressToTooltip(tooltip)
             snapshot = cacheEntry.snapshot
         elseif cacheEntry and cacheEntry.state == "failed" then
             tooltip:AddLine(" ")
-            tooltip:AddLine(L_RAID_RECORD_TITLE, 1, 0.82, 0)
+            tooltip:AddLine(L_RAID_RECORD_TITLE, 0.35, 1.00, 0.72)
             tooltip:AddLine("|cFF888888" .. L_RAID_RECORD_FAILED .. "|r", 0.7, 0.7, 0.7)
             tooltip:Show()
             return
@@ -486,7 +486,7 @@ function MouseTooltip:AppendRaidProgressToTooltip(tooltip)
     end
 
     tooltip:AddLine(" ")
-    tooltip:AddLine(L_RAID_RECORD_TITLE, 1, 0.82, 0)
+    tooltip:AddLine(L_RAID_RECORD_TITLE, 0.35, 1.00, 0.72)
 
     if not snapshot then
         tooltip:AddLine("|cFF888888" .. L_RAID_RECORD_LOADING .. "|r", 0.7, 0.7, 0.7)
@@ -496,7 +496,14 @@ function MouseTooltip:AppendRaidProgressToTooltip(tooltip)
 
     for _, raid in ipairs(RAID_PROGRESS_RAIDS) do
         local progress = snapshot[raid.key]
-        AddColoredDoubleLine(tooltip, progress and progress.label or GetRaidLabel(raid), BuildRaidProgressStatusText(progress))
+        AddColoredDoubleLine(
+            tooltip,
+            "|cFFE5E7EB" .. (progress and progress.label or GetRaidLabel(raid)) .. "|r",
+            BuildRaidProgressStatusText(progress),
+            HIGHLIGHT_FONT_COLOR,
+            HIGHLIGHT_FONT_COLOR,
+            false
+        )
     end
 
     tooltip:Show()
