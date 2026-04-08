@@ -1230,12 +1230,39 @@ function Options:RenderGroupBody(parent, group, path, top)
                 self.selectedChildren[tabPath] = selectedKey
             end
 
+            self.tabOffsets = self.tabOffsets or {}
+            local tabPageSize = tonumber(group.tabPageSize) or #tabEntries
+            local tabOffset = self.tabOffsets[tabPath] or 1
+            tabPageSize = math.max(1, math.min(tabPageSize, #tabEntries))
+            tabOffset = math.max(1, math.min(tabOffset, math.max(1, #tabEntries - tabPageSize + 1)))
+
+            for index, entry in ipairs(tabEntries) do
+                if entry.key == selectedKey and (index < tabOffset or index >= tabOffset + tabPageSize) then
+                    tabOffset = math.max(1, math.min(index, math.max(1, #tabEntries - tabPageSize + 1)))
+                    break
+                end
+            end
+            self.tabOffsets[tabPath] = tabOffset
+
             local tabBar = CreateFrame("Frame", nil, parent)
             tabBar:SetPoint("TOPLEFT", 0, yOffset)
             tabBar:SetSize(GetParentContentWidth(self, parent), 28)
             local tabX = 0
+            local hasPagedTabs = #tabEntries > tabPageSize
 
-            for _, entry in ipairs(tabEntries) do
+            if hasPagedTabs then
+                local prevButton = UI.CreateButton(tabBar, "<", 28, 24)
+                prevButton:SetPoint("TOPLEFT", tabX, 0)
+                prevButton:SetEnabled(tabOffset > 1)
+                prevButton:SetScript("OnClick", function()
+                    self.tabOffsets[tabPath] = math.max(1, tabOffset - tabPageSize)
+                    self:Render()
+                end)
+                tabX = tabX + prevButton:GetWidth() + 6
+            end
+
+            for visibleIndex = tabOffset, math.min(#tabEntries, tabOffset + tabPageSize - 1) do
+                local entry = tabEntries[visibleIndex]
                 local entryKey = entry.key
                 local label = Private.ResolveText(entry.value.name, entry.key)
                 local button = UI.CreateTabButton(tabBar)
@@ -1258,6 +1285,16 @@ function Options:RenderGroupBody(parent, group, path, top)
                 end
 
                 tabX = tabX + button:GetWidth() + 6
+            end
+
+            if hasPagedTabs then
+                local nextButton = UI.CreateButton(tabBar, ">", 28, 24)
+                nextButton:SetPoint("TOPLEFT", tabX, 0)
+                nextButton:SetEnabled(tabOffset + tabPageSize <= #tabEntries)
+                nextButton:SetScript("OnClick", function()
+                    self.tabOffsets[tabPath] = math.min(math.max(1, #tabEntries - tabPageSize + 1), tabOffset + tabPageSize)
+                    self:Render()
+                end)
             end
 
             yOffset = yOffset - 34

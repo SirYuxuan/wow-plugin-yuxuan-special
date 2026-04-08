@@ -1456,6 +1456,7 @@ function NS.BuildInterfaceEnhanceOptions()
                 },
             },
             itemLevelPlanner = NS.BuildItemLevelPlannerOptions(),
+            bagItemOverlay = NS.BuildBagItemOverlayOptions(),
             specTalentBar = NS.BuildSpecTalentBarOptions(),
             questTools = NS.BuildQuestToolsOptions(),
             huntAssist = NS.BuildHuntAssistOptions(),

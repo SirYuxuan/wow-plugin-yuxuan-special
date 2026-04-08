@@ -401,6 +401,7 @@ function NS.BuildCurrencyDisplayOptions()
                 name = "货币类型",
                 order = 20,
                 childGroups = "tab",
+                tabPageSize = 6,
                 args = BuildCurrencyHeaderTabs(),
             },
             ordering = {

@@ -127,24 +127,34 @@ end
 local function BuildCharacterInfoOptions(interfaceEnhance)
     return {
         type = "group",
-        name = "角色信息",
+        name = "角色与物品",
         order = 30,
+        childGroups = "tab",
         args = {
-            characterPanel = {
+            equipmentTools = {
                 type = "group",
-                name = "角色面板",
+                name = "装备辅助",
                 order = 10,
                 childGroups = "tab",
                 args = {
                     itemLevelPlanner = interfaceEnhance.args.itemLevelPlanner,
+                    bagItemOverlay = interfaceEnhance.args.bagItemOverlay,
+                },
+            },
+            panelInfo = {
+                type = "group",
+                name = "面板信息",
+                order = 20,
+                childGroups = "tab",
+                args = {
                     specTalentBar = interfaceEnhance.args.specTalentBar,
                     attributeDisplay = interfaceEnhance.args.attributeDisplay,
                 },
             },
             resourceDisplay = {
                 type = "group",
-                name = "资源显示",
-                order = 20,
+                name = "货币资源",
+                order = 30,
                 args = interfaceEnhance.args.currencyDisplay.args,
             },
         },

@@ -28,6 +28,7 @@ Modules\InterfaceEnhance\UpdateLogData.lua
 Modules\InterfaceEnhance\UpdateLog.lua
 Modules\InterfaceEnhance\GameBar.lua
 Modules\InterfaceEnhance\ItemLevelPlanner.lua
+Modules\InterfaceEnhance\BagItemOverlay.lua
 Modules\InterfaceEnhance\MouseTooltip.lua
 Modules\InterfaceEnhance\PerformanceMonitor.lua
 Modules\InterfaceEnhance\QuickChat.lua
@@ -50,6 +51,7 @@ Options\GameBar.lua
 Options\General.lua
 Options\HuntAssist.lua
 Options\ItemLevelPlanner.lua
+Options\BagItemOverlay.lua
 Options\InterfaceEnhance.lua
 Options\Mage.lua
 Options\MapAssist.lua

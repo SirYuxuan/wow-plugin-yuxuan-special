@@ -265,6 +265,35 @@ NS.DEFAULTS = {
             customTargets = {},
             point = nil,
         },
+        bagItemOverlay = {
+            enabled = true,
+            showItemLevel = true,
+            showWarbound = true,
+            showBinding = true,
+            showEquipSlot = true,
+            fontPreset = "CHAT",
+            fontSize = 11,
+            colorMode = "FIXED",
+            fixedColor = { r = 1.00, g = 0.82, b = 0.20, a = 1.00 },
+            topOffsetX = 0,
+            topOffsetY = -1,
+            middleOffsetX = 0,
+            middleOffsetY = 0,
+            bottomOffsetX = 0,
+            bottomOffsetY = 1,
+            topFontPreset = "CHAT",
+            topFontSize = 11,
+            topColorMode = "ITEM_LEVEL",
+            topFixedColor = { r = 1.00, g = 0.82, b = 0.20, a = 1.00 },
+            middleFontPreset = "CHAT",
+            middleFontSize = 11,
+            middleColorMode = "FIXED",
+            middleFixedColor = { r = 1.00, g = 0.82, b = 0.20, a = 1.00 },
+            bottomFontPreset = "CHAT",
+            bottomFontSize = 11,
+            bottomColorMode = "FIXED",
+            bottomFixedColor = { r = 1.00, g = 0.82, b = 0.20, a = 1.00 },
+        },
         specTalentBar = {
             enabled = true,
             locked = true,
@@ -1217,6 +1246,12 @@ function Core:ResetItemLevelPlannerConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.itemLevelPlanner = CloneTable(NS.DEFAULTS.interfaceEnhance.itemLevelPlanner)
     return self.db.interfaceEnhance.itemLevelPlanner
+end
+
+function Core:ResetBagItemOverlayConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.bagItemOverlay = CloneTable(NS.DEFAULTS.interfaceEnhance.bagItemOverlay)
+    return self.db.interfaceEnhance.bagItemOverlay
 end
 
 function Core:ResetSpecTalentBarConfig()

@@ -78,6 +78,22 @@ local ROW_SPACING = 4
 local PANEL_PADDING = 16
 local DEFAULT_CHARACTER_BUTTON_OFFSET_X = 58
 local DEFAULT_CHARACTER_BUTTON_OFFSET_Y = -34
+local UPGRADE_TRACK_COLORS = {
+    explorer = { r = 0.70, g = 0.78, b = 0.86 },
+    adventurer = { r = 0.20, g = 1.00, b = 0.50 },
+    veteran = { r = 0.35, g = 1.00, b = 0.72 },
+    champion = { r = 0.35, g = 0.72, b = 1.00 },
+    hero = { r = 0.82, g = 0.45, b = 1.00 },
+    myth = { r = 1.00, g = 0.50, b = 0.20 },
+}
+local UPGRADE_TRACK_ALIASES = {
+    { key = "myth", names = { "神话", "史诗", "Myth" } },
+    { key = "hero", names = { "英雄", "Hero" } },
+    { key = "champion", names = { "勇士", "Champion" } },
+    { key = "veteran", names = { "老兵", "Veteran" } },
+    { key = "adventurer", names = { "冒险者", "Adventurer" } },
+    { key = "explorer", names = { "探索者", "Explorer" } },
+}
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "itemLevelPlanner")
@@ -184,6 +200,110 @@ local function GetSlotItemInfo(slotId)
 
     local _, _, _, equipLoc, icon = GetItemInfoInstant(link)
     return tonumber(itemLevel) or 0, link, equipLoc, icon
+end
+
+local upgradeScannerName = addonName .. "ItemLevelPlannerUpgradeScanner"
+
+local function GetUpgradeScannerTooltip()
+    if ItemLevelPlanner.upgradeScannerTooltip then
+        return ItemLevelPlanner.upgradeScannerTooltip
+    end
+
+    local tooltip = CreateFrame("GameTooltip", upgradeScannerName, UIParent, "GameTooltipTemplate")
+    tooltip:SetOwner(UIParent, "ANCHOR_NONE")
+    ItemLevelPlanner.upgradeScannerTooltip = tooltip
+    return tooltip
+end
+
+local function GetUpgradeTrackGain(currentRank, maxRank)
+    local gain = 0
+    for nextRank = currentRank + 1, maxRank do
+        if nextRank == 2 or nextRank == maxRank then
+            gain = gain + 4
+        else
+            gain = gain + 3
+        end
+    end
+    return gain
+end
+
+local function DetectUpgradeTrackName(text)
+    if type(text) ~= "string" then
+        return nil, nil
+    end
+
+    for _, track in ipairs(UPGRADE_TRACK_ALIASES) do
+        for _, name in ipairs(track.names) do
+            if text:find(name, 1, true) then
+                return name, track.key
+            end
+        end
+    end
+
+    local name = text:match("^%s*([^%d/]+)%s+%d+%s*/%s*%d+")
+    if type(name) == "string" then
+        name = name:gsub(".*[:：]", ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if name ~= "" and #name <= 18 then
+            return name, nil
+        end
+    end
+end
+
+local function GetItemUpgradeTrackInfo(itemLink)
+    if not itemLink then
+        return nil
+    end
+
+    local currentLevel
+    if C_Item and C_Item.GetDetailedItemLevelInfo then
+        currentLevel = C_Item.GetDetailedItemLevelInfo(itemLink)
+    elseif GetDetailedItemLevelInfo then
+        currentLevel = GetDetailedItemLevelInfo(itemLink)
+    end
+    currentLevel = tonumber(currentLevel)
+    if not currentLevel or currentLevel <= 0 then
+        return nil
+    end
+
+    local tooltip = GetUpgradeScannerTooltip()
+    tooltip:ClearLines()
+    local ok = pcall(tooltip.SetHyperlink, tooltip, itemLink)
+    if not ok then
+        return nil
+    end
+
+    for index = 2, tooltip:NumLines() do
+        local left = _G[upgradeScannerName .. "TextLeft" .. tostring(index)]
+        local text = left and left:GetText()
+        if type(text) == "string" then
+            local currentRank, maxRank = text:match("(%d+)%s*/%s*(%d+)")
+            currentRank = tonumber(currentRank)
+            maxRank = tonumber(maxRank)
+            if currentRank and maxRank and maxRank >= currentRank then
+                local trackName, trackKey = DetectUpgradeTrackName(text)
+                local color = UPGRADE_TRACK_COLORS[trackKey or ""]
+                return {
+                    name = trackName,
+                    key = trackKey,
+                    color = color,
+                    currentRank = currentRank,
+                    maxRank = maxRank,
+                    maxItemLevel = currentLevel + GetUpgradeTrackGain(currentRank, maxRank),
+                }
+            end
+        end
+    end
+
+    return nil
+end
+
+local function GetItemMaxUpgradeLevel(itemLink)
+    local track = GetItemUpgradeTrackInfo(itemLink)
+    return track and track.maxItemLevel or nil
+end
+
+function ItemLevelPlanner.GetItemUpgradeTrackInfo(itemLink)
+    return GetItemUpgradeTrackInfo(itemLink)
 end
 
 local function GetWeaponState()
@@ -370,13 +490,29 @@ function ItemLevelPlanner:RefreshRows()
         local target = tonumber(config.customTargets[slotKey])
 
         ApplyConfiguredFont(row.slotText, fontSize, "")
+        ApplyConfiguredFont(row.trackText, fontSize - 2, "OUTLINE")
         ApplyConfiguredFont(row.currentText, fontSize, "")
         ApplyConfiguredFont(row.editBox, fontSize, "OUTLINE")
+        if row.maxButton and row.maxButton.text then
+            ApplyConfiguredFont(row.maxButton.text, fontSize - 2, "OUTLINE")
+        end
 
         row.slotKey = slotKey
         row.icon:SetTexture(info and info.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
         row.slotText:SetText(string.format("%s -> %s", (info and info.slotName) or slotKey, TruncateText((info and info.itemName) or "未装备", 24)))
         row.currentText:SetText(string.format("%d", info and (info.itemLevel or 0) or 0))
+
+        local track = info and GetItemUpgradeTrackInfo(info.link)
+        if track and track.name then
+            row.trackText:SetText(string.format("%s %d/%d", track.name, track.currentRank or 0, track.maxRank or 0))
+            if track.color then
+                row.trackText:SetTextColor(track.color.r, track.color.g, track.color.b, 1)
+            else
+                row.trackText:SetTextColor(1.00, 0.82, 0.20, 1)
+            end
+        else
+            row.trackText:SetText("")
+        end
 
         if target and target > 0 then
             row.editBox:SetText(tostring(math.floor(target + 0.5)))
@@ -386,6 +522,17 @@ function ItemLevelPlanner:RefreshRows()
             row.editBox:SetText(info and tostring(info.itemLevel or 0) or "0")
             row.editBox:SetTextColor(1, 1, 1)
             row.clearButton:Hide()
+        end
+
+        if row.maxButton then
+            local maxLevel = info and GetItemMaxUpgradeLevel(info.link)
+            local canUpgrade = maxLevel and info and (info.itemLevel or 0) < maxLevel
+            row.maxButton:SetEnabled(canUpgrade and true or false)
+            if canUpgrade then
+                row.maxButton.text:SetTextColor(1.00, 0.82, 0.20, 1)
+            else
+                row.maxButton.text:SetTextColor(0.38, 0.40, 0.45, 1)
+            end
         end
     end
 end
@@ -453,6 +600,18 @@ function ItemLevelPlanner:SetOverride(slotKey, value)
     end
     if NS.Options and NS.Options.NotifyChanged then
         NS.Options:NotifyChanged()
+    end
+end
+
+function ItemLevelPlanner:SetOverrideToMax(slotKey)
+    if not self.snapshot then
+        self:RefreshEquipmentSnapshot()
+    end
+
+    local info = self.snapshot and self.snapshot[slotKey]
+    local target = info and GetItemMaxUpgradeLevel(info.link)
+    if target then
+        self:SetOverride(slotKey, target)
     end
 end
 
@@ -602,21 +761,21 @@ function ItemLevelPlanner:CreatePanel()
 
         row.slotText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         row.slotText:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
-        row.slotText:SetPoint("RIGHT", row, "RIGHT", -150, 0)
+        row.slotText:SetPoint("RIGHT", row, "RIGHT", -214, 0)
         row.slotText:SetJustifyH("LEFT")
+
+        row.trackText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        row.trackText:SetWidth(58)
+        row.trackText:SetPoint("RIGHT", row, "RIGHT", -150, 0)
+        row.trackText:SetJustifyH("RIGHT")
 
         row.currentText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         row.currentText:SetPoint("RIGHT", row, "RIGHT", -112, 0)
         row.currentText:SetTextColor(0.82, 0.86, 0.92, 1)
 
-        row.arrowText = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        row.arrowText:SetPoint("RIGHT", row.currentText, "LEFT", -20, 0)
-        row.arrowText:SetText("→")
-        row.arrowText:SetTextColor(0.45, 0.55, 0.68, 1)
-
         row.editBox = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
         row.editBox:SetSize(60, 18)
-        row.editBox:SetPoint("RIGHT", row, "RIGHT", -22, 0)
+        row.editBox:SetPoint("RIGHT", row, "RIGHT", -42, 0)
         row.editBox:SetAutoFocus(false)
         row.editBox:SetNumeric(true)
         row.editBox:SetMaxLetters(4)
@@ -631,7 +790,7 @@ function ItemLevelPlanner:CreatePanel()
 
         row.clearButton = CreateFrame("Button", nil, row)
         row.clearButton:SetSize(14, 14)
-        row.clearButton:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+        row.clearButton:SetPoint("RIGHT", row, "RIGHT", -4, 0)
         row.clearButton.text = row.clearButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         row.clearButton.text:SetPoint("CENTER")
         row.clearButton.text:SetText("×")
@@ -639,10 +798,47 @@ function ItemLevelPlanner:CreatePanel()
             ItemLevelPlanner:SetOverride(row.slotKey, nil)
         end)
 
+        row.maxButton = CreateFrame("Button", nil, row, "BackdropTemplate")
+        row.maxButton:SetSize(16, 16)
+        row.maxButton:SetPoint("RIGHT", row, "RIGHT", -24, 0)
+        row.maxButton:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            edgeSize = 1,
+        })
+        row.maxButton:SetBackdropColor(0.10, 0.14, 0.20, 1)
+        row.maxButton:SetBackdropBorderColor(0.95, 0.76, 0.18, 0.60)
+        row.maxButton.text = row.maxButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        row.maxButton.text:SetPoint("CENTER")
+        row.maxButton.text:SetText("M")
+        row.maxButton:SetScript("OnEnter", function(selfButton)
+            GameTooltip:SetOwner(selfButton, "ANCHOR_RIGHT")
+            GameTooltip:AddLine("Max", 1, 0.82, 0.18)
+            GameTooltip:AddLine("Set this slot to the maximum item level of its current upgrade track.", 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        row.maxButton:SetScript("OnLeave", GameTooltip_Hide)
+        row.maxButton:SetScript("OnClick", function()
+            ItemLevelPlanner:SetOverrideToMax(row.slotKey)
+        end)
+
         row:SetScript("OnClick", function()
             row.editBox:SetFocus()
             row.editBox:HighlightText()
         end)
+
+        local function ShowRowItemTooltip(selfRow)
+            local slotKeyForTooltip = selfRow.slotKey or row.slotKey
+            local slotInfo = SLOT_INFO[slotKeyForTooltip]
+            if not slotInfo or not GetInventoryItemLink("player", slotInfo.slotId) then
+                return
+            end
+            GameTooltip:SetOwner(selfRow, "ANCHOR_RIGHT")
+            GameTooltip:SetInventoryItem("player", slotInfo.slotId)
+            GameTooltip:Show()
+        end
+        row:SetScript("OnEnter", ShowRowItemTooltip)
+        row:SetScript("OnLeave", GameTooltip_Hide)
 
         frame.rows[index] = row
     end

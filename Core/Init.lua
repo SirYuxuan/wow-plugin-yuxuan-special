@@ -296,6 +296,11 @@ function Core:OnPlayerLogin()
         performanceMonitor:OnPlayerLogin()
     end
 
+    local bagItemOverlay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.BagItemOverlay
+    if bagItemOverlay and bagItemOverlay.OnPlayerLogin then
+        bagItemOverlay:OnPlayerLogin()
+    end
+
     local eventTracker = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EventTracker
     if eventTracker and eventTracker.OnPlayerLogin then
         eventTracker:OnPlayerLogin()
