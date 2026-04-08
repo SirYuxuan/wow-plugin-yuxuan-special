@@ -16,8 +16,6 @@ local floor, format, pairs, ipairs, type = floor, format, pairs, ipairs, type
 local GetServerTime = GetServerTime
 local GetCurrentRegion = GetCurrentRegion
 local C_QuestLog_IsQuestFlaggedCompleted = C_QuestLog.IsQuestFlaggedCompleted
-local C_QuestLog_IsOnQuest = C_QuestLog.IsOnQuest
-local C_QuestLog_GetTitleForQuestID = C_QuestLog.GetTitleForQuestID
 local C_Map_GetMapInfo = C_Map.GetMapInfo
 
 -- 格式化秒数为 HH:MM:SS 或 MM:SS

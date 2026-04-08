@@ -163,13 +163,6 @@ local function FormatMemoryUsage(kb)
     return string.format("%.0f KB", kb)
 end
 
-local function GetPerformanceSummaryText()
-    local fps = math.floor((GetFramerate and GetFramerate() or 0) + 0.5)
-    local _, _, home, world = GetNetStats()
-    local latency = math.max(tonumber(world) or 0, tonumber(home) or 0)
-    return string.format("%d FPS  %d MS", fps, latency)
-end
-
 local function GetAddOnInfoCompat(index)
     if C_AddOns and C_AddOns.GetAddOnInfo then
         local info = C_AddOns.GetAddOnInfo(index)
@@ -791,15 +784,6 @@ local function BuildHearthstoneMacroForAction(action)
     return "/use item:" .. tostring(action)
 end
 
-local function RunMacroTextCompat(text)
-    local runMacroText = rawget(_G, "RunMacroText")
-    if runMacroText and text and text ~= "" then
-        runMacroText(text)
-        return true
-    end
-    return false
-end
-
 local function BuildHearthstoneMacroForSide(button, side)
     local action = ResolveConfiguredHearthstoneAction(button, side)
     return BuildHearthstoneMacroForAction(action)
@@ -808,28 +792,6 @@ end
 local function GetDefaultHearthstoneAction()
     local list = GetAvailableHearthstones()
     return list[1], #list
-end
-
-local function GetRandomHearthstoneAction(button)
-    local list = GetAvailableHearthstones()
-    if #list == 0 then
-        return nil, 0
-    end
-    if #list == 1 then
-        button._randomHearthstoneAction = list[1]
-        return list[1], 1
-    end
-    local current = button._randomHearthstoneAction
-    local choice = list[math.random(1, #list)]
-    if current and #list > 1 then
-        local safety = 0
-        while choice == current and safety < 8 do
-            choice = list[math.random(1, #list)]
-            safety = safety + 1
-        end
-    end
-    button._randomHearthstoneAction = choice
-    return choice, #list
 end
 
 local function GetActionDisplayName(action)
@@ -1515,7 +1477,6 @@ local middlePanel -- 中间时间面板
 local leftButtons        = {}
 local rightButtons       = {}
 local timeTicker
-local infoTicker
 local hearthstoneButtons = {}
 local gameBarEventFrame
 local playerHouseList

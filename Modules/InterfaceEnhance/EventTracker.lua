@@ -12,11 +12,10 @@ NS.Modules.InterfaceEnhance.EventTracker = EventTracker
 -- 挂载在世界地图下方，追踪至暗之夜/剧团演出/周常等事件状态
 --------------------------------------------------------------------------------
 
-local floor, format, pairs, ipairs, type = floor, format, pairs, ipairs, type
+local floor, format, pairs, ipairs = floor, format, pairs, ipairs
 local CreateFrame = CreateFrame
 local GetServerTime = GetServerTime
 local C_Timer = C_Timer
-local C_QuestLog = C_QuestLog
 
 local TRACKER_WIDTH = 220
 local TRACKER_HEIGHT = 28
@@ -559,7 +558,6 @@ end
 function EventTracker:ApplyEventTrackerFonts()
     local cfg = ETcfg()
     local size = cfg.fontSize or 12
-    local outline = cfg.fontOutline and "OUTLINE" or ""
 
     for _, tracker in pairs(trackerPool) do
         if tracker.nameText then

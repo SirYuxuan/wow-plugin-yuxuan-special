@@ -1,4 +1,4 @@
-﻿local _, NS = ...
+local _, NS = ...
 local Core = NS.Core
 
 local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
@@ -116,21 +116,6 @@ local function NormalizeAuraInstanceID(value)
         return value
     end
     return nil
-end
-
-local function GetSpellIconTexture(spellID)
-    if not (C_Spell and C_Spell.GetSpellInfo and spellID) then
-        return nil
-    end
-
-    local spellInfo = C_Spell.GetSpellInfo(spellID)
-    return spellInfo and spellInfo.iconID or nil
-end
-
-local function GetDefaultIconTexture()
-    return GetSpellIconTexture(TRACKED_SPELL_ID)
-        or GetSpellIconTexture(FALLBACK_ICON_SPELL_ID)
-        or 135848
 end
 
 -- =========================================================
@@ -403,24 +388,6 @@ local function FeedArcDetectors(barFrame, secretValue, maxVal)
     end
 end
 
-local function GetExactCount(barFrame, maxVal)
-    if not barFrame._arcDetectors then
-        return 0
-    end
-
-    local count = 0
-    for index = 1, maxVal do
-        local detector = barFrame._arcDetectors[index]
-        local texture = detector and detector:GetStatusBarTexture()
-        if texture and texture:IsShown() then
-            count = index
-        else
-            break
-        end
-    end
-    return count
-end
-
 local function ResetArcDetectors(barFrame, maxVal)
     if not barFrame or not barFrame._arcDetectors then
         return
@@ -432,34 +399,6 @@ local function ResetArcDetectors(barFrame, maxVal)
             detector:SetValue(0)
         end
     end
-end
-
-local function CreateSegmentBorder(holder)
-    local borderColor = { 0, 0, 0, 0.95 }
-
-    local top = holder:CreateTexture(nil, "OVERLAY")
-    top:SetColorTexture(unpack(borderColor))
-    top:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, 0)
-    top:SetPoint("TOPRIGHT", holder, "TOPRIGHT", 0, 0)
-    top:SetHeight(1)
-
-    local bottom = holder:CreateTexture(nil, "OVERLAY")
-    bottom:SetColorTexture(unpack(borderColor))
-    bottom:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", 0, 0)
-    bottom:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", 0, 0)
-    bottom:SetHeight(1)
-
-    local left = holder:CreateTexture(nil, "OVERLAY")
-    left:SetColorTexture(unpack(borderColor))
-    left:SetPoint("TOPLEFT", holder, "TOPLEFT", 0, 0)
-    left:SetPoint("BOTTOMLEFT", holder, "BOTTOMLEFT", 0, 0)
-    left:SetWidth(1)
-
-    local right = holder:CreateTexture(nil, "OVERLAY")
-    right:SetColorTexture(unpack(borderColor))
-    right:SetPoint("TOPRIGHT", holder, "TOPRIGHT", 0, 0)
-    right:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", 0, 0)
-    right:SetWidth(1)
 end
 
 -- =========================================================

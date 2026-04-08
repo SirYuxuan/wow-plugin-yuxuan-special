@@ -19,6 +19,7 @@ local TOOLTIP_FRAME_NAMES = {
 local NPC_TIME_FORMAT = "%H:%M, %d.%m"
 local RAID_PROGRESS_REQUEST_COOLDOWN = 15
 local RAID_PROGRESS_CACHE_TTL = 600
+local RAID_PROGRESS_CACHE_MAX_ENTRIES = 60
 local bitlib = bit or bit32
 local band = bitlib and bitlib.band
 local rshift = bitlib and bitlib.rshift
@@ -42,6 +43,8 @@ local globalTooltipHooked = false
 local tooltipVisibilityHooked = false
 local tooltipNPCAliveHooked = false
 local tooltipHealthBarHooked = false
+local raidLabelCache = {}
+local statisticDifficultyCache = {}
 
 local RAID_PROGRESS_RAIDS = {
     {
@@ -256,9 +259,14 @@ local function FormatAliveTime(seconds)
 end
 
 local function GetRaidLabel(raid)
+    if raidLabelCache[raid.key] then
+        return raidLabelCache[raid.key]
+    end
+
     if type(EJ_GetInstanceInfo) == "function" and raid.ejID then
         local name = EJ_GetInstanceInfo(raid.ejID)
         if name and name ~= "" then
+            raidLabelCache[raid.key] = name
             return name
         end
     end
@@ -267,37 +275,47 @@ local function GetRaidLabel(raid)
 end
 
 local function DetectStatisticDifficulty(statID, index)
+    if type(statID) == "number" and statisticDifficultyCache[statID] ~= nil then
+        return statisticDifficultyCache[statID] or nil
+    end
+
+    local difficulty
     if type(GetAchievementInfo) == "function" and type(statID) == "number" then
         local _, statisticName = GetAchievementInfo(statID)
         if type(statisticName) == "string" then
             local lowerName = string.lower(statisticName)
             if string.find(lowerName, "mythic", 1, true) or string.find(statisticName, L_MYTHIC, 1, true) then
-                return "mythic"
+                difficulty = "mythic"
             end
-            if string.find(lowerName, "heroic", 1, true) or string.find(statisticName, L_HEROIC, 1, true) then
-                return "heroic"
+            if not difficulty and (string.find(lowerName, "heroic", 1, true) or string.find(statisticName, L_HEROIC, 1, true)) then
+                difficulty = "heroic"
             end
-            if string.find(lowerName, "normal", 1, true) or string.find(statisticName, L_NORMAL, 1, true) then
-                return "normal"
+            if not difficulty and (string.find(lowerName, "normal", 1, true) or string.find(statisticName, L_NORMAL, 1, true)) then
+                difficulty = "normal"
             end
-            if string.find(lowerName, "raid finder", 1, true) or string.find(statisticName, L_LFR, 1, true) then
-                return "lfr"
+            if not difficulty and (string.find(lowerName, "raid finder", 1, true) or string.find(statisticName, L_LFR, 1, true)) then
+                difficulty = "lfr"
             end
         end
     end
 
-    if index == 4 then
-        return "mythic"
+    if not difficulty then
+        if index == 4 then
+            difficulty = "mythic"
+        elseif index == 3 then
+            difficulty = "heroic"
+        elseif index == 2 then
+            difficulty = "normal"
+        elseif index == 1 then
+            difficulty = "lfr"
+        end
     end
-    if index == 3 then
-        return "heroic"
+
+    if type(statID) == "number" then
+        statisticDifficultyCache[statID] = difficulty or false
     end
-    if index == 2 then
-        return "normal"
-    end
-    if index == 1 then
-        return "lfr"
-    end
+
+    return difficulty
 end
 
 local function GetStatisticValue(statID, useComparison)
@@ -358,6 +376,34 @@ local function BuildRaidProgressSnapshot(useComparison)
     return snapshot
 end
 
+local function PruneRaidProgressCache(cache, now, keepGUID)
+    if type(cache) ~= "table" then
+        return
+    end
+
+    local count = 0
+    local oldestGUID
+    local oldestTime = math.huge
+
+    for guid, entry in pairs(cache) do
+        local expired = entry.updatedAt and (now - entry.updatedAt) > RAID_PROGRESS_CACHE_TTL
+        if guid ~= keepGUID and entry.state ~= "pending" and expired then
+            cache[guid] = nil
+        else
+            count = count + 1
+            local entryTime = entry.updatedAt or entry.requestedAt or now
+            if guid ~= keepGUID and entry.state ~= "pending" and entryTime < oldestTime then
+                oldestGUID = guid
+                oldestTime = entryTime
+            end
+        end
+    end
+
+    if count > RAID_PROGRESS_CACHE_MAX_ENTRIES and oldestGUID then
+        cache[oldestGUID] = nil
+    end
+end
+
 local function BuildRaidProgressStatusText(progress)
     if not progress then
         return "|cFF888888" .. L_NO_DATA .. "|r"
@@ -402,6 +448,11 @@ function MouseTooltip:RequestRaidProgressForUnit(unit, guid)
 
     local cacheEntry = self.raidProgressCache and self.raidProgressCache[guid]
     local now = GetTime and GetTime() or 0
+    if self.raidProgressCache then
+        PruneRaidProgressCache(self.raidProgressCache, now, guid)
+        cacheEntry = self.raidProgressCache[guid]
+    end
+
     if cacheEntry and cacheEntry.state == "pending" and (now - (cacheEntry.requestedAt or 0)) < RAID_PROGRESS_REQUEST_COOLDOWN then
         return
     end
@@ -413,7 +464,6 @@ function MouseTooltip:RequestRaidProgressForUnit(unit, guid)
     }
 
     self.pendingRaidProgressGUID = guid
-    self.pendingRaidProgressRequestedAt = now
 
     if type(ClearAchievementComparisonUnit) == "function" then
         pcall(ClearAchievementComparisonUnit)
@@ -434,7 +484,6 @@ function MouseTooltip:RequestRaidProgressForUnit(unit, guid)
     if not ok then
         self.raidProgressCache[guid].state = "failed"
         self.pendingRaidProgressGUID = nil
-        self.pendingRaidProgressRequestedAt = nil
     end
 end
 
@@ -471,6 +520,8 @@ function MouseTooltip:AppendRaidProgressToTooltip(tooltip)
         self.raidProgressCache = self.raidProgressCache or {}
         local cacheEntry = self.raidProgressCache[guid]
         local now = GetTime and GetTime() or 0
+        PruneRaidProgressCache(self.raidProgressCache, now, guid)
+        cacheEntry = self.raidProgressCache[guid]
 
         if cacheEntry and cacheEntry.state == "ready" and (now - (cacheEntry.updatedAt or 0)) <= RAID_PROGRESS_CACHE_TTL then
             snapshot = cacheEntry.snapshot
@@ -522,7 +573,6 @@ function MouseTooltip:HandleInspectAchievementReady(guid)
     }
 
     self.pendingRaidProgressGUID = nil
-    self.pendingRaidProgressRequestedAt = nil
 
     if type(ClearAchievementComparisonUnit) == "function" then
         pcall(ClearAchievementComparisonUnit)

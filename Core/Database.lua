@@ -732,7 +732,10 @@ local function DeserializeProfile(text)
 end
 
 local function GetCharacterKey()
-    local name, realm = UnitFullName and UnitFullName("player")
+    local name, realm
+    if UnitFullName then
+        name, realm = UnitFullName("player")
+    end
     name = name or UnitName("player") or "Unknown"
     realm = realm or GetRealmName() or "Unknown"
     realm = tostring(realm):gsub("%s+", "")

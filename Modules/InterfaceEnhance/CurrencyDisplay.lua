@@ -1,4 +1,4 @@
-﻿---@diagnostic disable: undefined-global, undefined-field, inject-field
+---@diagnostic disable: undefined-global, undefined-field, inject-field
 local _, NS = ...
 local Core = NS.Core
 

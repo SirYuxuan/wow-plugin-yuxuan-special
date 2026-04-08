@@ -300,7 +300,7 @@ function ItemLevelPlanner:ComputeItemPreview(itemLink)
         return nil
     end
 
-    local snapshot, total, weaponState = BuildCurrentSnapshot()
+    local snapshot, _, weaponState = BuildCurrentSnapshot()
     local bestResult
 
     for _, slotKey in ipairs(slotKeys) do
