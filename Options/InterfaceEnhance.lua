@@ -740,9 +740,17 @@ local function BuildMouseTooltipArgs()
                         RefreshMouseTooltip(true)
                     end,
                 },
+            },
+        },
+        stateRowBottom = {
+            type = "group",
+            order = 11,
+            name = "",
+            layout = "row",
+            args = {
                 disableInCombat = {
                     type = "toggle",
-                    order = 3,
+                    order = 1,
                     width = 1.0,
                     name = "战斗中禁用鼠标提示",
                     disabled = function()
@@ -759,7 +767,7 @@ local function BuildMouseTooltipArgs()
                 },
                 tooltipFollowCursor = {
                     type = "toggle",
-                    order = 4,
+                    order = 2,
                     width = 1.0,
                     name = "提示跟随鼠标",
                     disabled = function()
@@ -1117,6 +1125,28 @@ local function BuildQuickChatBasicArgs()
                         local text = TrimText(value)
                         GetQuickChatConfig().worldChannelName = text ~= "" and text or "大脚世界频道"
                         RefreshQuickChat(false)
+                    end,
+                },
+                autoJoinWorldChannel = {
+                    type = "toggle",
+                    order = 2,
+                    width = 0.9,
+                    name = "自动加入",
+                    disabled = function()
+                        return not GetQuickChatConfig().enabled
+                    end,
+                    get = function()
+                        return GetQuickChatConfig().autoJoinWorldChannel
+                    end,
+                    set = function(_, value)
+                        local config = GetQuickChatConfig()
+                        config.autoJoinWorldChannel = value and true or false
+                        RefreshQuickChat(false)
+
+                        local quickChat = GetQuickChatModule()
+                        if config.enabled and config.autoJoinWorldChannel and quickChat and quickChat.ScheduleAutoJoinWorldChannel then
+                            quickChat:ScheduleAutoJoinWorldChannel(0.2)
+                        end
                     end,
                 },
             },

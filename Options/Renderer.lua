@@ -28,6 +28,24 @@ local function CreateDisabledPlaceholderGroup(message)
     }
 end
 
+local function NormalizeColorPayload(valueR, valueG, valueB, valueA)
+    if type(valueR) == "table" then
+        local payload = valueR
+        local alpha = payload.a
+        if alpha == nil then
+            alpha = payload.alpha
+        end
+        if alpha == nil and payload.opacity ~= nil then
+            alpha = 1 - (tonumber(payload.opacity) or 0)
+        end
+
+        return tonumber(payload.r or payload.red or payload[1]), tonumber(payload.g or payload.green or payload[2]),
+            tonumber(payload.b or payload.blue or payload[3]), tonumber(alpha or payload[4])
+    end
+
+    return tonumber(valueR), tonumber(valueG), tonumber(valueB), tonumber(valueA)
+end
+
 --[[
 这个文件负责把 options table 真正画到屏幕上。
 
@@ -103,6 +121,181 @@ function Options:RenderDescription(parent, option, top, isHeader)
     end
 
     return text:GetStringHeight() + (isHeader and 8 or 4)
+end
+
+function Options:RenderLanding(parent, option, top)
+    local width = GetParentContentWidth(self, parent)
+    local yOffset = top
+
+    local hero = self:CreateCard(parent, yOffset, 188)
+    hero:SetBackdropColor(Private.UnpackColor(Private.MixColor(Colors.panel, Colors.accent, 0.18, 0.98)))
+    hero:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
+    UI.CreateShadow(hero)
+
+    local heroGlow = hero:CreateTexture(nil, "BACKGROUND")
+    heroGlow:SetPoint("TOPLEFT", 1, -1)
+    heroGlow:SetPoint("BOTTOMRIGHT", -1, 1)
+    if heroGlow.SetGradientAlpha then
+        local accent = Colors.accent
+        heroGlow:SetTexture("Interface\\Buttons\\WHITE8x8")
+        heroGlow:SetGradientAlpha(
+            "HORIZONTAL",
+            accent[1] or 1,
+            accent[2] or 1,
+            accent[3] or 1,
+            0.28,
+            0.08,
+            0.10,
+            0.14,
+            0.04
+        )
+    else
+        heroGlow:SetColorTexture(Private.UnpackColor(Private.MixColor(Colors.accentBg, Colors.bg, 0.3, 0.28)))
+    end
+
+    local heroAccent = hero:CreateTexture(nil, "ARTWORK")
+    heroAccent:SetPoint("TOPLEFT", 0, 0)
+    heroAccent:SetPoint("BOTTOMLEFT", 0, 0)
+    heroAccent:SetWidth(6)
+    heroAccent:SetColorTexture(Private.UnpackColor(Colors.borderActive))
+
+    local title = UI.CreateText(hero, 28, "OUTLINE")
+    title:SetPoint("TOPLEFT", 18, -18)
+    title:SetPoint("TOPRIGHT", -150, -18)
+    title:SetText(Private.ResolveText(option.title, "雨轩工具箱"))
+
+    local versionPill = CreateFrame("Frame", nil, hero, "BackdropTemplate")
+    versionPill:SetPoint("TOPRIGHT", -18, -18)
+    versionPill:SetSize(88, 24)
+    UI.CreateBackdrop(versionPill, Private.MixColor(Colors.accentBg, Colors.panel, 0.25, 0.95), Colors.borderActive)
+
+    local versionLabel = UI.CreateText(versionPill, 11, "OUTLINE")
+    versionLabel:SetPoint("CENTER")
+    versionLabel:SetJustifyH("CENTER")
+    versionLabel:SetJustifyV("MIDDLE")
+    versionLabel:SetText(Private.ResolveText(option.badge, "v" .. tostring(NS.VERSION or "")))
+    versionLabel:SetTextColor(Private.UnpackColor(Colors.accent))
+
+    local summary = UI.CreateText(hero, 12)
+    summary:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    summary:SetPoint("TOPRIGHT", -18, 0)
+    summary:SetText(Private.ResolveText(option.summary))
+    summary:SetTextColor(Private.UnpackColor(Colors.text))
+
+    local highlightTop = -96
+    for index, item in ipairs(option.highlights or {}) do
+        local cardWidth = math.floor((width - 36 - 12) / 2)
+        local card = CreateFrame("Frame", nil, hero, "BackdropTemplate")
+        local left = 18 + ((index - 1) % 2) * (cardWidth + 12)
+        local row = math.floor((index - 1) / 2)
+        card:SetPoint("TOPLEFT", left, highlightTop - row * 38)
+        card:SetSize(cardWidth, 30)
+        UI.CreateBackdrop(card, Private.MixColor(Colors.cardSoft, Colors.accentBg, 0.18, 0.92), Colors.borderSoft or Colors.border)
+
+        local bullet = card:CreateTexture(nil, "ARTWORK")
+        bullet:SetPoint("LEFT", 10, 0)
+        bullet:SetSize(6, 6)
+        bullet:SetColorTexture(Private.UnpackColor(Colors.accent))
+
+        local text = UI.CreateText(card, 11)
+        text:SetPoint("LEFT", bullet, "RIGHT", 8, 0)
+        text:SetPoint("RIGHT", -10, 0)
+        text:SetJustifyV("MIDDLE")
+        text:SetText(tostring(item))
+    end
+
+    yOffset = yOffset - 202
+
+    local shortcutsTitle = UI.CreateText(parent, 15, "OUTLINE")
+    shortcutsTitle:SetPoint("TOPLEFT", 0, yOffset)
+    shortcutsTitle:SetText(Private.ResolveText(option.shortcutsTitle, "快捷入口"))
+    shortcutsTitle:SetTextColor(Private.UnpackColor(Colors.accent))
+    yOffset = yOffset - 28
+
+    local columns = 2
+    local gap = 12
+    local cardWidth = math.floor((width - gap) / columns)
+    local cardHeight = 118
+    local shortcuts = option.shortcuts or {}
+
+    for index, shortcut in ipairs(shortcuts) do
+        local column = (index - 1) % columns
+        local row = math.floor((index - 1) / columns)
+        local card = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+        card:SetPoint("TOPLEFT", column * (cardWidth + gap), yOffset - row * (cardHeight + gap))
+        card:SetSize(cardWidth, cardHeight)
+        UI.CreateBackdrop(
+            card,
+            Private.MixColor(Colors.cardSoft, Colors.accentBg, 0.08 + ((index % 3) * 0.04), 0.95),
+            index % 2 == 0 and (Colors.borderSoft or Colors.border) or Colors.borderActive
+        )
+
+        local stripe = card:CreateTexture(nil, "ARTWORK")
+        stripe:SetPoint("TOPLEFT", 0, 0)
+        stripe:SetPoint("TOPRIGHT", 0, 0)
+        stripe:SetHeight(3)
+        stripe:SetColorTexture(
+            Private.UnpackColor(index % 2 == 0 and Private.MixColor(Colors.accent, Colors.text, 0.24, 1) or Colors.accent)
+        )
+
+        local cardTitle = UI.CreateText(card, 14, "OUTLINE")
+        cardTitle:SetPoint("TOPLEFT", 14, -14)
+        cardTitle:SetPoint("TOPRIGHT", -14, -14)
+        cardTitle:SetText(tostring(shortcut.title or ""))
+        cardTitle:SetTextColor(Private.UnpackColor(Colors.text))
+
+        local cardDesc = UI.CreateText(card, 11)
+        cardDesc:SetPoint("TOPLEFT", cardTitle, "BOTTOMLEFT", 0, -8)
+        cardDesc:SetPoint("TOPRIGHT", -14, 0)
+        cardDesc:SetText(tostring(shortcut.desc or ""))
+        cardDesc:SetTextColor(Private.UnpackColor(Colors.muted))
+
+        local button = UI.CreateButton(card, tostring(shortcut.buttonText or "进入"), 110, 28, "accent")
+        button:SetPoint("BOTTOMLEFT", 14, 14)
+        button:SetScript("OnClick", function()
+            if type(shortcut.action) == "function" then
+                shortcut.action()
+                return
+            end
+
+            if type(shortcut.path) == "table" and NS.Options and NS.Options.Open then
+                NS.Options:Open(unpack(shortcut.path))
+            end
+        end)
+
+        if shortcut.meta and shortcut.meta ~= "" then
+            local meta = UI.CreateText(card, 11)
+            meta:SetPoint("RIGHT", -14, 0)
+            meta:SetPoint("BOTTOM", button, "TOP", 0, 10)
+            meta:SetJustifyH("RIGHT")
+            meta:SetText(tostring(shortcut.meta))
+            meta:SetTextColor(Private.UnpackColor(Colors.accent))
+        end
+    end
+
+    local shortcutRows = math.max(1, math.ceil(#shortcuts / columns))
+    yOffset = yOffset - (shortcutRows * (cardHeight + gap)) - 6
+
+    local updateCard = self:CreateCard(parent, yOffset, 144)
+    updateCard:SetBackdropColor(Private.UnpackColor(Private.MixColor(Colors.cardSoft, Colors.accentBg, 0.14, 0.96)))
+    updateCard:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
+
+    local updateTitle = UI.CreateText(updateCard, 14, "OUTLINE")
+    updateTitle:SetPoint("TOPLEFT", 14, -14)
+    updateTitle:SetPoint("TOPRIGHT", -14, -14)
+    updateTitle:SetText(Private.ResolveText(option.newsTitle, "本次更新"))
+    updateTitle:SetTextColor(Private.UnpackColor(Colors.accent))
+
+    local newsTop = -42
+    for index, item in ipairs(option.newsItems or {}) do
+        local bullet = UI.CreateText(updateCard, 11)
+        bullet:SetPoint("TOPLEFT", 14, newsTop - (index - 1) * 24)
+        bullet:SetPoint("TOPRIGHT", -14, newsTop - (index - 1) * 24)
+        bullet:SetText("• " .. tostring(item))
+        bullet:SetTextColor(Private.UnpackColor(Colors.text))
+    end
+
+    return top - (yOffset - 156)
 end
 
 function Options:RenderToggle(parent, option, top)
@@ -589,8 +782,30 @@ function Options:OpenColorPicker(option)
     a = tonumber(a) or 1
 
     local function applyColor(nr, ng, nb, na)
-        Private.SetOptionValue(option, nr or r, ng or g, nb or b, na or a)
+        nr, ng, nb, na = NormalizeColorPayload(nr, ng, nb, na)
+        Private.SetOptionValue(
+            option,
+            nr or r,
+            ng or g,
+            nb or b,
+            option.hasAlpha and (na or a) or 1
+        )
         self:NotifyChanged()
+    end
+
+    local function readPickerColor()
+        local nr, ng, nb = ColorPickerFrame:GetColorRGB()
+        local na = a
+        if option.hasAlpha then
+            if ColorPickerFrame.GetColorAlpha then
+                na = tonumber(ColorPickerFrame:GetColorAlpha()) or na
+            elseif OpacitySliderFrame and OpacitySliderFrame.GetValue then
+                na = 1 - (tonumber(OpacitySliderFrame:GetValue()) or 0)
+            end
+        else
+            na = 1
+        end
+        return nr, ng, nb, na
     end
 
     ColorPickerFrame:Hide()
@@ -604,17 +819,14 @@ function Options:OpenColorPicker(option)
             opacity = 1 - a,
             hasOpacity = option.hasAlpha and true or false,
             swatchFunc = function()
-                local nr, ng, nb = ColorPickerFrame:GetColorRGB()
-                local na = option.hasAlpha and (ColorPickerFrame:GetColorAlpha() or 1) or 1
-                applyColor(nr, ng, nb, na)
+                applyColor(readPickerColor())
             end,
             opacityFunc = function()
-                local nr, ng, nb = ColorPickerFrame:GetColorRGB()
-                local na = option.hasAlpha and (ColorPickerFrame:GetColorAlpha() or 1) or 1
-                applyColor(nr, ng, nb, na)
+                applyColor(readPickerColor())
             end,
-            cancelFunc = function()
-                applyColor(r, g, b, a)
+            cancelFunc = function(previousValues)
+                local nr, ng, nb, na = NormalizeColorPayload(previousValues)
+                applyColor(nr or r, ng or g, nb or b, na or a)
             end,
         })
         return
@@ -631,8 +843,9 @@ function Options:OpenColorPicker(option)
         local na = option.hasAlpha and (1 - OpacitySliderFrame:GetValue()) or 1
         applyColor(nr, ng, nb, na)
     end
-    ColorPickerFrame.cancelFunc = function()
-        applyColor(r, g, b, a)
+    ColorPickerFrame.cancelFunc = function(previousValues)
+        local nr, ng, nb, na = NormalizeColorPayload(previousValues)
+        applyColor(nr or r, ng or g, nb or b, na or a)
     end
     ColorPickerFrame:SetColorRGB(r, g, b)
     ColorPickerFrame:Show()
@@ -769,6 +982,9 @@ function Options:RenderOption(parent, option, top)
     end
     if option.type == "description" then
         return self:RenderDescription(parent, option, top, false)
+    end
+    if option.type == "landing" then
+        return self:RenderLanding(parent, option, top)
     end
     if option.type == "toggle" then
         return self:RenderToggle(parent, option, top)

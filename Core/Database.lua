@@ -74,6 +74,7 @@ NS.DEFAULTS = {
             enabled = false,
             unlocked = false,
             worldChannelName = "大脚世界频道",
+            autoJoinWorldChannel = false,
             spacing = 10,
             fontSize = 14,
             fontPreset = "CHAT",

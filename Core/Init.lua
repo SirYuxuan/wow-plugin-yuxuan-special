@@ -2,7 +2,7 @@ local ADDON_NAME, NS = ...
 
 NS.ADDON_NAME = ADDON_NAME
 NS.DISPLAY_NAME = "雨轩工具箱"
-NS.VERSION = "0.0.1"
+NS.VERSION = "1.1.6"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}

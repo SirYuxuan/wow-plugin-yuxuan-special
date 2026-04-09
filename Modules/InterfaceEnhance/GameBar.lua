@@ -1443,7 +1443,7 @@ local BUTTON_DEFS = {
         click = {
             LeftButton = function()
                 if NS.Options and NS.Options.Open then
-                    NS.Options:Open("interfaceEnhance", "gameBar")
+                    NS.Options:Open("commonFeatures", "gameBar")
                 end
             end
         },

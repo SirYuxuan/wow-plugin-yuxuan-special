@@ -20,6 +20,42 @@ local function RefreshModule(notifyOptions)
     end
 end
 
+local DEFAULT_FIXED_COLOR = {
+    r = 1.00,
+    g = 0.82,
+    b = 0.20,
+    a = 1.00,
+}
+
+local function NormalizeColorValue(value, fallback)
+    value = tonumber(value)
+    if value == nil then
+        return fallback
+    end
+
+    if value < 0 then
+        return 0
+    end
+
+    if value > 1 then
+        return 1
+    end
+
+    return value
+end
+
+local function BuildStoredColor(currentColor, fallbackColor, r, g, b, a)
+    currentColor = currentColor or {}
+    fallbackColor = fallbackColor or DEFAULT_FIXED_COLOR
+
+    return {
+        r = NormalizeColorValue(r, currentColor.r or fallbackColor.r or DEFAULT_FIXED_COLOR.r),
+        g = NormalizeColorValue(g, currentColor.g or fallbackColor.g or DEFAULT_FIXED_COLOR.g),
+        b = NormalizeColorValue(b, currentColor.b or fallbackColor.b or DEFAULT_FIXED_COLOR.b),
+        a = NormalizeColorValue(a, currentColor.a or fallbackColor.a or DEFAULT_FIXED_COLOR.a),
+    }
+end
+
 local function CreateOffsetSlider(label, key, order, defaultValue)
     return {
         type = "range",
@@ -145,7 +181,15 @@ local function CreateLineStyleGroup(name, prefix, order, offsetXDefault, offsetY
                             return color.r or 1, color.g or 0.82, color.b or 0.20, color.a or 1
                         end,
                         set = function(_, r, g, b, a)
-                            GetConfig()[fixedColorKey] = { r = r, g = g, b = b, a = a }
+                            local config = GetConfig()
+                            config[fixedColorKey] = BuildStoredColor(
+                                config[fixedColorKey],
+                                config.fixedColor,
+                                r,
+                                g,
+                                b,
+                                a
+                            )
                             RefreshModule(false)
                         end,
                     },
@@ -171,7 +215,7 @@ function NS.BuildBagItemOverlayOptions()
         name = "背包文字",
         order = 7,
         args = {
-            stateRow = {
+            stateRowTop = {
                 type = "group",
                 order = 10,
                 name = "",
@@ -206,9 +250,17 @@ function NS.BuildBagItemOverlayOptions()
                             RefreshModule(false)
                         end,
                     },
+                },
+            },
+            stateRowBottom = {
+                type = "group",
+                order = 11,
+                name = "",
+                layout = "row",
+                args = {
                     showBinding = {
                         type = "toggle",
-                        order = 3,
+                        order = 1,
                         width = 0.8,
                         name = "中间绑定",
                         disabled = function()
@@ -232,7 +284,7 @@ function NS.BuildBagItemOverlayOptions()
                     },
                     showEquipSlot = {
                         type = "toggle",
-                        order = 4,
+                        order = 2,
                         width = 0.9,
                         name = "底部显示装备部位",
                         disabled = function()
@@ -336,7 +388,8 @@ function NS.BuildBagItemOverlayOptions()
                             return color.r or 1, color.g or 0.82, color.b or 0.20, color.a or 1
                         end,
                         set = function(_, r, g, b, a)
-                            GetConfig().fixedColor = { r = r, g = g, b = b, a = a }
+                            local config = GetConfig()
+                            config.fixedColor = BuildStoredColor(config.fixedColor, DEFAULT_FIXED_COLOR, r, g, b, a)
                             RefreshModule(false)
                         end,
                     },

@@ -12,6 +12,9 @@ local Core = NS.Core
 local QuickChat = {}
 NS.Modules.InterfaceEnhance.QuickChat = QuickChat
 local DICE_ICON_PATH = "Interface\\AddOns\\YuXuanSpecial\\Assets\\Icons\\dice.png"
+local AUTO_JOIN_INITIAL_DELAY = 3
+local AUTO_JOIN_RETRY_DELAY = 1
+local AUTO_JOIN_RETRY_LIMIT = 3
 
 local BUILTIN_BUTTONS = {
     { key = "SAY", label = "说", action = "switch", slash = "/s " },
@@ -137,6 +140,7 @@ function QuickChat:EnsureData()
 
     config.nextCustomId = tonumber(config.nextCustomId) or 1
     config.worldChannelName = Trim(config.worldChannelName) ~= "" and Trim(config.worldChannelName) or "大脚世界频道"
+    config.autoJoinWorldChannel = config.autoJoinWorldChannel and true or false
     config.fontPreset = config.fontPreset or "CHAT"
     config.spacing = tonumber(config.spacing) or 10
     config.fontSize = tonumber(config.fontSize) or 14
@@ -223,28 +227,81 @@ function QuickChat:GetWorldChannelInfo()
     return channelID or 0, joinedName or channelName, channelName
 end
 
-function QuickChat:JoinWorldChannel()
+function QuickChat:RequestJoinWorldChannel(openChat, isAutoJoin, attempt)
     local channelID, _, channelName = self:GetWorldChannelInfo()
     if channelID > 0 then
         EnsureChannelVisibleInPrimaryChatFrame(channelName)
-        self:OpenChatWithSlash("/" .. tostring(channelID) .. " ")
+        if openChat then
+            self:OpenChatWithSlash("/" .. tostring(channelID) .. " ")
+        end
         return
     end
 
     local frame = GetPrimaryChatFrame()
     local frameID = (frame and frame.GetID and frame:GetID()) or 1
     JoinChannelByName(channelName, nil, frameID, false)
-    Core:Print("正在加入 " .. channelName)
 
-    C_Timer.After(0.6, function()
+    if isAutoJoin then
+        if (attempt or 1) == 1 then
+            Core:Print("未检测到已加入 " .. channelName .. "，正在自动加入")
+        end
+    else
+        Core:Print("正在加入 " .. channelName)
+    end
+
+    C_Timer.After(isAutoJoin and AUTO_JOIN_RETRY_DELAY or 0.6, function()
         local newID = GetChannelName(channelName)
         if newID and newID > 0 then
             EnsureChannelVisibleInPrimaryChatFrame(channelName)
-            QuickChat:OpenChatWithSlash("/" .. tostring(newID) .. " ")
-            Core:Print("已加入 " .. channelName .. " (频道 " .. newID .. ")")
+            if openChat then
+                QuickChat:OpenChatWithSlash("/" .. tostring(newID) .. " ")
+            end
+
+            if isAutoJoin then
+                Core:Print("已自动加入 " .. channelName .. " (频道 " .. newID .. ")")
+            else
+                Core:Print("已加入 " .. channelName .. " (频道 " .. newID .. ")")
+            end
+        elseif isAutoJoin and (attempt or 1) < AUTO_JOIN_RETRY_LIMIT then
+            QuickChat:RequestJoinWorldChannel(false, true, (attempt or 1) + 1)
         else
-            Core:Print("加入世界频道失败，请检查频道名称")
+            if isAutoJoin then
+                Core:Print("自动加入世界频道失败，请检查频道名称")
+            else
+                Core:Print("加入世界频道失败，请检查频道名称")
+            end
         end
+    end)
+end
+
+function QuickChat:JoinWorldChannel()
+    self:RequestJoinWorldChannel(true, false, 1)
+end
+
+function QuickChat:TryAutoJoinWorldChannel(attempt)
+    local config = GetConfig()
+    if not (config.enabled and config.autoJoinWorldChannel) then
+        return
+    end
+
+    local channelID, _, channelName = self:GetWorldChannelInfo()
+    if channelID > 0 then
+        EnsureChannelVisibleInPrimaryChatFrame(channelName)
+        return
+    end
+
+    self:RequestJoinWorldChannel(false, true, attempt or 1)
+end
+
+function QuickChat:ScheduleAutoJoinWorldChannel(delaySeconds)
+    if self.autoJoinScheduled then
+        return
+    end
+
+    self.autoJoinScheduled = true
+    C_Timer.After(delaySeconds or AUTO_JOIN_INITIAL_DELAY, function()
+        QuickChat.autoJoinScheduled = nil
+        QuickChat:TryAutoJoinWorldChannel(1)
     end)
 end
 
@@ -528,4 +585,9 @@ end
 function QuickChat:OnPlayerLogin()
     self:EnsureData()
     self:CreateBar()
+
+    local config = GetConfig()
+    if config.enabled and config.autoJoinWorldChannel then
+        self:ScheduleAutoJoinWorldChannel()
+    end
 end

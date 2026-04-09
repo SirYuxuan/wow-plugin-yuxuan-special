@@ -110,27 +110,27 @@ end
 这样以后如果页面路径有调整，只需要改这一处映射关系。
 ]]
 function Options:OpenMapAssist()
-    return self:Open("mapNavigation")
+    return self:Open("commonFeatures", "quickWaypoint")
 end
 
 function Options:OpenQuickWaypoint()
-    return self:Open("mapNavigation", "quickWaypoint")
+    return self:Open("commonFeatures", "quickWaypoint")
 end
 
 function Options:OpenMageAssist()
-    return self:Open("classAssist", "mage")
+    return self:Open("combatAndClass", "mage")
 end
 
 function Options:OpenMageFrostAssist()
-    return self:Open("classAssist", "mage", "frost")
+    return self:Open("combatAndClass", "mage", "frost")
 end
 
 function Options:OpenCombatAssist()
-    return self:Open("combatAssist")
+    return self:Open("combatAndClass")
 end
 
 function Options:OpenTrinketMonitor()
-    return self:Open("combatAssist", "trinketMonitor")
+    return self:Open("combatAndClass", "trinketMonitor")
 end
 
 local optionEventFrame = CreateFrame("Frame")

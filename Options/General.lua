@@ -514,7 +514,7 @@ function NS.BuildGeneralOptions()
                         name = "编辑配置",
                         inline = true,
                         args = {
-                            editRow = {
+                            editTargetRow = {
                                 type = "group",
                                 order = 1,
                                 name = "",
@@ -523,7 +523,7 @@ function NS.BuildGeneralOptions()
                                     editTarget = {
                                         type = "select",
                                         order = 1,
-                                        width = 1.2,
+                                        width = 1.3,
                                         inlineLabelWidth = 72,
                                         name = "编辑目标",
                                         values = function()
@@ -554,10 +554,18 @@ function NS.BuildGeneralOptions()
                                             renameProfileName = value or ""
                                         end,
                                     },
+                                },
+                            },
+                            editActionRow = {
+                                type = "group",
+                                order = 2,
+                                name = "",
+                                layout = "row",
+                                args = {
                                     renameAction = {
                                         type = "execute",
-                                        order = 3,
-                                        width = 0.8,
+                                        order = 1,
+                                        width = 1.0,
                                         name = "保存名称",
                                         disabled = function()
                                             return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
@@ -581,8 +589,8 @@ function NS.BuildGeneralOptions()
                                     },
                                     deleteAction = {
                                         type = "execute",
-                                        order = 4,
-                                        width = 0.8,
+                                        order = 2,
+                                        width = 1.0,
                                         name = "删除配置",
                                         disabled = function()
                                             return EnsureSelectableProfileKey(editTargetKey) == PROFILE_KEY_GLOBAL
@@ -608,7 +616,7 @@ function NS.BuildGeneralOptions()
                             },
                             editTip = {
                                 type = "description",
-                                order = 2,
+                                order = 3,
                                 fontSize = "medium",
                                 name = function()
                                     return GetEditTargetTip()
