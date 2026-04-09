@@ -134,7 +134,14 @@ local function StartRegionColorAnimation(owner, key, applyFunc, targetR, targetG
     owner:SetScript("OnUpdate", function(self, elapsed)
         local active = false
 
-        for _, state in pairs({ self._iconColorAnim, self._timeColorAnim }) do
+        for index = 1, 2 do
+            local state
+            if index == 1 then
+                state = self._iconColorAnim
+            else
+                state = self._timeColorAnim
+            end
+
             if state and state.elapsed ~= nil and state.applyFunc then
                 state.elapsed = math.min(state.elapsed + elapsed, state.duration)
                 local progress = state.duration > 0 and (state.elapsed / state.duration) or 1

@@ -17,6 +17,7 @@ local GetServerTime = GetServerTime
 local GetCurrentRegion = GetCurrentRegion
 local C_QuestLog_IsQuestFlaggedCompleted = C_QuestLog.IsQuestFlaggedCompleted
 local C_Map_GetMapInfo = C_Map.GetMapInfo
+local professionProgressScratch = {}
 
 -- 格式化秒数为 HH:MM:SS 或 MM:SS
 function ETD.SecondToTime(second)
@@ -364,9 +365,12 @@ function ETD.GetProfessionWeeklyProgress()
     if not GetProfessions or not GetProfessionInfo then return {} end
 
     local prof1, prof2 = GetProfessions()
-    local results = {}
+    local results = professionProgressScratch
+    for index = #results, 1, -1 do
+        results[index] = nil
+    end
 
-    for _, profIndex in pairs({ prof1, prof2 }) do
+    local function AddProfession(profIndex)
         if profIndex then
             local name, iconID = GetProfessionInfo(profIndex)
             local questData = ETD.Meta.ProfessionsWeeklyMN[iconID]
@@ -382,14 +386,17 @@ function ETD.GetProfessionWeeklyProgress()
                 else
                     isCompleted = C_QuestLog_IsQuestFlaggedCompleted(questData)
                 end
-                table.insert(results, {
+                results[#results + 1] = {
                     name = name,
                     iconID = iconID,
                     isCompleted = isCompleted,
-                })
+                }
             end
         end
     end
+
+    AddProfession(prof1)
+    AddProfession(prof2)
 
     return results
 end
@@ -439,12 +446,12 @@ function ETD.GetLoopTimerStatus(eventKey)
 
     local nextEventTimestamp = data.startTimestamp + (floor(elapsed / data.interval) + 1) * data.interval
 
-    return {
-        isRunning = isRunning,
-        timeLeft = timeLeft,
-        timeInCycle = timeInCycle,
-        nextEventTimestamp = nextEventTimestamp,
-        duration = data.duration,
-        interval = data.interval,
-    }
+    data._loopStatus = data._loopStatus or {}
+    data._loopStatus.isRunning = isRunning
+    data._loopStatus.timeLeft = timeLeft
+    data._loopStatus.timeInCycle = timeInCycle
+    data._loopStatus.nextEventTimestamp = nextEventTimestamp
+    data._loopStatus.duration = data.duration
+    data._loopStatus.interval = data.interval
+    return data._loopStatus
 end

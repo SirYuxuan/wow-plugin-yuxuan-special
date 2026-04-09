@@ -48,6 +48,40 @@ local DRAGON_RIDING_SPELL_IDS = {
 local lastX, lastY = 0, 0
 local wasSwimming = false
 local lastUpdateTime = 0
+local attributeScratch = {
+    displayList = {},
+    sortable = {},
+    usedKeys = {},
+}
+local ATTRIBUTE_FRAME_BACKDROP = {
+    bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+    edgeFile = "Interface\\ChatFrame\\ChatFrameBorder",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 },
+}
+
+local function WipeArray(list)
+    for index = #list, 1, -1 do
+        list[index] = nil
+    end
+end
+
+local function WipeDictionary(dict)
+    for key in pairs(dict) do
+        dict[key] = nil
+    end
+end
+
+local function AcquireScratchEntry(list, index)
+    local entry = list[index]
+    if not entry then
+        entry = {}
+        list[index] = entry
+    end
+    return entry
+end
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "attributeDisplay")
@@ -180,38 +214,54 @@ local function GetPrimaryStatValue()
     return statName, statValue
 end
 
-local function GetAttributeValues(config)
-    local values = {}
+local function BuildSecondaryStatList(config, sortable)
+    local count = 0
+
+    local function AddStat(key, rating, percent)
+        count = count + 1
+        local entry = AcquireScratchEntry(sortable, count)
+        entry.key = key
+        entry.value = percent or 0
+        entry.rating = rating or 0
+        entry.color = config["color" .. key:sub(1, 1):upper() .. key:sub(2)]
+        entry.name = SECONDARY_STAT_NAMES[key]
+    end
 
     if config.showCrit then
-        values.crit = { rating = GetCombatRating(CR_CRIT_MELEE), percent = GetCritChance("player") or 0 }
+        AddStat("crit", GetCombatRating(CR_CRIT_MELEE), GetCritChance("player") or 0)
     end
     if config.showHaste then
-        values.haste = { rating = GetCombatRating(CR_HASTE_MELEE), percent = UnitSpellHaste("player") or 0 }
+        AddStat("haste", GetCombatRating(CR_HASTE_MELEE), UnitSpellHaste("player") or 0)
     end
     if config.showMastery then
-        values.mastery = { rating = GetCombatRating(CR_MASTERY), percent = GetMasteryEffect("player") or 0 }
+        AddStat("mastery", GetCombatRating(CR_MASTERY), GetMasteryEffect("player") or 0)
     end
     if config.showVersa then
-        values.versa = {
-            rating = GetCombatRating(CR_VERSATILITY_DAMAGE_DONE),
-            percent = GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) or 0,
-        }
+        AddStat("versa", GetCombatRating(CR_VERSATILITY_DAMAGE_DONE),
+            GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) or 0)
     end
     if config.showLeech then
-        values.leech = { rating = GetCombatRating(CR_LIFESTEAL), percent = GetLifesteal() or 0 }
+        AddStat("leech", GetCombatRating(CR_LIFESTEAL), GetLifesteal() or 0)
     end
     if config.showDodge then
-        values.dodge = { rating = GetCombatRating(CR_DODGE), percent = GetDodgeChance() or 0 }
+        AddStat("dodge", GetCombatRating(CR_DODGE), GetDodgeChance() or 0)
     end
     if config.showParry then
-        values.parry = { rating = GetCombatRating(CR_PARRY), percent = GetParryChance() or 0 }
+        AddStat("parry", GetCombatRating(CR_PARRY), GetParryChance() or 0)
     end
     if config.showBlock then
-        values.block = { rating = GetCombatRating(CR_BLOCK), percent = GetBlockChance() or 0 }
+        AddStat("block", GetCombatRating(CR_BLOCK), GetBlockChance() or 0)
     end
 
-    return values
+    for index = count + 1, #sortable do
+        sortable[index] = nil
+    end
+
+    table.sort(sortable, function(left, right)
+        return left.value > right.value
+    end)
+
+    return count
 end
 
 function Core:CreateAttributeFrame()
@@ -284,22 +334,25 @@ function Core:UpdateAttributeDisplay()
     end
 
     if config.bgStyle == "none" then
-        frame:SetBackdrop(nil)
+        if frame._yxsBackdropStyle ~= "none" then
+            frame:SetBackdrop(nil)
+            frame._yxsBackdropStyle = "none"
+        end
     else
-        frame:SetBackdrop({
-            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-            edgeFile = "Interface\\ChatFrame\\ChatFrameBorder",
-            tile = true,
-            tileSize = 16,
-            edgeSize = 16,
-            insets = { left = 4, right = 4, top = 4, bottom = 4 },
-        })
+        if frame._yxsBackdropStyle ~= "default" then
+            frame:SetBackdrop(ATTRIBUTE_FRAME_BACKDROP)
+            frame._yxsBackdropStyle = "default"
+        end
         frame:SetBackdropColor(0.1, 0.1, 0.1, config.bgAlpha)
         frame:SetBackdropBorderColor(0.5, 0.5, 0.5, config.bgAlpha)
     end
 
-    local displayList = {}
-    local values = GetAttributeValues(config)
+    local displayList = attributeScratch.displayList
+    local sortable = attributeScratch.sortable
+    local usedKeys = attributeScratch.usedKeys
+    WipeArray(displayList)
+    WipeDictionary(usedKeys)
+    local displayCount = 0
 
     if config.showIlvl then
         local _, equippedIlvl = GetAverageItemLevel("player")
@@ -310,32 +363,27 @@ function Core:UpdateAttributeDisplay()
         else
             text = string.format("装等: %.1f (%.1f)", equippedIlvl, averageIlvl)
         end
-        table.insert(displayList, { key = "ilvl", text = text, color = config.colorIlvl, value = equippedIlvl })
+        displayCount = displayCount + 1
+        local entry = AcquireScratchEntry(displayList, displayCount)
+        entry.key = "ilvl"
+        entry.text = text
+        entry.color = config.colorIlvl
+        entry.value = equippedIlvl
     end
 
     if config.showPrimary then
         local statName, statValue = GetPrimaryStatValue()
-        table.insert(displayList, { key = "primary", text = statName .. ": " .. statValue, color = config.colorPrimary, value = statValue })
+        displayCount = displayCount + 1
+        local entry = AcquireScratchEntry(displayList, displayCount)
+        entry.key = "primary"
+        entry.text = statName .. ": " .. statValue
+        entry.color = config.colorPrimary
+        entry.value = statValue
     end
 
-    local sortable = {}
-    for key, statName in pairs(SECONDARY_STAT_NAMES) do
-        if config["show" .. key:sub(1, 1):upper() .. key:sub(2)] and values[key] then
-            table.insert(sortable, {
-                key = key,
-                value = values[key].percent,
-                rating = values[key].rating,
-                color = config["color" .. key:sub(1, 1):upper() .. key:sub(2)],
-                name = statName,
-            })
-        end
-    end
-
-    table.sort(sortable, function(left, right)
-        return left.value > right.value
-    end)
-
-    for _, entry in ipairs(sortable) do
+    local sortableCount = BuildSecondaryStatList(config, sortable)
+    for index = 1, sortableCount do
+        local entry = sortable[index]
         local text
         if config.secondaryFormat == "percent" then
             text = string.format("%s: %." .. config.decimalPlaces .. "f%%", entry.name, entry.value)
@@ -343,12 +391,12 @@ function Core:UpdateAttributeDisplay()
             text = string.format("%s: %d (%." .. config.decimalPlaces .. "f%%)", entry.name, entry.rating, entry.value)
         end
 
-        table.insert(displayList, {
-            key = entry.key,
-            text = text,
-            color = entry.color,
-            value = entry.value,
-        })
+        displayCount = displayCount + 1
+        local displayEntry = AcquireScratchEntry(displayList, displayCount)
+        displayEntry.key = entry.key
+        displayEntry.text = text
+        displayEntry.color = entry.color
+        displayEntry.value = entry.value
     end
 
     if config.showSpeed then
@@ -359,13 +407,24 @@ function Core:UpdateAttributeDisplay()
         else
             text = string.format("移速: %." .. config.decimalPlaces .. "f%% (静态)", speed)
         end
-        table.insert(displayList, { key = "speed", text = text, color = config.colorSpeed, value = speed })
+        displayCount = displayCount + 1
+        local entry = AcquireScratchEntry(displayList, displayCount)
+        entry.key = "speed"
+        entry.text = text
+        entry.color = config.colorSpeed
+        entry.value = speed
+    end
+
+    for index = displayCount + 1, #displayList do
+        displayList[index] = nil
     end
 
     local yOffset = -8
-    for _, item in ipairs(displayList) do
+    for index = 1, displayCount do
+        local item = displayList[index]
         local fontString = self.attributeLines[item.key]
         local progressBar = self.attributeProgressBars[item.key]
+        usedKeys[item.key] = true
 
         if fontString then
             fontString:ClearAllPoints()
@@ -412,15 +471,7 @@ function Core:UpdateAttributeDisplay()
     end
 
     for key, fontString in pairs(self.attributeLines) do
-        local used = false
-        for _, item in ipairs(displayList) do
-            if item.key == key then
-                used = true
-                break
-            end
-        end
-
-        if not used then
+        if not usedKeys[key] then
             fontString:Hide()
             if self.attributeProgressBars[key] then
                 self.attributeProgressBars[key]:Hide()

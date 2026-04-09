@@ -554,8 +554,7 @@ end
 
 local function SafeGetMouseFocus()
     if type(GetMouseFoci) == "function" then
-        local foci = { GetMouseFoci() }
-        return foci[1]
+        return GetMouseFoci()
     end
 
     if UIParent and UIParent.GetMouseFocus then
@@ -595,11 +594,14 @@ end
 
 local function ForEachMouseFrame(callback)
     if type(GetMouseFoci) == "function" then
-        local frames = { GetMouseFoci() }
-        for index = 1, #frames do
-            if frames[index] and callback(frames[index]) then
+        local frame = GetMouseFoci()
+        local hops = 0
+        while frame and hops < 30 do
+            hops = hops + 1
+            if callback(frame) then
                 return true
             end
+            frame = frame.GetParent and frame:GetParent() or nil
         end
         return false
     end

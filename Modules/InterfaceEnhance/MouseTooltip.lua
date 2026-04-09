@@ -425,7 +425,33 @@ local function ClearRaidProgressColumns(tooltip)
         end
     end
 
-    tooltip.YXSRaidProgressColumns = {}
+end
+
+local function AcquireRaidProgressColumns(tooltip, index)
+    if not tooltip then
+        return nil
+    end
+
+    tooltip.YXSRaidProgressColumns = tooltip.YXSRaidProgressColumns or {}
+
+    local columns = tooltip.YXSRaidProgressColumns[index]
+    if columns then
+        return columns
+    end
+
+    local rowFrame = CreateFrame("Frame", nil, tooltip)
+    local normal = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
+    local heroic = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
+    local mythic = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
+
+    columns = {
+        normal,
+        heroic,
+        mythic,
+        frame = rowFrame,
+    }
+    tooltip.YXSRaidProgressColumns[index] = columns
+    return columns
 end
 
 local function GetRaidProgressText(progress, difficultyKey, label)
@@ -453,13 +479,11 @@ local function AlignRaidProgressRows(tooltip, rowInfos)
     local leftWidth = 132
     local columnWidth = 58
     local gap = 8
-    tooltip.YXSRaidProgressColumns = {}
-
     if tooltip.SetMinimumWidth then
         tooltip:SetMinimumWidth(leftWidth + (columnWidth * 3) + (gap * 2) + 46)
     end
 
-    for _, rowInfo in ipairs(rowInfos) do
+    for index, rowInfo in ipairs(rowInfos) do
         local lineIndex = rowInfo.lineIndex
         local progress = rowInfo.progress
         local left = _G[tooltipName .. "TextLeft" .. tostring(lineIndex)]
@@ -475,16 +499,11 @@ local function AlignRaidProgressRows(tooltip, rowInfos)
         end
 
         if left and right then
-            local normal = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
-            local heroic = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
-            local mythic = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
-            local rowFrame = CreateFrame("Frame", nil, tooltip)
-            tooltip.YXSRaidProgressColumns[#tooltip.YXSRaidProgressColumns + 1] = {
-                normal,
-                heroic,
-                mythic,
-                frame = rowFrame,
-            }
+            local columns = AcquireRaidProgressColumns(tooltip, index)
+            local normal = columns[1]
+            local heroic = columns[2]
+            local mythic = columns[3]
+            local rowFrame = columns.frame
 
             rowFrame:SetAllPoints(right)
 

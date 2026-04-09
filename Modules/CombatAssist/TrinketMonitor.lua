@@ -326,7 +326,10 @@ local function StopReadyHighlight(button)
     button._readyAnimationEnabled = false
     button._dashPhase = nil
     button._usingFallbackDashes = false
-    button._glowColorKey = nil
+    button._glowR = nil
+    button._glowG = nil
+    button._glowB = nil
+    button._glowA = nil
     button._glowSize = nil
     button:SetScript("OnUpdate", nil)
 end
@@ -348,19 +351,21 @@ local function SetReadyAnimationEnabled(button, enabled, color)
     button._usingFallbackDashes = false
 
     if GlowLib then
-        local rgba = {
-            color and color.r or 1,
-            color and color.g or 1,
-            color and color.b or 1,
-            color and color.a or 1,
-        }
-        local colorKey = table.concat(rgba, ":")
+        local r = color and color.r or 1
+        local g = color and color.g or 1
+        local b = color and color.b or 1
+        local a = color and color.a or 1
         local size = button:GetWidth() or 50
 
-        if button._glowColorKey ~= colorKey or button._glowSize ~= size then
+        if button._glowR ~= r or button._glowG ~= g or button._glowB ~= b or button._glowA ~= a or
+            button._glowSize ~= size then
             pcall(GlowLib.PixelGlow_Stop, glowTarget)
-            pcall(GlowLib.PixelGlow_Start, glowTarget, rgba, 8, 0.25, (10 / 50) * size, math.max(1.25, (0.8 / 50) * size), 1, 1, false, nil, 2)
-            button._glowColorKey = colorKey
+            pcall(GlowLib.PixelGlow_Start, glowTarget, { r, g, b, a }, 8, 0.25, (10 / 50) * size,
+                math.max(1.25, (0.8 / 50) * size), 1, 1, false, nil, 2)
+            button._glowR = r
+            button._glowG = g
+            button._glowB = b
+            button._glowA = a
             button._glowSize = size
         end
 
@@ -373,7 +378,10 @@ local function SetReadyAnimationEnabled(button, enabled, color)
     end
 
     button._usingFallbackDashes = true
-    button._glowColorKey = nil
+    button._glowR = nil
+    button._glowG = nil
+    button._glowB = nil
+    button._glowA = nil
     button._glowSize = nil
     SetReadyDashColor(button, color or {})
 

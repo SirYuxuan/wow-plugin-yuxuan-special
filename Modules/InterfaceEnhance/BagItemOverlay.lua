@@ -5,6 +5,8 @@ local BagItemOverlay = {}
 NS.Modules.InterfaceEnhance.BagItemOverlay = BagItemOverlay
 
 local BAG_SCAN_DELAY = 0.05
+local BINDING_CACHE_TTL = 1
+local BINDING_CACHE_MAX_SIZE = 512
 local EQUIP_SLOT_FALLBACK = {
     INVTYPE_HEAD = "Head",
     INVTYPE_NECK = "Neck",
@@ -39,6 +41,8 @@ local NON_EQUIPMENT_INVENTORY_TYPES = {
 }
 
 local scannerName = addonName .. "BagItemOverlayScanner"
+local bindingStatusCache = {}
+local bindingStatusCacheSize = 0
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "bagItemOverlay")
@@ -150,6 +154,9 @@ local function IsEquippableItem(itemLink)
     end
 
     local _, _, _, equipLoc, _, classID = GetItemInfoInstant(itemLink)
+    if (type(equipLoc) ~= "string" or equipLoc == "") and GetItemInfo then
+        equipLoc = select(9, GetItemInfo(itemLink))
+    end
     if type(equipLoc) ~= "string" or equipLoc == "" or NON_EQUIPMENT_INVENTORY_TYPES[equipLoc] then
         return false
     end
@@ -162,11 +169,15 @@ local function GetEquipSlotText(itemLink)
         return nil
     end
 
-    if not IsEquippableItem(itemLink) then
+    local _, _, _, equipLoc = GetItemInfoInstant and GetItemInfoInstant(itemLink)
+    if (type(equipLoc) ~= "string" or equipLoc == "") and GetItemInfo then
+        equipLoc = select(9, GetItemInfo(itemLink))
+    end
+
+    if type(equipLoc) ~= "string" or equipLoc == "" or NON_EQUIPMENT_INVENTORY_TYPES[equipLoc] then
         return nil
     end
 
-    local _, _, _, equipLoc = GetItemInfoInstant(itemLink)
     return _G[equipLoc] or EQUIP_SLOT_FALLBACK[equipLoc] or equipLoc:gsub("^INVTYPE_", "")
 end
 
@@ -216,6 +227,69 @@ local function GetBindingStatusText(itemLink)
     end
 
     return hasWarbound and "战团" or nil
+end
+
+local function GetShortBindingStatusText(itemLink)
+    if not itemLink then
+        return nil
+    end
+
+    local tooltip = GetScannerTooltip()
+    tooltip:ClearLines()
+    local ok = pcall(tooltip.SetHyperlink, tooltip, itemLink)
+    if not ok then
+        return nil
+    end
+
+    local hasWarbound
+    for index = 2, tooltip:NumLines() do
+        local left = _G[scannerName .. "TextLeft" .. tostring(index)]
+        local text = left and left:GetText()
+        if type(text) == "string" then
+            local lowerText = text:lower()
+            local hasWarbandText = lowerText:find("warbound", 1, true)
+                or lowerText:find("warband", 1, true)
+                or text:find("战团", 1, true)
+            if hasWarbandText and (lowerText:find("until equipped", 1, true) or text:find("装备", 1, true)) then
+                return "战绑"
+            end
+            if lowerText:find("binds when equipped", 1, true) or text:find("装备后绑定", 1, true) then
+                return "装绑"
+            end
+            if hasWarbandText then
+                hasWarbound = true
+            end
+        end
+    end
+
+    return hasWarbound and "战团" or nil
+end
+
+local function GetCachedBindingStatusText(itemLink)
+    if not itemLink then
+        return nil
+    end
+
+    local now = GetTime and GetTime() or 0
+    local cached = bindingStatusCache[itemLink]
+    if cached and (now - cached.time) < BINDING_CACHE_TTL then
+        return cached.value
+    end
+
+    local value = GetShortBindingStatusText(itemLink)
+    if cached == nil then
+        bindingStatusCacheSize = bindingStatusCacheSize + 1
+        if bindingStatusCacheSize > BINDING_CACHE_MAX_SIZE then
+            bindingStatusCache = {}
+            bindingStatusCacheSize = 1
+        end
+    end
+
+    bindingStatusCache[itemLink] = {
+        time = now,
+        value = value,
+    }
+    return value
 end
 
 local function EnsureButtonOverlay(button)
@@ -368,7 +442,7 @@ local function UpdateButtonWithItemLink(button, itemLink)
     end
 
     overlay.topText:SetText(config.showItemLevel ~= false and isEquipment and itemLevel and tostring(itemLevel) or "")
-    overlay.middleText:SetText(showBinding and GetBindingStatusText(itemLink) or "")
+    overlay.middleText:SetText(showBinding and GetCachedBindingStatusText(itemLink) or "")
     overlay.bottomText:SetText(config.showEquipSlot and GetEquipSlotText(itemLink) or "")
     overlay:SetShown(overlay.topText:GetText() ~= "" or overlay.middleText:GetText() ~= "" or overlay.bottomText:GetText() ~= "")
 end
@@ -484,8 +558,10 @@ function BagItemOverlay:UpdateBaganatorButton(button)
     local itemLink = GetBaganatorItemLink(button)
     UpdateButtonWithItemLink(button, itemLink)
 
-    if button then
+    if button and not button._yxsBagOverlayRefreshPending then
+        button._yxsBagOverlayRefreshPending = true
         C_Timer.After(0, function()
+            button._yxsBagOverlayRefreshPending = nil
             if button.IsShown and button:IsShown() then
                 UpdateButtonWithItemLink(button, GetBaganatorItemLink(button))
             end
