@@ -405,53 +405,9 @@ local function PruneRaidProgressCache(cache, now, keepGUID)
 end
 
 local function ClearRaidProgressColumns(tooltip)
-    if not tooltip then
-        return
+    if tooltip then
+        tooltip.YXSRaidProgressColumns = nil
     end
-
-    if type(tooltip.YXSRaidProgressColumns) == "table" then
-        for _, columns in ipairs(tooltip.YXSRaidProgressColumns) do
-            if columns.frame and columns.frame.Hide then
-                columns.frame:Hide()
-            end
-            for _, fontString in ipairs(columns) do
-                if fontString and fontString.Hide then
-                    fontString:Hide()
-                end
-                if fontString and fontString.ClearAllPoints then
-                    fontString:ClearAllPoints()
-                end
-            end
-        end
-    end
-
-end
-
-local function AcquireRaidProgressColumns(tooltip, index)
-    if not tooltip then
-        return nil
-    end
-
-    tooltip.YXSRaidProgressColumns = tooltip.YXSRaidProgressColumns or {}
-
-    local columns = tooltip.YXSRaidProgressColumns[index]
-    if columns then
-        return columns
-    end
-
-    local rowFrame = CreateFrame("Frame", nil, tooltip)
-    local normal = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
-    local heroic = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
-    local mythic = tooltip:CreateFontString(nil, "OVERLAY", "GameTooltipText")
-
-    columns = {
-        normal,
-        heroic,
-        mythic,
-        frame = rowFrame,
-    }
-    tooltip.YXSRaidProgressColumns[index] = columns
-    return columns
 end
 
 local function GetRaidProgressText(progress, difficultyKey, label)
@@ -464,70 +420,12 @@ local function GetRaidProgressText(progress, difficultyKey, label)
     return string.format("%s %d/%d", label, killed, total)
 end
 
-local function AlignRaidProgressRows(tooltip, rowInfos)
-    if not (tooltip and tooltip.GetName and type(rowInfos) == "table") then
-        return
-    end
-
-    local tooltipName = tooltip:GetName()
-    if not tooltipName then
-        return
-    end
-
-    ClearRaidProgressColumns(tooltip)
-
-    local leftWidth = 132
-    local columnWidth = 58
-    local gap = 8
-    if tooltip.SetMinimumWidth then
-        tooltip:SetMinimumWidth(leftWidth + (columnWidth * 3) + (gap * 2) + 46)
-    end
-
-    for index, rowInfo in ipairs(rowInfos) do
-        local lineIndex = rowInfo.lineIndex
-        local progress = rowInfo.progress
-        local left = _G[tooltipName .. "TextLeft" .. tostring(lineIndex)]
-        local right = _G[tooltipName .. "TextRight" .. tostring(lineIndex)]
-        if left then
-            left:SetWidth(leftWidth)
-            left:SetJustifyH("LEFT")
-        end
-        if right then
-            right:SetText(" ")
-            right:SetWidth((columnWidth * 3) + (gap * 2))
-            right:SetJustifyH("RIGHT")
-        end
-
-        if left and right then
-            local columns = AcquireRaidProgressColumns(tooltip, index)
-            local normal = columns[1]
-            local heroic = columns[2]
-            local mythic = columns[3]
-            local rowFrame = columns.frame
-
-            rowFrame:SetAllPoints(right)
-
-            normal:SetWidth(columnWidth)
-            heroic:SetWidth(columnWidth)
-            mythic:SetWidth(columnWidth)
-            normal:SetJustifyH("RIGHT")
-            heroic:SetJustifyH("RIGHT")
-            mythic:SetJustifyH("RIGHT")
-
-            mythic:SetPoint("RIGHT", rowFrame, "RIGHT", 0, 0)
-            heroic:SetPoint("RIGHT", mythic, "LEFT", -gap, 0)
-            normal:SetPoint("RIGHT", heroic, "LEFT", -gap, 0)
-
-            normal:SetText("|cFF9CA3AF" .. GetRaidProgressText(progress, "normalKilled", L_NORMAL) .. "|r")
-            heroic:SetText("|cFF66CCFF" .. GetRaidProgressText(progress, "heroicKilled", L_HEROIC) .. "|r")
-            mythic:SetText("|cFFFF8040" .. GetRaidProgressText(progress, "mythicKilled", L_MYTHIC) .. "|r")
-            normal:Show()
-            heroic:Show()
-            mythic:Show()
-            rowFrame:Show()
-        end
-    end
-
+local function BuildRaidProgressRightText(progress)
+    return table.concat({
+        "|cFF9CA3AF" .. GetRaidProgressText(progress, "normalKilled", L_NORMAL) .. "|r",
+        "|cFF66CCFF" .. GetRaidProgressText(progress, "heroicKilled", L_HEROIC) .. "|r",
+        "|cFFFF8040" .. GetRaidProgressText(progress, "mythicKilled", L_MYTHIC) .. "|r",
+    }, "  ")
 end
 
 function MouseTooltip:RefreshRaidProgressTooltip(guid)
@@ -662,23 +560,21 @@ function MouseTooltip:AppendRaidProgressToTooltip(tooltip)
         return
     end
 
-    local raidRowInfos = {}
+    if tooltip.SetMinimumWidth then
+        tooltip:SetMinimumWidth(380)
+    end
+
     for _, raid in ipairs(RAID_PROGRESS_RAIDS) do
         local progress = snapshot[raid.key]
-        local lineIndex = tooltip:NumLines() + 1
         AddColoredDoubleLine(
             tooltip,
             "|cFFE5E7EB" .. (progress and progress.label or GetRaidLabel(raid)) .. "|r",
-            "",
+            BuildRaidProgressRightText(progress),
             HIGHLIGHT_FONT_COLOR,
             HIGHLIGHT_FONT_COLOR,
             false
         )
-        table.insert(raidRowInfos, { lineIndex = lineIndex, progress = progress })
     end
-
-    tooltip:Show()
-    AlignRaidProgressRows(tooltip, raidRowInfos)
 
     tooltip:Show()
 end
