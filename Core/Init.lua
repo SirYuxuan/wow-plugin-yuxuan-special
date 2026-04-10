@@ -2,7 +2,7 @@ local ADDON_NAME, NS = ...
 
 NS.ADDON_NAME = ADDON_NAME
 NS.DISPLAY_NAME = "雨轩工具箱"
-NS.VERSION = "1.1.6"
+NS.VERSION = "1.1.6-fix0.0.1"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
@@ -218,9 +218,6 @@ end
 function Core:OnPlayerLogin()
     if NS.MemoryAudit and NS.MemoryAudit.Initialize then
         NS.MemoryAudit:Initialize()
-    end
-    if NS.MemoryManager and NS.MemoryManager.Initialize then
-        NS.MemoryManager:Initialize()
     end
 
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
