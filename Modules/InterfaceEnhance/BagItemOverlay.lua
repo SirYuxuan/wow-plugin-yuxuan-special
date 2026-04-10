@@ -85,7 +85,8 @@ local function ApplyConfiguredFont(fontString, size, outline, fontPreset)
     local config = GetConfig()
     local optionsPrivate = NS.Options and NS.Options.Private
     if optionsPrivate and optionsPrivate.ApplyFont then
-        optionsPrivate.ApplyFont(fontString, size or (config.fontSize or 11), outline or "OUTLINE", fontPreset or config.fontPreset or "CHAT")
+        optionsPrivate.ApplyFont(fontString, size or (config.fontSize or 11), outline or "OUTLINE",
+            fontPreset or config.fontPreset or "CHAT")
         return
     end
 
@@ -424,9 +425,12 @@ local function UpdateButtonWithItemLink(button, itemLink)
     local topFontSize = ClampNumber(GetLineConfigValue(config, "top", "FontSize", config.fontSize or 11), 8, 18)
     local middleFontSize = ClampNumber(GetLineConfigValue(config, "middle", "FontSize", config.fontSize or 11), 8, 18)
     local bottomFontSize = ClampNumber(GetLineConfigValue(config, "bottom", "FontSize", config.fontSize or 11), 8, 18)
-    ApplyConfiguredFont(overlay.topText, topFontSize, "OUTLINE", GetLineConfigValue(config, "top", "FontPreset", config.fontPreset or "CHAT"))
-    ApplyConfiguredFont(overlay.middleText, middleFontSize, "OUTLINE", GetLineConfigValue(config, "middle", "FontPreset", config.fontPreset or "CHAT"))
-    ApplyConfiguredFont(overlay.bottomText, bottomFontSize, "OUTLINE", GetLineConfigValue(config, "bottom", "FontPreset", config.fontPreset or "CHAT"))
+    ApplyConfiguredFont(overlay.topText, topFontSize, "OUTLINE",
+        GetLineConfigValue(config, "top", "FontPreset", config.fontPreset or "CHAT"))
+    ApplyConfiguredFont(overlay.middleText, middleFontSize, "OUTLINE",
+        GetLineConfigValue(config, "middle", "FontPreset", config.fontPreset or "CHAT"))
+    ApplyConfiguredFont(overlay.bottomText, bottomFontSize, "OUTLINE",
+        GetLineConfigValue(config, "bottom", "FontPreset", config.fontPreset or "CHAT"))
     ApplyTextColor(overlay.topText, itemLink, "top")
     ApplyTextColor(overlay.middleText, itemLink, "middle")
     ApplyTextColor(overlay.bottomText, itemLink, "bottom")
@@ -444,7 +448,8 @@ local function UpdateButtonWithItemLink(button, itemLink)
     overlay.topText:SetText(config.showItemLevel ~= false and isEquipment and itemLevel and tostring(itemLevel) or "")
     overlay.middleText:SetText(showBinding and GetCachedBindingStatusText(itemLink) or "")
     overlay.bottomText:SetText(config.showEquipSlot and GetEquipSlotText(itemLink) or "")
-    overlay:SetShown(overlay.topText:GetText() ~= "" or overlay.middleText:GetText() ~= "" or overlay.bottomText:GetText() ~= "")
+    overlay:SetShown(overlay.topText:GetText() ~= "" or overlay.middleText:GetText() ~= "" or
+    overlay.bottomText:GetText() ~= "")
 end
 
 local function GetButtonBagAndSlot(button)
@@ -558,14 +563,28 @@ function BagItemOverlay:UpdateBaganatorButton(button)
     local itemLink = GetBaganatorItemLink(button)
     UpdateButtonWithItemLink(button, itemLink)
 
+    -- Batch deferred refresh: instead of creating a closure per button,
+    -- mark the button dirty and schedule a single batched re-check.
     if button and not button._yxsBagOverlayRefreshPending then
         button._yxsBagOverlayRefreshPending = true
-        C_Timer.After(0, function()
-            button._yxsBagOverlayRefreshPending = nil
-            if button.IsShown and button:IsShown() then
-                UpdateButtonWithItemLink(button, GetBaganatorItemLink(button))
-            end
-        end)
+        self._baganatorDirtyButtons = self._baganatorDirtyButtons or {}
+        self._baganatorDirtyButtons[button] = true
+        if not self._baganatorDirtyPending then
+            self._baganatorDirtyPending = true
+            C_Timer.After(0, function()
+                self._baganatorDirtyPending = false
+                local dirty = self._baganatorDirtyButtons
+                if not dirty then return end
+                for btn in pairs(dirty) do
+                    btn._yxsBagOverlayRefreshPending = nil
+                    if btn.IsShown and btn:IsShown() then
+                        UpdateButtonWithItemLink(btn, GetBaganatorItemLink(btn))
+                    end
+                end
+                -- Reuse table by wiping instead of replacing
+                for k in pairs(dirty) do dirty[k] = nil end
+            end)
+        end
     end
 end
 
@@ -608,6 +627,9 @@ function BagItemOverlay:TryHookBaganator()
     end
 end
 
+-- Reusable scratch table for RefreshAll to avoid creating a new table every call.
+local _refreshVisitedScratch = {}
+
 function BagItemOverlay:RefreshAll()
     if self.refreshQueued then
         return
@@ -616,7 +638,9 @@ function BagItemOverlay:RefreshAll()
     self.refreshQueued = true
     C_Timer.After(BAG_SCAN_DELAY, function()
         self.refreshQueued = false
-        local visited = {}
+        -- Wipe and reuse scratch table instead of creating new {}.
+        local visited = _refreshVisitedScratch
+        for k in pairs(visited) do visited[k] = nil end
 
         if _G.ContainerFrameCombinedBags then
             VisitContainerButtons(_G.ContainerFrameCombinedBags, visited)

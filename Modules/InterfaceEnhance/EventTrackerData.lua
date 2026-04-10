@@ -18,17 +18,53 @@ local GetCurrentRegion = GetCurrentRegion
 local C_QuestLog_IsQuestFlaggedCompleted = C_QuestLog.IsQuestFlaggedCompleted
 local C_Map_GetMapInfo = C_Map.GetMapInfo
 local professionProgressScratch = {}
+local _secondToTimeCache = {}
+local _secondToTimeCacheSize = 0
+local _MAX_SECOND_CACHE = 256
 
--- 格式化秒数为 HH:MM:SS 或 MM:SS
+-- 格式化秒数为 HH:MM:SS 或 MM:SS (cached)
 function ETD.SecondToTime(second)
+    local key = floor(second)
+    local cached = _secondToTimeCache[key]
+    if cached then return cached end
+
     local hour = floor(second / 3600)
     local min = floor((second - hour * 3600) / 60)
     local sec = floor(second - hour * 3600 - min * 60)
+    local result
     if hour == 0 then
-        return format("%02d:%02d", min, sec)
+        result = format("%02d:%02d", min, sec)
     else
-        return format("%02d:%02d:%02d", hour, min, sec)
+        result = format("%02d:%02d:%02d", hour, min, sec)
     end
+
+    if _secondToTimeCacheSize >= _MAX_SECOND_CACHE then
+        for k in pairs(_secondToTimeCache) do _secondToTimeCache[k] = nil end
+        _secondToTimeCacheSize = 0
+    end
+    _secondToTimeCache[key] = result
+    _secondToTimeCacheSize = _secondToTimeCacheSize + 1
+    return result
+end
+
+-- 绿色高亮版本 (cached)
+local _coloredTimeCache = {}
+local _coloredTimeCacheSize = 0
+
+function ETD.SecondToTimeGreen(second)
+    local key = floor(second)
+    local cached = _coloredTimeCache[key]
+    if cached then return cached end
+
+    local result = "|cFF33FF33" .. ETD.SecondToTime(second) .. "|r"
+
+    if _coloredTimeCacheSize >= _MAX_SECOND_CACHE then
+        for k in pairs(_coloredTimeCache) do _coloredTimeCache[k] = nil end
+        _coloredTimeCacheSize = 0
+    end
+    _coloredTimeCache[key] = result
+    _coloredTimeCacheSize = _coloredTimeCacheSize + 1
+    return result
 end
 
 -- 获取安全的地图名称

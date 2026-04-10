@@ -350,7 +350,7 @@ local function GetAuraDataByInstanceID(auraInstanceID, preferredUnit, secondUnit
         if data then return data, secondUnit end
     end
     -- 碎冰总在 target 上
-    for _, unit in ipairs({"target", "focus", "mouseover"}) do
+    for _, unit in ipairs({ "target", "focus", "mouseover" }) do
         if unit ~= preferredUnit and unit ~= secondUnit and UnitExists(unit) then
             local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, auraInstanceID)
             if data then return data, unit end
@@ -515,7 +515,10 @@ end
 
 function ShatterIndicator:StartUpdating()
     self:StopUpdating()
-    self._updateTicker = C_Timer.NewTicker(UPDATE_INTERVAL, function() self:UpdateStacks() end)
+    if not self._stableUpdateCallback then
+        self._stableUpdateCallback = function() ShatterIndicator:UpdateStacks() end
+    end
+    self._updateTicker = C_Timer.NewTicker(UPDATE_INTERVAL, self._stableUpdateCallback)
 end
 
 -- =========================================================
@@ -545,7 +548,8 @@ function ShatterIndicator:UpdateStacks()
             local instID = cdmFrame.auraInstanceID
             if HasAuraInstanceID(instID) then
                 local trackedUnit = nil
-                auraData, trackedUnit = GetAuraDataByInstanceID(instID, cdmFrame.auraDataUnit or "target", self._trackedUnit)
+                auraData, trackedUnit = GetAuraDataByInstanceID(instID, cdmFrame.auraDataUnit or "target",
+                    self._trackedUnit)
                 if auraData then
                     self._trackedAuraInstanceID = instID
                     self._trackedUnit = trackedUnit or cdmFrame.auraDataUnit or "target"
@@ -580,7 +584,7 @@ function ShatterIndicator:UpdateStacks()
         if self._lastKnownActive then
             self._nilGraceCount = (self._nilGraceCount or 0) + 1
             if self._nilGraceCount <= 5 then
-                return  -- 冻结显示，不更新
+                return -- 冻结显示，不更新
             end
         end
         stacks = 0

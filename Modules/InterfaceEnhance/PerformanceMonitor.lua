@@ -144,14 +144,25 @@ local function GetMetricColorHex(value, metric)
     return "ffff5555"
 end
 
+-- Cached performance text — only regenerated when displayed values change.
+local _perfCachedFps = -1
+local _perfCachedLatency = -1
+local _perfCachedText = ""
+
 local function BuildPerformanceText(fps, latency)
-    return string.format(
+    if fps == _perfCachedFps and latency == _perfCachedLatency then
+        return _perfCachedText
+    end
+    _perfCachedFps = fps
+    _perfCachedLatency = latency
+    _perfCachedText = string.format(
         "FPS |c%s%d|r  MS |c%s%d|r",
         GetMetricColorHex(fps, "fps"),
-        tonumber(fps) or 0,
+        fps,
         GetMetricColorHex(latency, "ms"),
-        tonumber(latency) or 0
+        latency
     )
+    return _perfCachedText
 end
 
 local function ApplyPerformanceMonitorFont(frame)
@@ -271,9 +282,15 @@ function Core:RefreshPerformanceMonitor()
 
     local fps = math.floor((GetFramerate and GetFramerate() or 0) + 0.5)
     local _, _, _, world = GetNetStats()
-    local latency = tonumber(world) or 0
+    local latency = world or 0
 
-    self.performanceMonitorFrame.text:SetText(BuildPerformanceText(fps, latency))
+    local text = BuildPerformanceText(fps, latency)
+    -- Only call SetText when the string actually changed.
+    local fontString = self.performanceMonitorFrame.text
+    if fontString._lastPerfText ~= text then
+        fontString._lastPerfText = text
+        fontString:SetText(text)
+    end
 end
 
 function Core:RefreshPerformanceMonitorTooltip()
@@ -340,7 +357,8 @@ function Core:CreatePerformanceMonitorFrame()
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetSize(110, 20)
-    frame:SetPoint(position.point or "CENTER", UIParent, position.relativePoint or "CENTER", position.x or 220, position.y or -20)
+    frame:SetPoint(position.point or "CENTER", UIParent, position.relativePoint or "CENTER", position.x or 220,
+    position.y or -20)
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame)

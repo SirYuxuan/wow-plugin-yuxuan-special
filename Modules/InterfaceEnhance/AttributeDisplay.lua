@@ -197,6 +197,48 @@ local function RememberOrderedKeys(displayList, count)
     attributeRenderState.displayCount = count
 end
 
+-- Pre-built format strings keyed by decimal places to avoid per-call concatenation.
+local _secondaryPercentFmts = {}
+local _secondaryRatingFmts = {}
+local _speedCurrentFmts = {}
+local _speedStaticFmts = {}
+
+local function GetSecondaryPercentFmt(decimals)
+    local fmt = _secondaryPercentFmts[decimals]
+    if not fmt then
+        fmt = "%s: %." .. decimals .. "f%%"
+        _secondaryPercentFmts[decimals] = fmt
+    end
+    return fmt
+end
+
+local function GetSecondaryRatingFmt(decimals)
+    local fmt = _secondaryRatingFmts[decimals]
+    if not fmt then
+        fmt = "%s: %d (%." .. decimals .. "f%%)"
+        _secondaryRatingFmts[decimals] = fmt
+    end
+    return fmt
+end
+
+local function GetSpeedCurrentFmt(decimals)
+    local fmt = _speedCurrentFmts[decimals]
+    if not fmt then
+        fmt = "移速: %." .. decimals .. "f%%"
+        _speedCurrentFmts[decimals] = fmt
+    end
+    return fmt
+end
+
+local function GetSpeedStaticFmt(decimals)
+    local fmt = _speedStaticFmts[decimals]
+    if not fmt then
+        fmt = "移速: %." .. decimals .. "f%% (静态)"
+        _speedStaticFmts[decimals] = fmt
+    end
+    return fmt
+end
+
 local function GetCachedSecondaryText(key, entry, config)
     local cache = attributeRenderState.lineTexts[key] or {}
     local roundedValue = RoundToPlaces(entry.value, config.decimalPlaces)
@@ -213,9 +255,10 @@ local function GetCachedSecondaryText(key, entry, config)
         cache.decimals = config.decimalPlaces
 
         if config.secondaryFormat == "percent" then
-            cache.text = string.format("%s: %." .. config.decimalPlaces .. "f%%", entry.name, roundedValue)
+            cache.text = string.format(GetSecondaryPercentFmt(config.decimalPlaces), entry.name, roundedValue)
         else
-            cache.text = string.format("%s: %d (%." .. config.decimalPlaces .. "f%%)", entry.name, entry.rating, roundedValue)
+            cache.text = string.format(GetSecondaryRatingFmt(config.decimalPlaces), entry.name, entry.rating,
+                roundedValue)
         end
     end
 
@@ -555,6 +598,18 @@ local function UpdateSecondaryCacheEntry(config, key, rating, percent)
     entry.name = SECONDARY_STAT_NAMES[key]
 end
 
+-- Hoisted out of RefreshSlowAttributeData to avoid creating a closure every call.
+local _slowRefreshChanged = false
+local function _UpdateTrackedSecondary(config, key, rating, percent)
+    local entry = GetSecondaryCacheEntry(key)
+    local nextRating = rating or 0
+    local nextPercent = percent or 0
+    if entry.rating ~= nextRating or entry.value ~= nextPercent then
+        _slowRefreshChanged = true
+    end
+    UpdateSecondaryCacheEntry(config, key, nextRating, nextPercent)
+end
+
 local function RefreshSlowAttributeData(config, force)
     local now = GetTime()
     if not force and not attributeDataCache.slowDirty and now < (attributeDataCache.nextSlowRefreshAt or 0) then
@@ -568,7 +623,7 @@ local function RefreshSlowAttributeData(config, force)
     local statName, statValue = GetPrimaryStatValue()
     statName = statName or ""
     statValue = statValue or 0
-    local changed = force
+    _slowRefreshChanged = force
         or attributeDataCache.ilvlAverage ~= averageIlvl
         or attributeDataCache.ilvlEquipped ~= equippedIlvl
         or attributeDataCache.primaryName ~= statName
@@ -579,44 +634,35 @@ local function RefreshSlowAttributeData(config, force)
     attributeDataCache.primaryName = statName
     attributeDataCache.primaryValue = statValue
 
-    local function UpdateTrackedSecondary(key, rating, percent)
-        local entry = GetSecondaryCacheEntry(key)
-        local nextRating = rating or 0
-        local nextPercent = percent or 0
-        if entry.rating ~= nextRating or entry.value ~= nextPercent then
-            changed = true
-        end
-        UpdateSecondaryCacheEntry(config, key, nextRating, nextPercent)
-    end
-
     if config.showCrit then
-        UpdateTrackedSecondary("crit", GetCombatRating(CR_CRIT_MELEE), GetCritChance("player") or 0)
+        _UpdateTrackedSecondary(config, "crit", GetCombatRating(CR_CRIT_MELEE), GetCritChance("player") or 0)
     end
     if config.showHaste then
-        UpdateTrackedSecondary("haste", GetCombatRating(CR_HASTE_MELEE), UnitSpellHaste("player") or 0)
+        _UpdateTrackedSecondary(config, "haste", GetCombatRating(CR_HASTE_MELEE), UnitSpellHaste("player") or 0)
     end
     if config.showMastery then
-        UpdateTrackedSecondary("mastery", GetCombatRating(CR_MASTERY), GetMasteryEffect("player") or 0)
+        _UpdateTrackedSecondary(config, "mastery", GetCombatRating(CR_MASTERY), GetMasteryEffect("player") or 0)
     end
     if config.showVersa then
-        UpdateTrackedSecondary("versa", GetCombatRating(CR_VERSATILITY_DAMAGE_DONE), GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) or 0)
+        _UpdateTrackedSecondary(config, "versa", GetCombatRating(CR_VERSATILITY_DAMAGE_DONE),
+            GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) or 0)
     end
     if config.showLeech then
-        UpdateTrackedSecondary("leech", GetCombatRating(CR_LIFESTEAL), GetLifesteal() or 0)
+        _UpdateTrackedSecondary(config, "leech", GetCombatRating(CR_LIFESTEAL), GetLifesteal() or 0)
     end
     if config.showDodge then
-        UpdateTrackedSecondary("dodge", GetCombatRating(CR_DODGE), GetDodgeChance() or 0)
+        _UpdateTrackedSecondary(config, "dodge", GetCombatRating(CR_DODGE), GetDodgeChance() or 0)
     end
     if config.showParry then
-        UpdateTrackedSecondary("parry", GetCombatRating(CR_PARRY), GetParryChance() or 0)
+        _UpdateTrackedSecondary(config, "parry", GetCombatRating(CR_PARRY), GetParryChance() or 0)
     end
     if config.showBlock then
-        UpdateTrackedSecondary("block", GetCombatRating(CR_BLOCK), GetBlockChance() or 0)
+        _UpdateTrackedSecondary(config, "block", GetCombatRating(CR_BLOCK), GetBlockChance() or 0)
     end
 
     attributeDataCache.slowDirty = false
     attributeDataCache.nextSlowRefreshAt = now + ATTRIBUTE_SLOW_UPDATE_INTERVAL
-    return changed
+    return _slowRefreshChanged
 end
 
 local function RefreshSpeedAttributeData(config, force)
@@ -627,7 +673,8 @@ local function RefreshSpeedAttributeData(config, force)
 
     local nextSpeed = GetPlayerSpeed()
     local changed = force
-        or RoundToPlaces(attributeDataCache.speed or 0, config.decimalPlaces) ~= RoundToPlaces(nextSpeed, config.decimalPlaces)
+        or RoundToPlaces(attributeDataCache.speed or 0, config.decimalPlaces) ~=
+        RoundToPlaces(nextSpeed, config.decimalPlaces)
     attributeDataCache.speed = nextSpeed
     attributeDataCache.speedDirty = false
     attributeDataCache.nextSpeedRefreshAt = now + ATTRIBUTE_FAST_UPDATE_INTERVAL
@@ -658,45 +705,52 @@ local function EnsureAttributeData(config, force)
     return refreshed
 end
 
+-- Hoisted out of BuildSecondaryStatList to avoid creating a closure every call.
+local _secondaryBuildConfig, _secondaryBuildSortable, _secondaryBuildCount
+local function _AddSecondaryStat(key)
+    _secondaryBuildCount = _secondaryBuildCount + 1
+    local entry = AcquireScratchEntry(_secondaryBuildSortable, _secondaryBuildCount)
+    local cached = attributeDataCache.secondary[key] or {}
+    entry.key = key
+    entry.value = cached.value or 0
+    entry.rating = cached.rating or 0
+    entry.color = cached.color or _secondaryBuildConfig["color" .. key:sub(1, 1):upper() .. key:sub(2)]
+    entry.name = cached.name or SECONDARY_STAT_NAMES[key]
+end
+
 local function BuildSecondaryStatList(config, sortable)
-    local count = 0
-
-    local function AddStat(key)
-        count = count + 1
-
-        local entry = AcquireScratchEntry(sortable, count)
-        local cached = attributeDataCache.secondary[key] or {}
-        entry.key = key
-        entry.value = cached.value or 0
-        entry.rating = cached.rating or 0
-        entry.color = cached.color or config["color" .. key:sub(1, 1):upper() .. key:sub(2)]
-        entry.name = cached.name or SECONDARY_STAT_NAMES[key]
-    end
+    _secondaryBuildConfig = config
+    _secondaryBuildSortable = sortable
+    _secondaryBuildCount = 0
 
     if config.showCrit then
-        AddStat("crit")
+        _AddSecondaryStat("crit")
     end
     if config.showHaste then
-        AddStat("haste")
+        _AddSecondaryStat("haste")
     end
     if config.showMastery then
-        AddStat("mastery")
+        _AddSecondaryStat("mastery")
     end
     if config.showVersa then
-        AddStat("versa")
+        _AddSecondaryStat("versa")
     end
     if config.showLeech then
-        AddStat("leech")
+        _AddSecondaryStat("leech")
     end
     if config.showDodge then
-        AddStat("dodge")
+        _AddSecondaryStat("dodge")
     end
     if config.showParry then
-        AddStat("parry")
+        _AddSecondaryStat("parry")
     end
     if config.showBlock then
-        AddStat("block")
+        _AddSecondaryStat("block")
     end
+
+    _secondaryBuildConfig = nil
+    _secondaryBuildSortable = nil
+    local count = _secondaryBuildCount
 
     for index = count + 1, #sortable do
         sortable[index] = nil
@@ -706,6 +760,28 @@ local function BuildSecondaryStatList(config, sortable)
     return count
 end
 
+-- Builders hoisted out of BuildAttributeDisplayList to avoid per-call closures.
+-- They read from _buildCtx which is set before each call.
+local _buildCtx = {}
+
+local function _BuildIlvlText()
+    if _buildCtx.ilvlFormat == "real" then
+        return string.format("装等: %.1f", _buildCtx.equippedIlvl or 0)
+    end
+    return string.format("装等: %.1f (%.1f)", _buildCtx.equippedIlvl or 0, _buildCtx.averageIlvl or 0)
+end
+
+local function _BuildPrimaryText()
+    return string.format("%s: %s", _buildCtx.statName or "", tostring(_buildCtx.statValue or 0))
+end
+
+local function _BuildSpeedText()
+    if _buildCtx.speedFormat == "current" then
+        return string.format(GetSpeedCurrentFmt(_buildCtx.decimalPlaces), _buildCtx.roundedSpeed)
+    end
+    return string.format(GetSpeedStaticFmt(_buildCtx.decimalPlaces), _buildCtx.roundedSpeed)
+end
+
 local function BuildAttributeDisplayList(displayList, sortable, config)
     local displayCount = 0
 
@@ -713,12 +789,10 @@ local function BuildAttributeDisplayList(displayList, sortable, config)
         local averageIlvl = attributeDataCache.ilvlAverage or 0
         local equippedIlvl = attributeDataCache.ilvlEquipped or 0
         local entry = AcquireScratchEntry(displayList, displayCount + 1)
-        local text = GetCachedSimpleText("ilvl", config.ilvlFormat, averageIlvl, equippedIlvl, function()
-            if config.ilvlFormat == "real" then
-                return string.format("装等: %.1f", equippedIlvl or 0)
-            end
-            return string.format("装等: %.1f (%.1f)", equippedIlvl or 0, averageIlvl or 0)
-        end)
+        _buildCtx.ilvlFormat = config.ilvlFormat
+        _buildCtx.averageIlvl = averageIlvl
+        _buildCtx.equippedIlvl = equippedIlvl
+        local text = GetCachedSimpleText("ilvl", config.ilvlFormat, averageIlvl, equippedIlvl, _BuildIlvlText)
 
         displayCount = displayCount + 1
         SetDisplayEntry(entry, "ilvl", text, config.colorIlvl, equippedIlvl, config.maxIlvl)
@@ -728,9 +802,9 @@ local function BuildAttributeDisplayList(displayList, sortable, config)
         local statName = attributeDataCache.primaryName or ""
         local statValue = attributeDataCache.primaryValue or 0
         local entry = AcquireScratchEntry(displayList, displayCount + 1)
-        local text = GetCachedSimpleText("primary", statName, statValue, false, function()
-            return string.format("%s: %s", statName or "", tostring(statValue or 0))
-        end)
+        _buildCtx.statName = statName
+        _buildCtx.statValue = statValue
+        local text = GetCachedSimpleText("primary", statName, statValue, false, _BuildPrimaryText)
 
         displayCount = displayCount + 1
         SetDisplayEntry(entry, "primary", text, config.colorPrimary, statValue, 5000)
@@ -757,12 +831,10 @@ local function BuildAttributeDisplayList(displayList, sortable, config)
         local speed = attributeDataCache.speed or 0
         local roundedSpeed = RoundToPlaces(speed, config.decimalPlaces)
         local entry = AcquireScratchEntry(displayList, displayCount + 1)
-        local text = GetCachedSimpleText("speed", config.speedFormat, config.decimalPlaces, roundedSpeed, function()
-            if config.speedFormat == "current" then
-                return string.format("移速: %." .. config.decimalPlaces .. "f%%", roundedSpeed)
-            end
-            return string.format("移速: %." .. config.decimalPlaces .. "f%% (静态)", roundedSpeed)
-        end)
+        _buildCtx.speedFormat = config.speedFormat
+        _buildCtx.decimalPlaces = config.decimalPlaces
+        _buildCtx.roundedSpeed = roundedSpeed
+        local text = GetCachedSimpleText("speed", config.speedFormat, config.decimalPlaces, roundedSpeed, _BuildSpeedText)
 
         displayCount = displayCount + 1
         SetDisplayEntry(entry, "speed", text, config.colorSpeed, speed, 1100)
@@ -856,7 +928,8 @@ function Core:UpdateAttributeDisplay()
     WipeDictionary(usedKeys)
 
     local displayCount = BuildAttributeDisplayList(displayList, sortable, config)
-    local needsLayout = attributeRenderState.forceLayout or lineStyleDirty or HasOrderedKeysChanged(displayList, displayCount)
+    local needsLayout = attributeRenderState.forceLayout or lineStyleDirty or
+    HasOrderedKeysChanged(displayList, displayCount)
 
     if needsLayout then
         LayoutDisplayEntries(self, frame, displayList, displayCount, usedKeys, config)

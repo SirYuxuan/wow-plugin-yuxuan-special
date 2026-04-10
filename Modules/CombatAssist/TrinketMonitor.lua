@@ -89,19 +89,47 @@ local function GetPrimaryAnchorOffset(frame, iconSize)
     return offsetX, offsetY
 end
 
+-- Cache last-formatted cooldown text to avoid string.format garbage when the displayed value hasn't changed.
+local _lastCDText = {}
+local _lastCDKey = {}
+local _emptyButtons = {}
+local _glowColorScratch = { 1, 1, 1, 1 }
+
 local function FormatCooldownText(remaining)
+    -- Compute a cache key that changes only when the displayed string would change.
+    local cacheKey
     if remaining >= 3600 then
-        return string.format("%dh", math.ceil(remaining / 3600))
+        cacheKey = math.ceil(remaining / 3600) * 10000
+    elseif remaining >= 60 then
+        local m = math.floor(remaining / 60)
+        local s = math.floor(remaining % 60)
+        cacheKey = m * 100 + s
+    elseif remaining >= 10 then
+        cacheKey = math.ceil(remaining)
+    else
+        cacheKey = math.floor(remaining * 10)
     end
-    if remaining >= 60 then
+
+    if _lastCDKey[1] == cacheKey then
+        return _lastCDText[1]
+    end
+
+    local text
+    if remaining >= 3600 then
+        text = string.format("%dh", math.ceil(remaining / 3600))
+    elseif remaining >= 60 then
         local minutes = math.floor(remaining / 60)
         local seconds = math.floor(remaining % 60)
-        return string.format("%d:%02d", minutes, seconds)
+        text = string.format("%d:%02d", minutes, seconds)
+    elseif remaining >= 10 then
+        text = tostring(math.ceil(remaining))
+    else
+        text = string.format("%.1f", remaining)
     end
-    if remaining >= 10 then
-        return tostring(math.ceil(remaining))
-    end
-    return string.format("%.1f", remaining)
+
+    _lastCDKey[1] = cacheKey
+    _lastCDText[1] = text
+    return text
 end
 
 local function IsActiveTrinket(itemLocationValue)
@@ -462,7 +490,11 @@ SetReadyAnimationEnabled = function(button, enabled, color)
         if button._glowR ~= r or button._glowG ~= g or button._glowB ~= b or button._glowA ~= a or
             button._glowSize ~= size then
             pcall(GlowLib.PixelGlow_Stop, glowTarget)
-            pcall(GlowLib.PixelGlow_Start, glowTarget, { r, g, b, a }, 8, 0.25, (10 / 50) * size,
+            _glowColorScratch[1] = r
+            _glowColorScratch[2] = g
+            _glowColorScratch[3] = b
+            _glowColorScratch[4] = a
+            pcall(GlowLib.PixelGlow_Start, glowTarget, _glowColorScratch, 8, 0.25, (10 / 50) * size,
                 math.max(1.25, (0.8 / 50) * size), 1, 1, false, nil, 2)
             button._glowR = r
             button._glowG = g
@@ -532,7 +564,7 @@ function TrinketMonitor:GetBlockedItemIDSet()
         self._blockedItemIDsRaw = rawValue
         self._blockedItemIDs = ParseBlockedItemIDs(rawValue)
     end
-    return self._blockedItemIDs or {}
+    return self._blockedItemIDs or _emptyButtons
 end
 
 function TrinketMonitor:CreateButton(slotInfo)
@@ -816,7 +848,8 @@ function TrinketMonitor:RefreshLayout()
     ApplyChatLikeFont(self._alertText, readyTextSize, "OUTLINE")
     ApplyTextColor(self._alertText, readyTextColor)
     self._alertFrame:ClearAllPoints()
-    self._alertFrame:SetPoint("CENTER", UIParent, "CENTER", RoundOffset(config.readyOffsetX or 0), RoundOffset(config.readyOffsetY or 0))
+    self._alertFrame:SetPoint("CENTER", UIParent, "CENTER", RoundOffset(config.readyOffsetX or 0),
+    RoundOffset(config.readyOffsetY or 0))
     self._alertFrame:SetSize(math.max(240, readyTextSize * 10), readyTextSize + 20)
 
     local unlocked = config.unlocked == true
@@ -910,7 +943,7 @@ function TrinketMonitor:RefreshVisibleLayout()
         shownButtons[index] = nil
     end
 
-    for _, button in ipairs(self._buttons or {}) do
+    for _, button in ipairs(self._buttons or _emptyButtons) do
         if button._layoutVisible then
             table.insert(shownButtons, button)
         end
@@ -1051,10 +1084,15 @@ function TrinketMonitor:EnsureUpdateTicker(interval)
         self._updateTicker = nil
     end
 
+    -- Reuse a stable callback to avoid creating a new closure on every interval change.
+    if not self._stableTickerCallback then
+        self._stableTickerCallback = function()
+            self:UpdateDisplay()
+        end
+    end
+
     self._updateInterval = nextInterval
-    self._updateTicker = C_Timer.NewTicker(nextInterval, function()
-        self:UpdateDisplay()
-    end)
+    self._updateTicker = C_Timer.NewTicker(nextInterval, self._stableTickerCallback)
 end
 
 function TrinketMonitor:UpdateDisplay()
@@ -1071,7 +1109,7 @@ function TrinketMonitor:UpdateDisplay()
     local anyVisible = false
     local anyCoolingDown = false
     local layoutDirty = self._pendingVisibleLayout == true
-    for _, button in ipairs(self._buttons or {}) do
+    for _, button in ipairs(self._buttons or _emptyButtons) do
         layoutDirty = self:UpdateButton(button, now) or layoutDirty
         anyVisible = anyVisible or button._layoutVisible == true
         anyCoolingDown = anyCoolingDown or button._coolingDown == true
@@ -1082,7 +1120,7 @@ function TrinketMonitor:UpdateDisplay()
     end
 
     if suppressOutOfCombat then
-        for _, button in ipairs(self._buttons or {}) do
+        for _, button in ipairs(self._buttons or _emptyButtons) do
             StopReadyHighlight(button)
             SetButtonVisualVisible(button, false)
         end
@@ -1098,7 +1136,7 @@ function TrinketMonitor:UpdateDisplay()
             self._interactionBlocker:Hide()
         end
     else
-        for _, button in ipairs(self._buttons or {}) do
+        for _, button in ipairs(self._buttons or _emptyButtons) do
             SetButtonVisualVisible(button, false)
         end
         self._mainFrame:SetAlpha(0)

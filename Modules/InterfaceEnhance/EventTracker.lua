@@ -26,6 +26,9 @@ local V_SPACING = 4
 --------------------------------------------------------------------------------
 -- 配置读取
 --------------------------------------------------------------------------------
+-- Apply event-key defaults once to avoid iterating the event list on every ETcfg() call.
+local _etcfgDefaultsApplied = false
+
 local function ETcfg()
     local cfg = Core:GetConfig("interfaceEnhance", "eventTracker")
     if cfg.enabled == nil then cfg.enabled = true end
@@ -36,12 +39,15 @@ local function ETcfg()
     if cfg.backdropAlpha == nil then cfg.backdropAlpha = 0.6 end
     if cfg.alertEnabled == nil then cfg.alertEnabled = true end
     if cfg.alertSecond == nil then cfg.alertSecond = 60 end
-    -- 各事件的开关默认值
-    for _, eventKey in ipairs(ETD.EventList) do
-        local data = ETD.EventData[eventKey]
-        if data and data.dbKey then
-            if cfg[data.dbKey] == nil then cfg[data.dbKey] = true end
+    -- 各事件的开关默认值（只遍历一次）
+    if not _etcfgDefaultsApplied then
+        for _, eventKey in ipairs(ETD.EventList) do
+            local data = ETD.EventData[eventKey]
+            if data and data.dbKey then
+                if cfg[data.dbKey] == nil then cfg[data.dbKey] = true end
+            end
         end
+        _etcfgDefaultsApplied = true
     end
     return cfg
 end
@@ -290,7 +296,7 @@ local function CreateLoopTimerTracker(parent, eventKey)
 
         if status.isRunning then
             -- 事件进行中
-            self.timerText:SetText("|cFF33FF33" .. ETD.SecondToTime(status.timeLeft) .. "|r")
+            self.timerText:SetText(ETD.SecondToTimeGreen(status.timeLeft))
             self.statusBar:SetMinMaxValues(0, status.duration)
             self.statusBar:SetValue(status.timeInCycle)
             local c = self.data.barColor or ETD.Colors.running
@@ -437,7 +443,8 @@ function EventTracker:CreateEventTrackerFrame()
     if self.frame then return end
     if not WorldMapFrame then return end
 
-    local frame = CreateFrame("Frame", (NS.ADDON_NAME or "YuXuanSpecial") .. "EventTrackerFrame", WorldMapFrame, "BackdropTemplate")
+    local frame = CreateFrame("Frame", (NS.ADDON_NAME or "YuXuanSpecial") .. "EventTrackerFrame", WorldMapFrame,
+    "BackdropTemplate")
     frame:SetFrameStrata("HIGH")
     frame:SetFrameLevel(3600)
     frame:SetHeight(30)
@@ -596,20 +603,26 @@ function EventTracker:ApplyEventTrackerSettings()
 
         -- 监听世界地图的显示/隐藏
         if not self.eventTrackerMapHooked then
+            -- Stable callback reused for all delayed update calls
+            -- to avoid creating new closures on every map show/resize.
+            if not self._stableUpdateCallback then
+                self._stableUpdateCallback = function()
+                    EventTracker:UpdateEventTrackers()
+                end
+            end
+
             if WorldMapFrame then
                 WorldMapFrame:HookScript("OnShow", function()
-                    C_Timer.After(0.1, function()
-                        EventTracker:UpdateEventTrackers()
-                    end)
+                    C_Timer.After(0.1, self._stableUpdateCallback)
                 end)
                 -- 处理地图大小变化
                 if EventRegistry then
                     pcall(function()
                         EventRegistry:RegisterCallback("WorldMapMinimized", function()
-                            C_Timer.After(0.15, function() EventTracker:UpdateEventTrackers() end)
+                            C_Timer.After(0.15, self._stableUpdateCallback)
                         end)
                         EventRegistry:RegisterCallback("WorldMapMaximized", function()
-                            C_Timer.After(0.15, function() EventTracker:UpdateEventTrackers() end)
+                            C_Timer.After(0.15, self._stableUpdateCallback)
                         end)
                     end)
                 end

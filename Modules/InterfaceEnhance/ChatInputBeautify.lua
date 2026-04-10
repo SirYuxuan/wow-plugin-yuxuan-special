@@ -105,7 +105,7 @@ end
 GetConfig = function()
     local config = NS.Core:GetConfig("interfaceEnhance", "interfaceBeautify")
     local defaults = NS.DEFAULTS and NS.DEFAULTS.interfaceEnhance and NS.DEFAULTS.interfaceEnhance.interfaceBeautify or
-    {}
+        {}
 
     for key, value in pairs(defaults) do
         if config[key] == nil then
@@ -129,19 +129,20 @@ local function ReplaceChannelLinkLabel(text, linkTarget, label)
     return (text:gsub("(|Hchannel:" .. linkTarget .. "|h)%[[^%]]+%](|h)", "%1[" .. label .. "]%2"))
 end
 
-local function ReplaceCustomChannelLabels(text)
-    local function replacer(prefix, channelName, suffix)
-        local shortName = GetShortChannelName(channelName)
-        if shortName then
-            return prefix .. "[" .. shortName .. "]" .. suffix
-        end
-
-        return prefix .. "[" .. channelName .. "]" .. suffix
+-- Hoisted to module level to avoid creating a closure on every chat message.
+local function ChannelLabelReplacer(prefix, channelName, suffix)
+    local shortName = GetShortChannelName(channelName)
+    if shortName then
+        return prefix .. "[" .. shortName .. "]" .. suffix
     end
 
+    return prefix .. "[" .. channelName .. "]" .. suffix
+end
+
+local function ReplaceCustomChannelLabels(text)
     local updated = text
-    updated = updated:gsub("(|Hchannel:channel:%d+|h)%[([^%]]+)%](|h)", replacer)
-    updated = updated:gsub("(|Hchannel:CHANNEL:%d+|h)%[([^%]]+)%](|h)", replacer)
+    updated = updated:gsub("(|Hchannel:channel:%d+|h)%[([^%]]+)%](|h)", ChannelLabelReplacer)
+    updated = updated:gsub("(|Hchannel:CHANNEL:%d+|h)%[([^%]]+)%](|h)", ChannelLabelReplacer)
     return updated
 end
 
@@ -150,22 +151,7 @@ local function IsProtectedChatValue(value)
 end
 
 local function MessageIsProtected(message)
-    if IsProtectedChatValue(message) then
-        return true
-    end
-
-    if type(message) ~= "string" then
-        return false
-    end
-
-    local ok, hasProtectedToken = pcall(string.find, message, "|K", 1, true)
-    if not ok then
-        -- If the client refuses string operations, treat the value as protected
-        -- and leave it untouched.
-        return true
-    end
-
-    return hasProtectedToken ~= nil
+    return IsProtectedChatValue(message)
 end
 
 function InterfaceBeautify:SimplifyRenderedMessage(text)
@@ -177,24 +163,28 @@ function InterfaceBeautify:SimplifyRenderedMessage(text)
         return text
     end
 
-    -- Follow ElvUI's approach: only rewrite chat prefixes for messages that
-    -- are confirmed to be non-protected.
-    local ok, updated = pcall(function()
-        local result = text
-        for channelKey, label in pairs(FIXED_CHANNEL_LABELS) do
-            result = ReplaceChannelLinkLabel(result, channelKey, label)
-        end
-
-        result = ReplaceCustomChannelLabels(result)
-        result = result:gsub("CHANNEL:", "")
-        return result
-    end)
+    -- Only skip values the client marks as secret. Raid and Mythic+ chat often
+    -- contains |K tokens in otherwise normal strings, so rely on pcall here
+    -- instead of treating every |K-bearing message as untouchable.
+    local ok, updated = pcall(InterfaceBeautify._DoSimplifyMessage, InterfaceBeautify, text)
 
     if ok then
         return updated
     end
 
     return text
+end
+
+-- Separated from SimplifyRenderedMessage to avoid creating a closure per pcall.
+function InterfaceBeautify:_DoSimplifyMessage(text)
+    local result = text
+    for channelKey, label in pairs(FIXED_CHANNEL_LABELS) do
+        result = ReplaceChannelLinkLabel(result, channelKey, label)
+    end
+
+    result = ReplaceCustomChannelLabels(result)
+    result = result:gsub("CHANNEL:", "")
+    return result
 end
 
 function InterfaceBeautify:ApplyChatFormatOverrides()
@@ -249,28 +239,46 @@ function InterfaceBeautify:HookChatFrame(frame)
         end)
     end
 
-    if not frame.__YuXuanInterfaceBeautifyAddMessageWrapper then
-        frame.__YuXuanInterfaceBeautifyAddMessageWrapper = function(chatFrame, text, ...)
-            local config = GetConfig()
-            local originalAddMessage = chatFrame.__YuXuanOriginalAddMessage
-            if type(originalAddMessage) ~= "function" then
-                return
-            end
-
-            if config.enabled and config.simplifyChatChannel then
-                text = InterfaceBeautify:SimplifyRenderedMessage(text)
-            end
-
-            return originalAddMessage(chatFrame, text, ...)
-        end
+    -- If our wrapper is still the active AddMessage, nothing to do.
+    if frame.__YuXuanAddMessageWrapper and frame.AddMessage == frame.__YuXuanAddMessageWrapper then
+        return
     end
 
+    -- Either first hook or another addon overwrote our wrapper — (re-)hook
+    -- on top of whatever AddMessage is currently installed.
     local currentAddMessage = frame.AddMessage
-    local wrapper = frame.__YuXuanInterfaceBeautifyAddMessageWrapper
-    if type(currentAddMessage) == "function" and currentAddMessage ~= wrapper then
-        frame.__YuXuanOriginalAddMessage = currentAddMessage
-        frame.AddMessage = wrapper
+    if type(currentAddMessage) ~= "function" then
+        return
     end
+
+    frame.__YuXuanOriginalAddMessage = currentAddMessage
+    frame.__YuXuanAddMessageHooked = true
+
+    local wrapper = function(chatFrame, text, ...)
+        local original = chatFrame.__YuXuanOriginalAddMessage
+
+        -- Safety: always call the original so messages are never silently lost.
+        if type(original) ~= "function" then
+            return
+        end
+
+        local ok, config = pcall(GetConfig)
+        if ok and config and config.enabled and config.simplifyChatChannel then
+            local sOk, simplified = pcall(
+                InterfaceBeautify.SimplifyRenderedMessage,
+                InterfaceBeautify,
+                text
+            )
+            if sOk and simplified then
+                text = simplified
+            end
+        end
+
+        return original(chatFrame, text, ...)
+    end
+
+    frame.__YuXuanAddMessageWrapper = wrapper
+    frame.AddMessage = wrapper
 end
 
 function InterfaceBeautify:HookChatFrames()
@@ -314,9 +322,14 @@ local function ApplyTarget(target)
     end)
 end
 
+local InCombatLockdown = rawget(_G, "InCombatLockdown")
+
 function InterfaceBeautify:Refresh()
-    for _, target in ipairs(TARGETS) do
-        ApplyTarget(target)
+    -- Defer frame visibility changes during combat to avoid taint.
+    if not (InCombatLockdown and InCombatLockdown()) then
+        for _, target in ipairs(TARGETS) do
+            ApplyTarget(target)
+        end
     end
 
     self:ApplyChatFormatOverrides()
@@ -348,7 +361,7 @@ function InterfaceBeautify:OnPlayerLogin()
     self.eventFrame = eventFrame
 
     if C_Timer and C_Timer.NewTicker then
-        self.chatHookTicker = self.chatHookTicker or C_Timer.NewTicker(2, function()
+        self.chatHookTicker = self.chatHookTicker or C_Timer.NewTicker(5, function()
             InterfaceBeautify:HookChatFrames()
         end)
     end

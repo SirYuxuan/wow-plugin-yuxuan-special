@@ -28,11 +28,20 @@ local function SafeDebugProfileStop()
     return 0
 end
 
+-- Reusable results table to avoid creating a new table per wrapped call.
+local _packResults = {}
 local function PackResults(...)
-    return {
-        n = select("#", ...),
-        ...
-    }
+    local n = select("#", ...)
+    _packResults.n = n
+    for i = 1, n do
+        _packResults[i] = select(i, ...)
+    end
+    -- Clear stale trailing slots from a previous call with more results.
+    for i = n + 1, (_packResults._prevN or 0) do
+        _packResults[i] = nil
+    end
+    _packResults._prevN = n
+    return _packResults
 end
 
 local function Print(message)
@@ -433,6 +442,7 @@ function Audit:Reset()
     self.samples = {}
     self.metrics = {}
     self.metricOrder = {}
+    self._metricByModule = nil
     self.startedAt = nil
     self.lastSampleAt = nil
 
@@ -445,16 +455,24 @@ function Audit:EnsureMetric(moduleName, metricName)
     self.metrics = self.metrics or {}
     self.metricOrder = self.metricOrder or {}
 
-    local metricKey = tostring(moduleName or "Core") .. "::" .. tostring(metricName or "unknown")
-    local metric = self.metrics[metricKey]
-    if metric then
-        return metric
+    -- Two-level lookup: avoids tostring() .. "::" .. tostring() on every call
+    local modKey = moduleName or "Core"
+    local metKey = metricName or "unknown"
+    self._metricByModule = self._metricByModule or {}
+    local modTable = self._metricByModule[modKey]
+    if modTable then
+        local cached = modTable[metKey]
+        if cached then return cached end
+    else
+        modTable = {}
+        self._metricByModule[modKey] = modTable
     end
 
-    metric = {
+    local metricKey = tostring(modKey) .. "::" .. tostring(metKey)
+    local metric = {
         key = metricKey,
-        module = tostring(moduleName or "Core"),
-        name = tostring(metricName or "unknown"),
+        module = tostring(modKey),
+        name = tostring(metKey),
         calls = 0,
         totalMs = 0,
         maxMs = 0,
@@ -464,6 +482,7 @@ function Audit:EnsureMetric(moduleName, metricName)
     }
 
     self.metrics[metricKey] = metric
+    modTable[metKey] = metric
     table_insert(self.metricOrder, metric)
     return metric
 end
@@ -489,11 +508,17 @@ function Audit:CaptureSample()
 
     self.samples = self.samples or {}
 
-    local sample = {
-        time = GetTimeSeconds(),
-        luaKB = collectgarbage("count"),
-        addonKB = self:GetAddonMemoryKB(),
-    }
+    -- Reuse evicted sample table when ring buffer is full
+    local sample
+    if #self.samples >= MAX_SAMPLE_COUNT then
+        sample = table_remove(self.samples, 1)
+    else
+        sample = {}
+    end
+
+    sample.time = GetTimeSeconds()
+    sample.luaKB = collectgarbage("count")
+    sample.addonKB = self:GetAddonMemoryKB()
 
     self.lastSampleAt = sample.time
     if not self.startedAt then
@@ -501,9 +526,6 @@ function Audit:CaptureSample()
     end
 
     table_insert(self.samples, sample)
-    while #self.samples > MAX_SAMPLE_COUNT do
-        table_remove(self.samples, 1)
-    end
 
     return sample
 end
@@ -522,9 +544,12 @@ function Audit:StartSampling(intervalSeconds)
     self:CaptureSample()
 
     if C_Timer and C_Timer.NewTicker then
-        self.sampleTicker = C_Timer.NewTicker(self.sampleInterval, function()
-            Audit:CaptureSample()
-        end)
+        if not self._stableSampleCallback then
+            self._stableSampleCallback = function()
+                Audit:CaptureSample()
+            end
+        end
+        self.sampleTicker = C_Timer.NewTicker(self.sampleInterval, self._stableSampleCallback)
     end
 
     self:EmitLine("内存审计已启动，采样间隔 " .. FormatNumber(self.sampleInterval) .. " 秒", true)
@@ -618,6 +643,7 @@ function Audit:Initialize()
     self.initialized = true
     self.samples = {}
     self.metrics = {}
+    self._metricByModule = nil
     self.metricOrder = {}
     self.sampling = false
     self.sampleInterval = DEFAULT_SAMPLE_INTERVAL
@@ -670,16 +696,16 @@ function Audit:Report()
     self:EmitLine("内存审计窗口 " .. FormatNumber(duration) .. " 秒", true)
     self:EmitLine(
         "Lua: "
-            .. FormatMemoryKB(firstSample.luaKB) .. " -> " .. FormatMemoryKB(lastSample.luaKB)
-            .. " (" .. (luaDeltaKB >= 0 and "+" or "") .. FormatMemoryKB(luaDeltaKB)
-            .. ", " .. (luaRateKBPerMinute >= 0 and "+" or "") .. FormatMemoryKB(luaRateKBPerMinute) .. "/分钟)",
+        .. FormatMemoryKB(firstSample.luaKB) .. " -> " .. FormatMemoryKB(lastSample.luaKB)
+        .. " (" .. (luaDeltaKB >= 0 and "+" or "") .. FormatMemoryKB(luaDeltaKB)
+        .. ", " .. (luaRateKBPerMinute >= 0 and "+" or "") .. FormatMemoryKB(luaRateKBPerMinute) .. "/分钟)",
         true
     )
     self:EmitLine(
         "插件: "
-            .. FormatMemoryKB(firstSample.addonKB) .. " -> " .. FormatMemoryKB(lastSample.addonKB)
-            .. " (" .. (addonDeltaKB >= 0 and "+" or "") .. FormatMemoryKB(addonDeltaKB)
-            .. ", " .. (addonRateKBPerMinute >= 0 and "+" or "") .. FormatMemoryKB(addonRateKBPerMinute) .. "/分钟)",
+        .. FormatMemoryKB(firstSample.addonKB) .. " -> " .. FormatMemoryKB(lastSample.addonKB)
+        .. " (" .. (addonDeltaKB >= 0 and "+" or "") .. FormatMemoryKB(addonDeltaKB)
+        .. ", " .. (addonRateKBPerMinute >= 0 and "+" or "") .. FormatMemoryKB(addonRateKBPerMinute) .. "/分钟)",
         true
     )
 

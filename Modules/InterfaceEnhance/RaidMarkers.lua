@@ -177,8 +177,13 @@ local function GetRaidMarkerMacroText(buttonInfo, countdownSeconds)
     return nil, nil
 end
 
+-- Reuse a scratch table to avoid creating a new one every call.
+local _visibleButtonsScratch = {}
+
 local function GetVisibleButtons(frame)
-    local buttons = {}
+    local buttons = _visibleButtonsScratch
+    for i = #buttons, 1, -1 do buttons[i] = nil end
+
     if not frame or not frame.buttons then
         return buttons
     end
