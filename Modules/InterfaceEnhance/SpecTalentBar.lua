@@ -24,6 +24,83 @@ local DURABILITY_SLOTS = {
     [16] = "主手",
     [17] = "副手",
 }
+local durabilityCache = {
+    dirty = true,
+    overall = 100,
+    entries = {},
+}
+
+local function WipeArray(list)
+    for index = #list, 1, -1 do
+        list[index] = nil
+    end
+end
+
+local function AcquireDurabilityEntry(index)
+    local entry = durabilityCache.entries[index]
+    if not entry then
+        entry = {}
+        durabilityCache.entries[index] = entry
+    end
+    return entry
+end
+
+local function SortDurabilityEntries(left, right)
+    if left.percent == right.percent then
+        return (left.itemName or "") < (right.itemName or "")
+    end
+    return (left.percent or 0) < (right.percent or 0)
+end
+
+local function RebuildDurabilityCache()
+    local totalCurrent, totalMax = 0, 0
+    local entryCount = 0
+
+    for slotID, slotName in pairs(DURABILITY_SLOTS) do
+        local current, maximum = GetInventoryItemDurability(slotID)
+        if current and maximum and maximum > 0 then
+            totalCurrent = totalCurrent + current
+            totalMax = totalMax + maximum
+
+            entryCount = entryCount + 1
+            local percent = (current / maximum) * 100
+            local itemLink = GetInventoryItemLink("player", slotID)
+            local itemName = slotName
+            local itemIcon
+            if itemLink then
+                local foundName, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemLink)
+                itemName = foundName or itemName
+                itemIcon = texture
+            end
+            itemIcon = itemIcon or GetInventoryItemTexture("player", slotID)
+
+            local entry = AcquireDurabilityEntry(entryCount)
+            entry.itemName = itemName
+            entry.icon = itemIcon
+            entry.percent = percent
+        end
+    end
+
+    for index = entryCount + 1, #durabilityCache.entries do
+        durabilityCache.entries[index] = nil
+    end
+
+    table.sort(durabilityCache.entries, SortDurabilityEntries)
+
+    local overall = 100
+    if totalMax > 0 then
+        overall = math.floor((totalCurrent / totalMax) * 100 + 0.5)
+    end
+
+    durabilityCache.overall = overall
+    durabilityCache.dirty = false
+end
+
+local function EnsureDurabilityCache()
+    if durabilityCache.dirty then
+        RebuildDurabilityCache()
+    end
+end
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "specTalentBar")
@@ -366,43 +443,21 @@ function SpecTalentBar:SetLootSpecialization(specID)
 end
 
 function SpecTalentBar:GetDurabilityEntries()
-    local entries = {}
-    local totalCurrent, totalMax = 0, 0
+    EnsureDurabilityCache()
+    return durabilityCache.overall or 100, durabilityCache.entries
+end
 
-    for slotID, slotName in pairs(DURABILITY_SLOTS) do
-        local current, maximum = GetInventoryItemDurability(slotID)
-        if current and maximum and maximum > 0 then
-            totalCurrent = totalCurrent + current
-            totalMax = totalMax + maximum
+function SpecTalentBar:GetDurabilityPercent()
+    EnsureDurabilityCache()
+    return durabilityCache.overall or 100
+end
 
-            local percent = (current / maximum) * 100
-            local itemLink = GetInventoryItemLink("player", slotID)
-            local itemName = slotName
-            local itemIcon
-            if itemLink then
-                local foundName, _, _, _, _, _, _, _, _, texture = GetItemInfo(itemLink)
-                itemName = foundName or itemName
-                itemIcon = texture
-            end
-            itemIcon = itemIcon or GetInventoryItemTexture("player", slotID)
+function SpecTalentBar:GetCachedDurabilityPercent()
+    return durabilityCache.overall or 100
+end
 
-            entries[#entries + 1] = {
-                itemName = itemName,
-                icon = itemIcon,
-                percent = percent,
-            }
-        end
-    end
-
-    table.sort(entries, function(a, b)
-        return a.percent < b.percent
-    end)
-
-    local overall = 100
-    if totalMax > 0 then
-        overall = math.floor((totalCurrent / totalMax) * 100 + 0.5)
-    end
-    return overall, entries
+function SpecTalentBar:InvalidateDurabilityCache()
+    durabilityCache.dirty = true
 end
 
 function SpecTalentBar:OpenCharacterFrame()
@@ -512,7 +567,7 @@ function SpecTalentBar:UpdateLayout()
         frame.specButton.text:SetPoint("LEFT", frame.specButton, "LEFT", PADDING_X, 0)
     end
 
-    local durabilityPercent = select(1, self:GetDurabilityEntries())
+    local durabilityPercent = self:GetDurabilityPercent()
     local percentColorCode = durabilityPercent > 60 and "|cFF33FF33" or
     (durabilityPercent > 30 and "|cFFFFDD33" or "|cFFFF3333")
     frame.durabilityButton.text:SetText(string.format("|cFF%s耐久度：|r%s%d%%|r", labelHex, percentColorCode,
@@ -752,7 +807,7 @@ function SpecTalentBar:CreateFrame()
     end)
 
     frame:SetScript("OnUpdate", function(selfFrame, elapsed)
-        local durabilityPercent = select(1, SpecTalentBar:GetDurabilityEntries())
+        local durabilityPercent = SpecTalentBar:GetCachedDurabilityPercent()
         if durabilityPercent >= 60 then
             selfFrame._flashAlpha = FLASH_MAX_ALPHA
             selfFrame._flashElapsed = 0
@@ -779,6 +834,13 @@ function SpecTalentBar:OnPlayerLogin()
     self:CreateFrame()
     self.eventFrame = self.eventFrame or CreateFrame("Frame")
     self.eventFrame:SetScript("OnEvent", function(_, event)
+        if event == "PLAYER_EQUIPMENT_CHANGED"
+            or event == "UPDATE_INVENTORY_DURABILITY"
+            or event == "PLAYER_ENTERING_WORLD"
+        then
+            SpecTalentBar:InvalidateDurabilityCache()
+        end
+
         if event == "PLAYER_SPECIALIZATION_CHANGED"
             or event == "ACTIVE_TALENT_GROUP_CHANGED"
             or event == "TRAIT_CONFIG_UPDATED"

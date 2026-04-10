@@ -244,6 +244,7 @@ function Core:UpdatePerformanceMonitorLayout()
     frame.text:ClearAllPoints()
     frame.text:SetPoint("LEFT", frame, "LEFT", 6, 0)
     frame.text:SetPoint("RIGHT", frame, "RIGHT", -6, 0)
+    frame.text:SetTextColor(1, 1, 1, 1)
 
     local width, height = GetPerformanceMonitorSize(frame)
     frame:SetSize(width, height)
@@ -272,11 +273,7 @@ function Core:RefreshPerformanceMonitor()
     local _, _, _, world = GetNetStats()
     local latency = tonumber(world) or 0
 
-    ApplyPerformanceMonitorFont(self.performanceMonitorFrame)
-    self.performanceMonitorFrame.text:SetTextColor(1, 1, 1, 1)
     self.performanceMonitorFrame.text:SetText(BuildPerformanceText(fps, latency))
-
-    self:UpdatePerformanceMonitorVisibility()
 end
 
 function Core:RefreshPerformanceMonitorTooltip()
@@ -411,8 +408,8 @@ function Core:ApplyPerformanceMonitorSettings()
     end
 
     self:UpdatePerformanceMonitorPosition()
-    self:RefreshPerformanceMonitor()
     self:UpdatePerformanceMonitorLayout()
+    self:RefreshPerformanceMonitor()
     self:UpdatePerformanceMonitorVisibility()
     self:UpdatePerformanceMonitorTicker()
 end

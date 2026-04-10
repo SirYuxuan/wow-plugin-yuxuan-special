@@ -216,6 +216,13 @@ function Core:OnAddonLoaded()
 end
 
 function Core:OnPlayerLogin()
+    if NS.MemoryAudit and NS.MemoryAudit.Initialize then
+        NS.MemoryAudit:Initialize()
+    end
+    if NS.MemoryManager and NS.MemoryManager.Initialize then
+        NS.MemoryManager:Initialize()
+    end
+
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.OnPlayerLogin then
         quickWaypoint:OnPlayerLogin()

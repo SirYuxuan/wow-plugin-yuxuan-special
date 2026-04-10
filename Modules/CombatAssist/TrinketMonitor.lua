@@ -9,7 +9,8 @@ local TRINKET_SLOTS = {
     { slotID = 14, label = "下饰品" },
 }
 
-local UPDATE_INTERVAL = 0.1
+local FAST_UPDATE_INTERVAL = 0.2
+local IDLE_UPDATE_INTERVAL = 1.0
 local READY_DASH_SPEED = 6
 local DASH_COUNT = 12
 local READY_TEXT_DEFAULT = "饰品好了！"
@@ -293,22 +294,112 @@ local function SetButtonVisualVisible(button, visible)
 end
 
 local function ApplySecureButtonVisibility(button, visible)
-    button._layoutVisible = visible and true or false
+    local targetVisible = visible and true or false
+    local changed = button._layoutVisible ~= targetVisible
+
+    button._layoutVisible = targetVisible
+
+    if changed then
+        button._layoutDirty = true
+    end
 
     if InCombatLockdown() then
-        SetButtonVisualVisible(button, visible)
-        return
+        if changed then
+            SetButtonVisualVisible(button, visible)
+        end
+        return changed
     end
 
     if not button:IsShown() then
         button:Show()
     end
 
-    SetButtonVisualVisible(button, visible)
+    if changed then
+        SetButtonVisualVisible(button, visible)
+    end
+
+    return changed
+end
+
+local function SetButtonIconTexture(button, texture)
+    local nextTexture = texture or 134400
+    if button._currentIconTexture ~= nextTexture then
+        button.icon:SetTexture(nextTexture)
+        button._currentIconTexture = nextTexture
+    end
+end
+
+local function SetButtonTextState(button, text, visible)
+    local nextText = visible and (text or "") or ""
+    local nextVisible = visible and true or false
+
+    if button._currentText ~= nextText then
+        button.text:SetText(nextText)
+        button._currentText = nextText
+    end
+
+    if button._textVisible ~= nextVisible then
+        button._textVisible = nextVisible
+        if nextVisible then
+            button.text:Show()
+        else
+            button.text:Hide()
+        end
+    end
+end
+
+local function SetButtonCooldownState(button, isCoolingDown, startTime, duration, enable)
+    if not button or not button.cooldown then
+        return
+    end
+
+    if not isCoolingDown then
+        if button._cooldownActive then
+            ClearCooldownFrame(button.cooldown)
+            button._cooldownActive = false
+            button._cooldownStart = nil
+            button._cooldownDuration = nil
+            button._cooldownEnable = nil
+        end
+        return
+    end
+
+    if button._cooldownActive
+        and button._cooldownStart == startTime
+        and button._cooldownDuration == duration
+        and button._cooldownEnable == enable
+    then
+        return
+    end
+
+    SetCooldownFrame(button.cooldown, startTime, duration, enable)
+    button._cooldownActive = true
+    button._cooldownStart = startTime
+    button._cooldownDuration = duration
+    button._cooldownEnable = enable
+end
+
+local SetReadyAnimationEnabled
+
+local function ResetButtonRuntimeState(button)
+    button.itemLink = nil
+    SetButtonIconTexture(button, 134400)
+    SetButtonTextState(button, "", false)
+    SetButtonCooldownState(button, false)
+    SetReadyAnimationEnabled(button, false)
+    return ApplySecureButtonVisibility(button, false)
 end
 
 local function StopReadyHighlight(button)
     if not button then
+        return
+    end
+
+    if not button._readyAnimationEnabled
+        and not button._usingFallbackDashes
+        and not button._glowSize
+        and not button:GetScript("OnUpdate")
+    then
         return
     end
 
@@ -334,7 +425,7 @@ local function StopReadyHighlight(button)
     button:SetScript("OnUpdate", nil)
 end
 
-local function SetReadyAnimationEnabled(button, enabled, color)
+SetReadyAnimationEnabled = function(button, enabled, color)
     if not button or not button._readyDashes then
         return
     end
@@ -356,6 +447,17 @@ local function SetReadyAnimationEnabled(button, enabled, color)
         local b = color and color.b or 1
         local a = color and color.a or 1
         local size = button:GetWidth() or 50
+
+        if button._readyAnimationEnabled
+            and not button._usingFallbackDashes
+            and button._glowR == r
+            and button._glowG == g
+            and button._glowB == b
+            and button._glowA == a
+            and button._glowSize == size
+        then
+            return
+        end
 
         if button._glowR ~= r or button._glowG ~= g or button._glowB ~= b or button._glowA ~= a or
             button._glowSize ~= size then
@@ -387,6 +489,10 @@ local function SetReadyAnimationEnabled(button, enabled, color)
 
     for _, dash in ipairs(button._readyDashes) do
         dash:Show()
+    end
+
+    if button._readyAnimationEnabled and button:GetScript("OnUpdate") then
+        return
     end
 
     button:SetScript("OnUpdate", function(self, elapsed)
@@ -671,6 +777,7 @@ end
 function TrinketMonitor:RefreshLayout()
     self:CreateFrames()
     self:EnsureSecureButtonsShown()
+    self._pendingVisibleLayout = true
 
     local config = self:GetConfig()
     local iconSize = Clamp(config.iconSize or 44, 20, 120)
@@ -796,7 +903,12 @@ function TrinketMonitor:RefreshVisibleLayout()
 
     local config = self:GetConfig()
     local spacing = Clamp(config.spacing or 8, 0, 40)
-    local shownButtons = {}
+    local shownButtons = self._shownButtonsScratch or {}
+    self._shownButtonsScratch = shownButtons
+
+    for index = #shownButtons, 1, -1 do
+        shownButtons[index] = nil
+    end
 
     for _, button in ipairs(self._buttons or {}) do
         if button._layoutVisible then
@@ -832,64 +944,69 @@ function TrinketMonitor:UpdateButton(button, now)
     local state = self._slotState[slotID] or {}
 
     if not itemID then
-        button.itemLink = nil
-        button.icon:SetTexture(134400)
-        button.text:SetText("")
-        button._textVisible = false
-        ClearCooldownFrame(button.cooldown)
-        SetReadyAnimationEnabled(button, false)
-        ApplySecureButtonVisibility(button, false)
+        local visibilityChanged = ResetButtonRuntimeState(button)
+        button._coolingDown = false
         state.lastItemID = nil
+        state.itemLink = nil
+        state.itemTexture = nil
+        state.hasUseEffect = nil
         state.ready = false
         state.hadCooldown = false
         self._slotState[slotID] = state
-        return
+        return visibilityChanged
     end
 
     if blockedItemIDs[itemID] then
-        button.itemLink = nil
-        button.icon:SetTexture(134400)
-        button.text:SetText("")
-        button._textVisible = false
-        ClearCooldownFrame(button.cooldown)
-        SetReadyAnimationEnabled(button, false)
-        ApplySecureButtonVisibility(button, false)
+        local visibilityChanged = ResetButtonRuntimeState(button)
+        button._coolingDown = false
         state.lastItemID = itemID
+        state.itemLink = nil
+        state.itemTexture = nil
+        state.hasUseEffect = false
         state.ready = false
         state.hadCooldown = false
         self._slotState[slotID] = state
-        return
+        return visibilityChanged
     end
 
-    local itemLink = GetInventoryItemLink("player", slotID)
-    local itemTexture = GetInventoryItemTexture("player", slotID) or 134400
-    local hasUseEffect = IsActiveTrinket(itemLink or itemID)
+    if state.lastItemID ~= itemID then
+        state.lastItemID = itemID
+        state.itemLink = GetInventoryItemLink("player", slotID)
+        state.itemTexture = GetInventoryItemTexture("player", slotID) or 134400
+        state.hasUseEffect = IsActiveTrinket(state.itemLink or itemID)
+        state.ready = false
+        state.hadCooldown = false
+    elseif state.itemLink == nil or state.hasUseEffect == nil then
+        state.itemLink = GetInventoryItemLink("player", slotID)
+        state.hasUseEffect = IsActiveTrinket(state.itemLink or itemID)
+    end
+
+    if state.itemTexture == nil then
+        state.itemTexture = GetInventoryItemTexture("player", slotID) or 134400
+    end
+
+    local itemLink = state.itemLink
+    local itemTexture = state.itemTexture or 134400
+    local hasUseEffect = state.hasUseEffect == true
 
     if not hasUseEffect then
-        button.itemLink = nil
-        button.text:SetText("")
-        button._textVisible = false
-        ClearCooldownFrame(button.cooldown)
-        SetReadyAnimationEnabled(button, false)
-        ApplySecureButtonVisibility(button, false)
-        state.lastItemID = itemID
+        local visibilityChanged = ResetButtonRuntimeState(button)
+        button._coolingDown = false
+        state.itemLink = nil
         state.ready = false
         state.hadCooldown = false
         self._slotState[slotID] = state
-        return
+        return visibilityChanged
     end
 
     local startTime, duration, enable = GetInventoryItemCooldown("player", slotID)
-    if state.lastItemID ~= itemID then
-        state.lastItemID = itemID
-        state.ready = false
-        state.hadCooldown = false
-    end
-
-    ApplySecureButtonVisibility(button, true)
+    local visibilityChanged = ApplySecureButtonVisibility(button, true)
     button.itemLink = itemLink
-    button.icon:SetTexture(itemTexture)
-    button.icon:SetVertexColor(1, 1, 1, 1)
+    SetButtonIconTexture(button, itemTexture)
+    if button._vertexColorApplied ~= true then
+        button.icon:SetVertexColor(1, 1, 1, 1)
+        button._vertexColorApplied = true
+    end
 
     local remaining = 0
     local isCoolingDown = false
@@ -897,21 +1014,14 @@ function TrinketMonitor:UpdateButton(button, now)
         remaining = math.max(0, startTime + duration - now)
         isCoolingDown = remaining > 0.05
     end
+    button._coolingDown = isCoolingDown
 
-    if isCoolingDown then
-        SetCooldownFrame(button.cooldown, startTime, duration, enable)
-    else
-        ClearCooldownFrame(button.cooldown)
-    end
+    SetButtonCooldownState(button, isCoolingDown, startTime, duration, enable)
 
     if config.showText ~= false and isCoolingDown then
-        button.text:SetText(FormatCooldownText(remaining))
-        button._textVisible = true
-        button.text:Show()
+        SetButtonTextState(button, FormatCooldownText(remaining), true)
     else
-        button.text:SetText("")
-        button._textVisible = false
-        button.text:Hide()
+        SetButtonTextState(button, "", false)
     end
 
     local ready = not isCoolingDown
@@ -927,6 +1037,24 @@ function TrinketMonitor:UpdateButton(button, now)
     self._slotState[slotID] = state
     SetReadyAnimationEnabled(button, config.highlightReady ~= false and ready, config.highlightColor)
     SetButtonVisualVisible(button, button._layoutVisible ~= false and button:IsShown())
+    return visibilityChanged
+end
+
+function TrinketMonitor:EnsureUpdateTicker(interval)
+    local nextInterval = interval or IDLE_UPDATE_INTERVAL
+    if self._updateTicker and self._updateInterval == nextInterval then
+        return
+    end
+
+    if self._updateTicker then
+        self._updateTicker:Cancel()
+        self._updateTicker = nil
+    end
+
+    self._updateInterval = nextInterval
+    self._updateTicker = C_Timer.NewTicker(nextInterval, function()
+        self:UpdateDisplay()
+    end)
 end
 
 function TrinketMonitor:UpdateDisplay()
@@ -941,12 +1069,17 @@ function TrinketMonitor:UpdateDisplay()
 
     local now = GetTime()
     local anyVisible = false
+    local anyCoolingDown = false
+    local layoutDirty = self._pendingVisibleLayout == true
     for _, button in ipairs(self._buttons or {}) do
-        self:UpdateButton(button, now)
+        layoutDirty = self:UpdateButton(button, now) or layoutDirty
         anyVisible = anyVisible or button._layoutVisible == true
+        anyCoolingDown = anyCoolingDown or button._coolingDown == true
     end
 
-    self:RefreshVisibleLayout()
+    if layoutDirty then
+        self:RefreshVisibleLayout()
+    end
 
     if suppressOutOfCombat then
         for _, button in ipairs(self._buttons or {}) do
@@ -982,16 +1115,12 @@ function TrinketMonitor:UpdateDisplay()
     else
         self._alertFrame:Hide()
     end
+
+    self:EnsureUpdateTicker(anyCoolingDown and FAST_UPDATE_INTERVAL or IDLE_UPDATE_INTERVAL)
 end
 
 function TrinketMonitor:StartUpdating()
-    if self._updateTicker then
-        return
-    end
-
-    self._updateTicker = C_Timer.NewTicker(UPDATE_INTERVAL, function()
-        self:UpdateDisplay()
-    end)
+    self:EnsureUpdateTicker(IDLE_UPDATE_INTERVAL)
 end
 
 function TrinketMonitor:StopUpdating()
@@ -999,6 +1128,7 @@ function TrinketMonitor:StopUpdating()
         self._updateTicker:Cancel()
         self._updateTicker = nil
     end
+    self._updateInterval = nil
 end
 
 function TrinketMonitor:Activate()

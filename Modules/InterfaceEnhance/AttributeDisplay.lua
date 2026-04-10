@@ -19,7 +19,7 @@ local SECONDARY_STAT_NAMES = {
     mastery = "精通",
     versa = "全能",
     leech = "吸血",
-    dodge = "躲闪",
+    dodge = "闪避",
     parry = "招架",
     block = "格挡",
 }
@@ -44,15 +44,6 @@ local DRAGON_RIDING_SPELL_IDS = {
     289555, 290328, 290718, 299158, 299159, 302143, 308078, 312776, 317177,
     332252, 332256, 334352, 334482, 335150,
 }
-
-local lastX, lastY = 0, 0
-local wasSwimming = false
-local lastUpdateTime = 0
-local attributeScratch = {
-    displayList = {},
-    sortable = {},
-    usedKeys = {},
-}
 local ATTRIBUTE_FRAME_BACKDROP = {
     bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
     edgeFile = "Interface\\ChatFrame\\ChatFrameBorder",
@@ -62,26 +53,35 @@ local ATTRIBUTE_FRAME_BACKDROP = {
     insets = { left = 4, right = 4, top = 4, bottom = 4 },
 }
 
-local function WipeArray(list)
-    for index = #list, 1, -1 do
-        list[index] = nil
-    end
-end
-
-local function WipeDictionary(dict)
-    for key in pairs(dict) do
-        dict[key] = nil
-    end
-end
-
-local function AcquireScratchEntry(list, index)
-    local entry = list[index]
-    if not entry then
-        entry = {}
-        list[index] = entry
-    end
-    return entry
-end
+local lastX, lastY = 0, 0
+local wasSwimming = false
+local lastUpdateTime = 0
+local attributeScratch = {
+    displayList = {},
+    sortable = {},
+    usedKeys = {},
+}
+local attributeRenderState = {
+    orderedKeys = {},
+    lineTexts = {},
+    frameStyle = {},
+    lineStyle = {},
+    forceLayout = true,
+}
+local ATTRIBUTE_FAST_UPDATE_INTERVAL = 0.2
+local ATTRIBUTE_SLOW_UPDATE_INTERVAL = 1.0
+local attributeDataCache = {
+    slowDirty = true,
+    speedDirty = true,
+    nextSlowRefreshAt = 0,
+    nextSpeedRefreshAt = 0,
+    ilvlAverage = 0,
+    ilvlEquipped = 0,
+    primaryName = PRIMARY_STAT_NAMES[1] or "",
+    primaryValue = 0,
+    secondary = {},
+    speed = 0,
+}
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "attributeDisplay")
@@ -120,6 +120,312 @@ local function FetchStatusBar(textureName)
         "Interface\\TargetingFrame\\UI-StatusBar"
 end
 
+local function WipeArray(list)
+    for index = #list, 1, -1 do
+        list[index] = nil
+    end
+end
+
+local function WipeDictionary(dict)
+    for key in pairs(dict) do
+        dict[key] = nil
+    end
+end
+
+local function AcquireScratchEntry(list, index)
+    local entry = list[index]
+    if not entry then
+        entry = {}
+        list[index] = entry
+    end
+    return entry
+end
+
+local function RoundToPlaces(value, places)
+    local multiplier = 10 ^ (places or 0)
+    return math.floor(((tonumber(value) or 0) * multiplier) + 0.5) / multiplier
+end
+
+local function InvalidateAttributeLayout()
+    attributeRenderState.forceLayout = true
+    attributeRenderState.displayCount = nil
+end
+
+local function InvalidateAttributeStyles()
+    WipeDictionary(attributeRenderState.frameStyle)
+    WipeDictionary(attributeRenderState.lineStyle)
+    WipeArray(attributeRenderState.orderedKeys)
+    InvalidateAttributeLayout()
+end
+
+local function MarkAttributeDataDirty(scope)
+    if scope == "speed" then
+        attributeDataCache.speedDirty = true
+        attributeDataCache.nextSpeedRefreshAt = 0
+        return
+    end
+
+    attributeDataCache.slowDirty = true
+    attributeDataCache.speedDirty = true
+    attributeDataCache.nextSlowRefreshAt = 0
+    attributeDataCache.nextSpeedRefreshAt = 0
+end
+
+local function HasOrderedKeysChanged(displayList, count)
+    local orderedKeys = attributeRenderState.orderedKeys
+    if attributeRenderState.displayCount ~= count then
+        return true
+    end
+
+    for index = 1, count do
+        if orderedKeys[index] ~= displayList[index].key then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function RememberOrderedKeys(displayList, count)
+    local orderedKeys = attributeRenderState.orderedKeys
+    for index = 1, count do
+        orderedKeys[index] = displayList[index].key
+    end
+    for index = count + 1, #orderedKeys do
+        orderedKeys[index] = nil
+    end
+    attributeRenderState.displayCount = count
+end
+
+local function GetCachedSecondaryText(key, entry, config)
+    local cache = attributeRenderState.lineTexts[key] or {}
+    local roundedValue = RoundToPlaces(entry.value, config.decimalPlaces)
+
+    attributeRenderState.lineTexts[key] = cache
+    if cache.rating ~= entry.rating
+        or cache.value ~= roundedValue
+        or cache.format ~= config.secondaryFormat
+        or cache.decimals ~= config.decimalPlaces
+    then
+        cache.rating = entry.rating
+        cache.value = roundedValue
+        cache.format = config.secondaryFormat
+        cache.decimals = config.decimalPlaces
+
+        if config.secondaryFormat == "percent" then
+            cache.text = string.format("%s: %." .. config.decimalPlaces .. "f%%", entry.name, roundedValue)
+        else
+            cache.text = string.format("%s: %d (%." .. config.decimalPlaces .. "f%%)", entry.name, entry.rating, roundedValue)
+        end
+    end
+
+    return cache.text
+end
+
+local function GetCachedSimpleText(key, markerA, markerB, markerC, builder)
+    local cache = attributeRenderState.lineTexts[key] or {}
+    attributeRenderState.lineTexts[key] = cache
+
+    if cache.markerA ~= markerA or cache.markerB ~= markerB or cache.markerC ~= markerC then
+        cache.markerA = markerA
+        cache.markerB = markerB
+        cache.markerC = markerC
+        cache.text = builder()
+    end
+
+    return cache.text
+end
+
+local function IsFrameStyleDirty(config)
+    local style = attributeRenderState.frameStyle
+    return style.bgStyle ~= config.bgStyle
+        or style.bgAlpha ~= config.bgAlpha
+end
+
+local function ApplyFrameStyle(frame, config)
+    if config.bgStyle == "none" then
+        if frame._yxsBackdropStyle ~= "none" then
+            frame:SetBackdrop(nil)
+            frame._yxsBackdropStyle = "none"
+        end
+    else
+        if frame._yxsBackdropStyle ~= "default" then
+            frame:SetBackdrop(ATTRIBUTE_FRAME_BACKDROP)
+            frame._yxsBackdropStyle = "default"
+        end
+        frame:SetBackdropColor(0.1, 0.1, 0.1, config.bgAlpha)
+        frame:SetBackdropBorderColor(0.5, 0.5, 0.5, config.bgAlpha)
+    end
+
+    attributeRenderState.frameStyle.bgStyle = config.bgStyle
+    attributeRenderState.frameStyle.bgAlpha = config.bgAlpha
+end
+
+local function IsLineStyleDirty(frame, config)
+    local style = attributeRenderState.lineStyle
+    local progressBarColor = config.progressBarColor or {}
+
+    return style.fontSize ~= config.fontSize
+        or style.fontOutline ~= config.fontOutline
+        or style.fontPreset ~= config.fontPreset
+        or style.align ~= config.align
+        or style.frameWidth ~= frame:GetWidth()
+        or style.progressBarEnable ~= config.progressBarEnable
+        or style.progressBarHeight ~= config.progressBarHeight
+        or style.progressBarWidth ~= config.progressBarWidth
+        or style.progressBarTexture ~= config.progressBarTexture
+        or style.progressBarColorR ~= (progressBarColor.r or 1)
+        or style.progressBarColorG ~= (progressBarColor.g or 1)
+        or style.progressBarColorB ~= (progressBarColor.b or 1)
+end
+
+local function ApplyLineStyles(core, frame, config)
+    local statusBarTexture = FetchStatusBar(config.progressBarTexture)
+    local progressBarColor = config.progressBarColor or {}
+
+    for _, fontString in pairs(core.attributeLines) do
+        ApplyConfiguredFont(fontString, config.fontSize, config.fontOutline and "OUTLINE" or "", config)
+        fontString:SetJustifyH(config.align)
+        fontString:SetWidth(frame:GetWidth() - 16)
+    end
+
+    for _, bar in pairs(core.attributeProgressBars) do
+        bar:SetStatusBarTexture(statusBarTexture)
+        bar:SetStatusBarColor(progressBarColor.r or 1, progressBarColor.g or 1, progressBarColor.b or 1, 1)
+    end
+
+    local style = attributeRenderState.lineStyle
+    style.fontSize = config.fontSize
+    style.fontOutline = config.fontOutline
+    style.fontPreset = config.fontPreset
+    style.align = config.align
+    style.frameWidth = frame:GetWidth()
+    style.progressBarEnable = config.progressBarEnable
+    style.progressBarHeight = config.progressBarHeight
+    style.progressBarWidth = config.progressBarWidth
+    style.progressBarTexture = config.progressBarTexture
+    style.progressBarColorR = progressBarColor.r or 1
+    style.progressBarColorG = progressBarColor.g or 1
+    style.progressBarColorB = progressBarColor.b or 1
+end
+
+local function GetProgressRangeForKey(key, value, config)
+    if key == "ilvl" then
+        return value, config.maxIlvl
+    end
+    if key == "primary" then
+        return value, 5000
+    end
+    if key == "crit" or key == "haste" or key == "mastery" or key == "versa" then
+        return value, 150
+    end
+    if key == "speed" then
+        return value, 1100
+    end
+end
+
+local function LayoutDisplayEntries(core, frame, displayList, displayCount, usedKeys, config)
+    local yOffset = -8
+
+    for index = 1, displayCount do
+        local item = displayList[index]
+        local fontString = core.attributeLines[item.key]
+        local progressBar = core.attributeProgressBars[item.key]
+        usedKeys[item.key] = true
+
+        if fontString then
+            fontString:ClearAllPoints()
+            fontString:SetPoint("TOPLEFT", 8, yOffset)
+            fontString:Show()
+        end
+
+        if progressBar and config.progressBarEnable and item.maxValue then
+            progressBar:SetHeight(config.progressBarHeight)
+            progressBar:SetWidth(config.progressBarWidth)
+            progressBar:ClearAllPoints()
+            progressBar:SetPoint("TOPLEFT", fontString, "BOTTOMLEFT", 0, -2)
+        end
+
+        local lineHeight = config.fontSize + config.lineSpacing
+        if progressBar and config.progressBarEnable and item.maxValue then
+            lineHeight = lineHeight + config.progressBarHeight + 2
+        end
+        yOffset = yOffset - lineHeight
+    end
+
+    for key, fontString in pairs(core.attributeLines) do
+        if not usedKeys[key] then
+            fontString:Hide()
+            if core.attributeProgressBars[key] then
+                core.attributeProgressBars[key]:Hide()
+            end
+        end
+    end
+
+    frame:SetHeight(-yOffset + 8)
+end
+
+local function SetDisplayEntry(entry, key, text, color, currentValue, maxValue)
+    entry.key = key
+    entry.text = text
+    entry.color = color
+    entry.currentValue = currentValue
+    entry.maxValue = maxValue
+end
+
+local function SetFontStringState(fontString, item)
+    if not fontString or not item then
+        return
+    end
+
+    if fontString._yxsText ~= item.text then
+        fontString:SetText(item.text)
+        fontString._yxsText = item.text
+    end
+
+    local color = item.color or {}
+    local r = color.r or 1
+    local g = color.g or 1
+    local b = color.b or 1
+    if fontString._yxsColorR ~= r or fontString._yxsColorG ~= g or fontString._yxsColorB ~= b then
+        fontString:SetTextColor(r, g, b, 1)
+        fontString._yxsColorR = r
+        fontString._yxsColorG = g
+        fontString._yxsColorB = b
+    end
+
+    fontString:Show()
+end
+
+local function UpdateProgressBar(progressBar, item, config)
+    if not progressBar or not config.progressBarEnable or not item.maxValue then
+        if progressBar then
+            progressBar:Hide()
+        end
+        return
+    end
+
+    if progressBar._yxsMaxValue ~= item.maxValue then
+        progressBar:SetMinMaxValues(0, item.maxValue)
+        progressBar._yxsMaxValue = item.maxValue
+    end
+
+    local currentValue = item.currentValue or 0
+    if progressBar._yxsCurrentValue ~= currentValue then
+        progressBar:SetValue(currentValue)
+        progressBar._yxsCurrentValue = currentValue
+    end
+
+    progressBar:Show()
+end
+
+local function SecondaryStatSorter(left, right)
+    if left.value == right.value then
+        return (left.name or "") < (right.name or "")
+    end
+    return left.value > right.value
+end
+
 local function EnsurePosition()
     local config = GetConfig()
     config.pos = config.pos or {
@@ -133,6 +439,10 @@ local function EnsurePosition()
 end
 
 local function IsDragonRiding()
+    if not C_UnitAuras or not C_UnitAuras.GetPlayerAuraBySpellID then
+        return false
+    end
+
     for _, spellID in ipairs(DRAGON_RIDING_SPELL_IDS) do
         if C_UnitAuras.GetPlayerAuraBySpellID(spellID) then
             return true
@@ -142,8 +452,13 @@ local function IsDragonRiding()
 end
 
 local function GetDragonSpeed()
-    local elapsed = GetTime() - lastUpdateTime
-    lastUpdateTime = GetTime()
+    if not C_Map or not C_Map.GetBestMapForUnit or not C_Map.GetPlayerMapPosition or not C_Map.GetMapWorldSize then
+        return 0
+    end
+
+    local now = GetTime()
+    local elapsed = now - lastUpdateTime
+    lastUpdateTime = now
 
     local mapID = C_Map.GetBestMapForUnit("player")
     if not mapID then
@@ -158,6 +473,13 @@ local function GetDragonSpeed()
     local width, height = C_Map.GetMapWorldSize(mapID)
     local x = position.x * width
     local y = position.y * height
+
+    if lastX == 0 and lastY == 0 then
+        lastX = x
+        lastY = y
+        return 0
+    end
+
     local dx = x - lastX
     local dy = y - lastY
     lastX = x
@@ -172,12 +494,13 @@ end
 
 local function GetPlayerSpeed()
     local unit = "player"
+    local baseSpeed = BASE_MOVEMENT_SPEED or 7
     local currentSpeed, _, _, swimSpeed = GetUnitSpeed(unit)
     local speed = currentSpeed
     local swimming = IsSwimming(unit)
 
     if UnitInVehicle(unit) then
-        speed = GetUnitSpeed("vehicle") / BASE_MOVEMENT_SPEED * 100
+        speed = GetUnitSpeed("vehicle")
     elseif swimming then
         speed = swimSpeed
     elseif UnitOnTaxi(unit) then
@@ -198,7 +521,7 @@ local function GetPlayerSpeed()
         wasSwimming = swimming
     end
 
-    return (speed / BASE_MOVEMENT_SPEED) * 100
+    return (speed / baseSpeed) * 100
 end
 
 local function GetPrimaryStatValue()
@@ -214,54 +537,242 @@ local function GetPrimaryStatValue()
     return statName, statValue
 end
 
-local function BuildSecondaryStatList(config, sortable)
-    local count = 0
+local function GetSecondaryCacheEntry(key)
+    local entry = attributeDataCache.secondary[key]
+    if not entry then
+        entry = {}
+        attributeDataCache.secondary[key] = entry
+    end
+    return entry
+end
 
-    local function AddStat(key, rating, percent)
-        count = count + 1
-        local entry = AcquireScratchEntry(sortable, count)
-        entry.key = key
-        entry.value = percent or 0
-        entry.rating = rating or 0
-        entry.color = config["color" .. key:sub(1, 1):upper() .. key:sub(2)]
-        entry.name = SECONDARY_STAT_NAMES[key]
+local function UpdateSecondaryCacheEntry(config, key, rating, percent)
+    local entry = GetSecondaryCacheEntry(key)
+    entry.key = key
+    entry.value = percent or 0
+    entry.rating = rating or 0
+    entry.color = config["color" .. key:sub(1, 1):upper() .. key:sub(2)]
+    entry.name = SECONDARY_STAT_NAMES[key]
+end
+
+local function RefreshSlowAttributeData(config, force)
+    local now = GetTime()
+    if not force and not attributeDataCache.slowDirty and now < (attributeDataCache.nextSlowRefreshAt or 0) then
+        return false
+    end
+
+    local averageIlvl, equippedIlvl = GetAverageItemLevel("player")
+    averageIlvl = averageIlvl or 0
+    equippedIlvl = equippedIlvl or 0
+
+    local statName, statValue = GetPrimaryStatValue()
+    statName = statName or ""
+    statValue = statValue or 0
+    local changed = force
+        or attributeDataCache.ilvlAverage ~= averageIlvl
+        or attributeDataCache.ilvlEquipped ~= equippedIlvl
+        or attributeDataCache.primaryName ~= statName
+        or attributeDataCache.primaryValue ~= statValue
+
+    attributeDataCache.ilvlAverage = averageIlvl
+    attributeDataCache.ilvlEquipped = equippedIlvl
+    attributeDataCache.primaryName = statName
+    attributeDataCache.primaryValue = statValue
+
+    local function UpdateTrackedSecondary(key, rating, percent)
+        local entry = GetSecondaryCacheEntry(key)
+        local nextRating = rating or 0
+        local nextPercent = percent or 0
+        if entry.rating ~= nextRating or entry.value ~= nextPercent then
+            changed = true
+        end
+        UpdateSecondaryCacheEntry(config, key, nextRating, nextPercent)
     end
 
     if config.showCrit then
-        AddStat("crit", GetCombatRating(CR_CRIT_MELEE), GetCritChance("player") or 0)
+        UpdateTrackedSecondary("crit", GetCombatRating(CR_CRIT_MELEE), GetCritChance("player") or 0)
     end
     if config.showHaste then
-        AddStat("haste", GetCombatRating(CR_HASTE_MELEE), UnitSpellHaste("player") or 0)
+        UpdateTrackedSecondary("haste", GetCombatRating(CR_HASTE_MELEE), UnitSpellHaste("player") or 0)
     end
     if config.showMastery then
-        AddStat("mastery", GetCombatRating(CR_MASTERY), GetMasteryEffect("player") or 0)
+        UpdateTrackedSecondary("mastery", GetCombatRating(CR_MASTERY), GetMasteryEffect("player") or 0)
     end
     if config.showVersa then
-        AddStat("versa", GetCombatRating(CR_VERSATILITY_DAMAGE_DONE),
-            GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) or 0)
+        UpdateTrackedSecondary("versa", GetCombatRating(CR_VERSATILITY_DAMAGE_DONE), GetCombatRatingBonus(CR_VERSATILITY_DAMAGE_DONE) or 0)
     end
     if config.showLeech then
-        AddStat("leech", GetCombatRating(CR_LIFESTEAL), GetLifesteal() or 0)
+        UpdateTrackedSecondary("leech", GetCombatRating(CR_LIFESTEAL), GetLifesteal() or 0)
     end
     if config.showDodge then
-        AddStat("dodge", GetCombatRating(CR_DODGE), GetDodgeChance() or 0)
+        UpdateTrackedSecondary("dodge", GetCombatRating(CR_DODGE), GetDodgeChance() or 0)
     end
     if config.showParry then
-        AddStat("parry", GetCombatRating(CR_PARRY), GetParryChance() or 0)
+        UpdateTrackedSecondary("parry", GetCombatRating(CR_PARRY), GetParryChance() or 0)
     end
     if config.showBlock then
-        AddStat("block", GetCombatRating(CR_BLOCK), GetBlockChance() or 0)
+        UpdateTrackedSecondary("block", GetCombatRating(CR_BLOCK), GetBlockChance() or 0)
+    end
+
+    attributeDataCache.slowDirty = false
+    attributeDataCache.nextSlowRefreshAt = now + ATTRIBUTE_SLOW_UPDATE_INTERVAL
+    return changed
+end
+
+local function RefreshSpeedAttributeData(config, force)
+    local now = GetTime()
+    if not force and not attributeDataCache.speedDirty and now < (attributeDataCache.nextSpeedRefreshAt or 0) then
+        return false
+    end
+
+    local nextSpeed = GetPlayerSpeed()
+    local changed = force
+        or RoundToPlaces(attributeDataCache.speed or 0, config.decimalPlaces) ~= RoundToPlaces(nextSpeed, config.decimalPlaces)
+    attributeDataCache.speed = nextSpeed
+    attributeDataCache.speedDirty = false
+    attributeDataCache.nextSpeedRefreshAt = now + ATTRIBUTE_FAST_UPDATE_INTERVAL
+    return changed
+end
+
+local function EnsureAttributeData(config, force)
+    local refreshed = false
+
+    if config.showSpeed then
+        refreshed = RefreshSpeedAttributeData(config, force) or refreshed
+    end
+
+    if config.showIlvl
+        or config.showPrimary
+        or config.showCrit
+        or config.showHaste
+        or config.showMastery
+        or config.showVersa
+        or config.showLeech
+        or config.showDodge
+        or config.showParry
+        or config.showBlock
+    then
+        refreshed = RefreshSlowAttributeData(config, force) or refreshed
+    end
+
+    return refreshed
+end
+
+local function BuildSecondaryStatList(config, sortable)
+    local count = 0
+
+    local function AddStat(key)
+        count = count + 1
+
+        local entry = AcquireScratchEntry(sortable, count)
+        local cached = attributeDataCache.secondary[key] or {}
+        entry.key = key
+        entry.value = cached.value or 0
+        entry.rating = cached.rating or 0
+        entry.color = cached.color or config["color" .. key:sub(1, 1):upper() .. key:sub(2)]
+        entry.name = cached.name or SECONDARY_STAT_NAMES[key]
+    end
+
+    if config.showCrit then
+        AddStat("crit")
+    end
+    if config.showHaste then
+        AddStat("haste")
+    end
+    if config.showMastery then
+        AddStat("mastery")
+    end
+    if config.showVersa then
+        AddStat("versa")
+    end
+    if config.showLeech then
+        AddStat("leech")
+    end
+    if config.showDodge then
+        AddStat("dodge")
+    end
+    if config.showParry then
+        AddStat("parry")
+    end
+    if config.showBlock then
+        AddStat("block")
     end
 
     for index = count + 1, #sortable do
         sortable[index] = nil
     end
 
-    table.sort(sortable, function(left, right)
-        return left.value > right.value
-    end)
-
+    table.sort(sortable, SecondaryStatSorter)
     return count
+end
+
+local function BuildAttributeDisplayList(displayList, sortable, config)
+    local displayCount = 0
+
+    if config.showIlvl then
+        local averageIlvl = attributeDataCache.ilvlAverage or 0
+        local equippedIlvl = attributeDataCache.ilvlEquipped or 0
+        local entry = AcquireScratchEntry(displayList, displayCount + 1)
+        local text = GetCachedSimpleText("ilvl", config.ilvlFormat, averageIlvl, equippedIlvl, function()
+            if config.ilvlFormat == "real" then
+                return string.format("装等: %.1f", equippedIlvl or 0)
+            end
+            return string.format("装等: %.1f (%.1f)", equippedIlvl or 0, averageIlvl or 0)
+        end)
+
+        displayCount = displayCount + 1
+        SetDisplayEntry(entry, "ilvl", text, config.colorIlvl, equippedIlvl, config.maxIlvl)
+    end
+
+    if config.showPrimary then
+        local statName = attributeDataCache.primaryName or ""
+        local statValue = attributeDataCache.primaryValue or 0
+        local entry = AcquireScratchEntry(displayList, displayCount + 1)
+        local text = GetCachedSimpleText("primary", statName, statValue, false, function()
+            return string.format("%s: %s", statName or "", tostring(statValue or 0))
+        end)
+
+        displayCount = displayCount + 1
+        SetDisplayEntry(entry, "primary", text, config.colorPrimary, statValue, 5000)
+    end
+
+    local sortableCount = BuildSecondaryStatList(config, sortable)
+    for index = 1, sortableCount do
+        local statEntry = sortable[index]
+        local displayEntry = AcquireScratchEntry(displayList, displayCount + 1)
+        local currentValue, maxValue = GetProgressRangeForKey(statEntry.key, statEntry.value, config)
+
+        displayCount = displayCount + 1
+        SetDisplayEntry(
+            displayEntry,
+            statEntry.key,
+            GetCachedSecondaryText(statEntry.key, statEntry, config),
+            statEntry.color,
+            currentValue,
+            maxValue
+        )
+    end
+
+    if config.showSpeed then
+        local speed = attributeDataCache.speed or 0
+        local roundedSpeed = RoundToPlaces(speed, config.decimalPlaces)
+        local entry = AcquireScratchEntry(displayList, displayCount + 1)
+        local text = GetCachedSimpleText("speed", config.speedFormat, config.decimalPlaces, roundedSpeed, function()
+            if config.speedFormat == "current" then
+                return string.format("移速: %." .. config.decimalPlaces .. "f%%", roundedSpeed)
+            end
+            return string.format("移速: %." .. config.decimalPlaces .. "f%% (静态)", roundedSpeed)
+        end)
+
+        displayCount = displayCount + 1
+        SetDisplayEntry(entry, "speed", text, config.colorSpeed, speed, 1100)
+    end
+
+    for index = displayCount + 1, #displayList do
+        displayList[index] = nil
+    end
+
+    return displayCount
 end
 
 function Core:CreateAttributeFrame()
@@ -326,160 +837,39 @@ function Core:UpdateAttributeDisplay()
 
     local config = GetConfig()
     local frame = self.attributeFrame
+    local lineStyleDirty = IsLineStyleDirty(frame, config)
 
-    for _, fontString in pairs(self.attributeLines) do
-        ApplyConfiguredFont(fontString, config.fontSize, config.fontOutline and "OUTLINE" or "", config)
-        fontString:SetJustifyH(config.align)
-        fontString:SetWidth(frame:GetWidth() - 16)
+    if IsFrameStyleDirty(config) then
+        ApplyFrameStyle(frame, config)
     end
 
-    if config.bgStyle == "none" then
-        if frame._yxsBackdropStyle ~= "none" then
-            frame:SetBackdrop(nil)
-            frame._yxsBackdropStyle = "none"
-        end
-    else
-        if frame._yxsBackdropStyle ~= "default" then
-            frame:SetBackdrop(ATTRIBUTE_FRAME_BACKDROP)
-            frame._yxsBackdropStyle = "default"
-        end
-        frame:SetBackdropColor(0.1, 0.1, 0.1, config.bgAlpha)
-        frame:SetBackdropBorderColor(0.5, 0.5, 0.5, config.bgAlpha)
+    if lineStyleDirty then
+        ApplyLineStyles(self, frame, config)
     end
+
+    EnsureAttributeData(config, false)
 
     local displayList = attributeScratch.displayList
     local sortable = attributeScratch.sortable
     local usedKeys = attributeScratch.usedKeys
-    WipeArray(displayList)
+
     WipeDictionary(usedKeys)
-    local displayCount = 0
 
-    if config.showIlvl then
-        local _, equippedIlvl = GetAverageItemLevel("player")
-        local averageIlvl = select(1, GetAverageItemLevel("player"))
-        local text
-        if config.ilvlFormat == "real" then
-            text = string.format("装等: %.1f", equippedIlvl)
-        else
-            text = string.format("装等: %.1f (%.1f)", equippedIlvl, averageIlvl)
-        end
-        displayCount = displayCount + 1
-        local entry = AcquireScratchEntry(displayList, displayCount)
-        entry.key = "ilvl"
-        entry.text = text
-        entry.color = config.colorIlvl
-        entry.value = equippedIlvl
+    local displayCount = BuildAttributeDisplayList(displayList, sortable, config)
+    local needsLayout = attributeRenderState.forceLayout or lineStyleDirty or HasOrderedKeysChanged(displayList, displayCount)
+
+    if needsLayout then
+        LayoutDisplayEntries(self, frame, displayList, displayCount, usedKeys, config)
+        RememberOrderedKeys(displayList, displayCount)
+        attributeRenderState.forceLayout = false
     end
 
-    if config.showPrimary then
-        local statName, statValue = GetPrimaryStatValue()
-        displayCount = displayCount + 1
-        local entry = AcquireScratchEntry(displayList, displayCount)
-        entry.key = "primary"
-        entry.text = statName .. ": " .. statValue
-        entry.color = config.colorPrimary
-        entry.value = statValue
-    end
-
-    local sortableCount = BuildSecondaryStatList(config, sortable)
-    for index = 1, sortableCount do
-        local entry = sortable[index]
-        local text
-        if config.secondaryFormat == "percent" then
-            text = string.format("%s: %." .. config.decimalPlaces .. "f%%", entry.name, entry.value)
-        else
-            text = string.format("%s: %d (%." .. config.decimalPlaces .. "f%%)", entry.name, entry.rating, entry.value)
-        end
-
-        displayCount = displayCount + 1
-        local displayEntry = AcquireScratchEntry(displayList, displayCount)
-        displayEntry.key = entry.key
-        displayEntry.text = text
-        displayEntry.color = entry.color
-        displayEntry.value = entry.value
-    end
-
-    if config.showSpeed then
-        local speed = GetPlayerSpeed()
-        local text
-        if config.speedFormat == "current" then
-            text = string.format("移速: %." .. config.decimalPlaces .. "f%%", speed)
-        else
-            text = string.format("移速: %." .. config.decimalPlaces .. "f%% (静态)", speed)
-        end
-        displayCount = displayCount + 1
-        local entry = AcquireScratchEntry(displayList, displayCount)
-        entry.key = "speed"
-        entry.text = text
-        entry.color = config.colorSpeed
-        entry.value = speed
-    end
-
-    for index = displayCount + 1, #displayList do
-        displayList[index] = nil
-    end
-
-    local yOffset = -8
     for index = 1, displayCount do
         local item = displayList[index]
-        local fontString = self.attributeLines[item.key]
-        local progressBar = self.attributeProgressBars[item.key]
         usedKeys[item.key] = true
-
-        if fontString then
-            fontString:ClearAllPoints()
-            fontString:SetPoint("TOPLEFT", 8, yOffset)
-            fontString:SetText(item.text)
-            fontString:SetTextColor(item.color.r, item.color.g, item.color.b)
-            fontString:Show()
-        end
-
-        if progressBar and config.progressBarEnable then
-            local currentValue, maxValue
-            if item.key == "ilvl" then
-                currentValue, maxValue = item.value, config.maxIlvl
-            elseif item.key == "primary" then
-                currentValue, maxValue = item.value, 5000
-            elseif item.key == "crit" or item.key == "haste" or item.key == "mastery" or item.key == "versa" then
-                currentValue, maxValue = item.value, 150
-            elseif item.key == "speed" then
-                currentValue, maxValue = item.value, 1100
-            end
-
-            if currentValue and maxValue then
-                progressBar:SetMinMaxValues(0, maxValue)
-                progressBar:SetValue(currentValue)
-                progressBar:SetHeight(config.progressBarHeight)
-                progressBar:SetWidth(config.progressBarWidth)
-                progressBar:ClearAllPoints()
-                progressBar:SetPoint("TOPLEFT", fontString, "BOTTOMLEFT", 0, -2)
-                progressBar:SetStatusBarTexture(FetchStatusBar(config.progressBarTexture))
-                progressBar:SetStatusBarColor(config.progressBarColor.r, config.progressBarColor.g, config.progressBarColor.b, 1)
-                progressBar:Show()
-            else
-                progressBar:Hide()
-            end
-        elseif progressBar then
-            progressBar:Hide()
-        end
-
-        local lineHeight = config.fontSize + config.lineSpacing
-        if progressBar and progressBar:IsShown() then
-            lineHeight = lineHeight + config.progressBarHeight + 2
-        end
-        yOffset = yOffset - lineHeight
+        SetFontStringState(self.attributeLines[item.key], item)
+        UpdateProgressBar(self.attributeProgressBars[item.key], item, config)
     end
-
-    for key, fontString in pairs(self.attributeLines) do
-        if not usedKeys[key] then
-            fontString:Hide()
-            if self.attributeProgressBars[key] then
-                self.attributeProgressBars[key]:Hide()
-            end
-        end
-    end
-
-    frame:SetHeight(-yOffset + 8)
 end
 
 function Core:UpdateAttributeVisibility()
@@ -523,6 +913,8 @@ function Core:ApplyAttributeSettings()
         self.attributeFrame:RegisterForDrag("LeftButton")
     end
 
+    InvalidateAttributeStyles()
+    MarkAttributeDataDirty("all")
     self:UpdateAttributeDisplay()
     self:UpdateAttributeVisibility()
 end
@@ -534,13 +926,38 @@ function AttributeDisplay:OnPlayerLogin()
         Core.attributeUpdateTicker:Cancel()
     end
 
-    Core.attributeUpdateTicker = C_Timer.NewTicker(0.2, function()
+    if not self._eventFrame then
+        local eventFrame = CreateFrame("Frame")
+        eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+        eventFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+        eventFrame:RegisterEvent("PLAYER_AVG_ITEM_LEVEL_UPDATE")
+        eventFrame:RegisterEvent("UNIT_STATS")
+        eventFrame:RegisterEvent("COMBAT_RATING_UPDATE")
+        eventFrame:RegisterEvent("MASTERY_UPDATE")
+        eventFrame:SetScript("OnEvent", function(_, event, unit)
+            if event == "UNIT_STATS" and unit and unit ~= "player" then
+                return
+            end
+
+            MarkAttributeDataDirty("all")
+            if Core.attributeFrame and Core.attributeFrame:IsShown() and GetConfig().enabled then
+                Core:UpdateAttributeDisplay()
+            end
+        end)
+        self._eventFrame = eventFrame
+    end
+
+    Core.attributeUpdateTicker = C_Timer.NewTicker(ATTRIBUTE_FAST_UPDATE_INTERVAL, function()
         local config = GetConfig()
         if config and config.enabled then
-            Core:UpdateAttributeDisplay()
+            local dataChanged = EnsureAttributeData(config, false)
+            if attributeRenderState.forceLayout or dataChanged then
+                Core:UpdateAttributeDisplay()
+            end
         end
     end)
 
+    MarkAttributeDataDirty("all")
     Core:ApplyAttributeSettings()
 end
 
