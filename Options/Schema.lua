@@ -13,16 +13,7 @@ local function BuildHomeOptions()
                 type = "landing",
                 order = 1,
                 title = "欢迎来到雨轩工具箱",
-                badge = function()
-                    return "v" .. tostring(NS.VERSION or "")
-                end,
-                summary = "把常用入口、界面美化、配置管理和更新记录集中在一个首页里，登录后先从这里开始会更顺手。",
-                highlights = {
-                    "首页直接放常用跳转，不用来回找目录。",
-                    "角色信息相关功能已经合并到“界面美化”。",
-                    "更新记录、配置管理和常用模块都能一屏看到。",
-                    "这次顺手补了背包文字颜色设置的回写保护。",
-                },
+                summary = "把常用功能和更新入口集中在这里，打开设置后可以直接开始。",
                 shortcutsTitle = "快速开始",
                 shortcuts = {
                     {

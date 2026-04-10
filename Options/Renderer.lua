@@ -5,6 +5,8 @@ local Private = Options.Private
 local UI = Private.UI
 local Colors = Private.Colors
 local Sizes = Private.Sizes
+local Meta = Private.Meta
+local Assets = Private.Assets
 
 local function GetParentContentWidth(self, parent)
     local width = (parent and parent.GetWidth and parent:GetWidth()) or 0
@@ -125,10 +127,15 @@ end
 
 function Options:RenderLanding(parent, option, top)
     local width = GetParentContentWidth(self, parent)
+    local shortcuts = option.shortcuts or {}
+    local newsItems = option.newsItems or {}
+    local startTop = top
     local yOffset = top
+    local sectionGap = 14
+    local heroHeight = 114
 
-    local hero = self:CreateCard(parent, yOffset, 188)
-    hero:SetBackdropColor(Private.UnpackColor(Private.MixColor(Colors.panel, Colors.accent, 0.18, 0.98)))
+    local hero = self:CreateCard(parent, yOffset, heroHeight)
+    hero:SetBackdropColor(Private.UnpackColor(Private.MixColor(Colors.panel, Colors.accentBg, 0.16, 0.98)))
     hero:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
     UI.CreateShadow(hero)
 
@@ -153,70 +160,52 @@ function Options:RenderLanding(parent, option, top)
         heroGlow:SetColorTexture(Private.UnpackColor(Private.MixColor(Colors.accentBg, Colors.bg, 0.3, 0.28)))
     end
 
+    local heroShade = hero:CreateTexture(nil, "BORDER")
+    heroShade:SetPoint("TOPLEFT", 0, 0)
+    heroShade:SetPoint("BOTTOMRIGHT", 0, 0)
+    if heroShade.SetGradientAlpha then
+        heroShade:SetTexture("Interface\\Buttons\\WHITE8x8")
+        heroShade:SetGradientAlpha("VERTICAL", 0.02, 0.03, 0.05, 0.00, 0.00, 0.00, 0.00, 0.34)
+    else
+        heroShade:SetColorTexture(0.02, 0.03, 0.05, 0.18)
+    end
+
     local heroAccent = hero:CreateTexture(nil, "ARTWORK")
     heroAccent:SetPoint("TOPLEFT", 0, 0)
     heroAccent:SetPoint("BOTTOMLEFT", 0, 0)
     heroAccent:SetWidth(6)
     heroAccent:SetColorTexture(Private.UnpackColor(Colors.borderActive))
 
-    local title = UI.CreateText(hero, 28, "OUTLINE")
-    title:SetPoint("TOPLEFT", 18, -18)
-    title:SetPoint("TOPRIGHT", -150, -18)
+    local title = UI.CreateText(hero, 26, "OUTLINE")
+    title:SetPoint("TOPLEFT", 20, -20)
+    title:SetPoint("TOPRIGHT", -20, -20)
     title:SetText(Private.ResolveText(option.title, "雨轩工具箱"))
 
-    local versionPill = CreateFrame("Frame", nil, hero, "BackdropTemplate")
-    versionPill:SetPoint("TOPRIGHT", -18, -18)
-    versionPill:SetSize(88, 24)
-    UI.CreateBackdrop(versionPill, Private.MixColor(Colors.accentBg, Colors.panel, 0.25, 0.95), Colors.borderActive)
-
-    local versionLabel = UI.CreateText(versionPill, 11, "OUTLINE")
-    versionLabel:SetPoint("CENTER")
-    versionLabel:SetJustifyH("CENTER")
-    versionLabel:SetJustifyV("MIDDLE")
-    versionLabel:SetText(Private.ResolveText(option.badge, "v" .. tostring(NS.VERSION or "")))
-    versionLabel:SetTextColor(Private.UnpackColor(Colors.accent))
-
     local summary = UI.CreateText(hero, 12)
-    summary:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
-    summary:SetPoint("TOPRIGHT", -18, 0)
+    summary:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -10)
+    summary:SetPoint("TOPRIGHT", -20, 0)
     summary:SetText(Private.ResolveText(option.summary))
     summary:SetTextColor(Private.UnpackColor(Colors.text))
 
-    local highlightTop = -96
-    for index, item in ipairs(option.highlights or {}) do
-        local cardWidth = math.floor((width - 36 - 12) / 2)
-        local card = CreateFrame("Frame", nil, hero, "BackdropTemplate")
-        local left = 18 + ((index - 1) % 2) * (cardWidth + 12)
-        local row = math.floor((index - 1) / 2)
-        card:SetPoint("TOPLEFT", left, highlightTop - row * 38)
-        card:SetSize(cardWidth, 30)
-        UI.CreateBackdrop(card, Private.MixColor(Colors.cardSoft, Colors.accentBg, 0.18, 0.92), Colors.borderSoft or Colors.border)
-
-        local bullet = card:CreateTexture(nil, "ARTWORK")
-        bullet:SetPoint("LEFT", 10, 0)
-        bullet:SetSize(6, 6)
-        bullet:SetColorTexture(Private.UnpackColor(Colors.accent))
-
-        local text = UI.CreateText(card, 11)
-        text:SetPoint("LEFT", bullet, "RIGHT", 8, 0)
-        text:SetPoint("RIGHT", -10, 0)
-        text:SetJustifyV("MIDDLE")
-        text:SetText(tostring(item))
-    end
-
-    yOffset = yOffset - 202
+    yOffset = yOffset - heroHeight - sectionGap
 
     local shortcutsTitle = UI.CreateText(parent, 15, "OUTLINE")
     shortcutsTitle:SetPoint("TOPLEFT", 0, yOffset)
     shortcutsTitle:SetText(Private.ResolveText(option.shortcutsTitle, "快捷入口"))
     shortcutsTitle:SetTextColor(Private.UnpackColor(Colors.accent))
+    yOffset = yOffset - 10
+
+    local shortcutsDesc = UI.CreateText(parent, 11)
+    shortcutsDesc:SetPoint("TOPLEFT", shortcutsTitle, "BOTTOMLEFT", 0, -4)
+    shortcutsDesc:SetWidth(width)
+    shortcutsDesc:SetText("把高频页面和更新入口都放在这里，开窗后可以直接跳过去。")
+    shortcutsDesc:SetTextColor(Private.UnpackColor(Colors.muted))
     yOffset = yOffset - 28
 
     local columns = 2
     local gap = 12
     local cardWidth = math.floor((width - gap) / columns)
-    local cardHeight = 118
-    local shortcuts = option.shortcuts or {}
+    local cardHeight = 128
 
     for index, shortcut in ipairs(shortcuts) do
         local column = (index - 1) % columns
@@ -230,6 +219,27 @@ function Options:RenderLanding(parent, option, top)
             index % 2 == 0 and (Colors.borderSoft or Colors.border) or Colors.borderActive
         )
 
+        local cornerGlow = card:CreateTexture(nil, "BACKGROUND")
+        cornerGlow:SetPoint("TOPRIGHT", -2, -2)
+        cornerGlow:SetSize(math.floor(cardWidth * 0.42), 44)
+        if cornerGlow.SetGradientAlpha then
+            local accent = Colors.accent
+            cornerGlow:SetTexture("Interface\\Buttons\\WHITE8x8")
+            cornerGlow:SetGradientAlpha(
+                "HORIZONTAL",
+                accent[1] or 1,
+                accent[2] or 1,
+                accent[3] or 1,
+                0.16,
+                accent[1] or 1,
+                accent[2] or 1,
+                accent[3] or 1,
+                0.00
+            )
+        else
+            cornerGlow:SetColorTexture(Private.UnpackColor(Private.MixColor(Colors.accentBg, Colors.bg, 0.16, 0.14)))
+        end
+
         local stripe = card:CreateTexture(nil, "ARTWORK")
         stripe:SetPoint("TOPLEFT", 0, 0)
         stripe:SetPoint("TOPRIGHT", 0, 0)
@@ -238,9 +248,14 @@ function Options:RenderLanding(parent, option, top)
             Private.UnpackColor(index % 2 == 0 and Private.MixColor(Colors.accent, Colors.text, 0.24, 1) or Colors.accent)
         )
 
+        local number = UI.CreateText(card, 20, "OUTLINE")
+        number:SetPoint("TOPRIGHT", -14, -10)
+        number:SetText(string.format("%02d", index))
+        number:SetTextColor(Private.UnpackColor(Private.MixColor(Colors.accent, Colors.text, 0.45, 0.46)))
+
         local cardTitle = UI.CreateText(card, 14, "OUTLINE")
         cardTitle:SetPoint("TOPLEFT", 14, -14)
-        cardTitle:SetPoint("TOPRIGHT", -14, -14)
+        cardTitle:SetPoint("TOPRIGHT", number, "TOPLEFT", -8, 0)
         cardTitle:SetText(tostring(shortcut.title or ""))
         cardTitle:SetTextColor(Private.UnpackColor(Colors.text))
 
@@ -274,11 +289,22 @@ function Options:RenderLanding(parent, option, top)
     end
 
     local shortcutRows = math.max(1, math.ceil(#shortcuts / columns))
-    yOffset = yOffset - (shortcutRows * (cardHeight + gap)) - 6
+    yOffset = yOffset - (shortcutRows * (cardHeight + gap)) - sectionGap
 
-    local updateCard = self:CreateCard(parent, yOffset, 144)
+    local lowerGap = 12
+    local lowerWidth = math.floor((width - lowerGap) / 2)
+    local lowerHeight = 170
+
+    local updateCard = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    updateCard:SetPoint("TOPLEFT", 0, yOffset)
+    updateCard:SetSize(lowerWidth, lowerHeight)
+    UI.CreateBackdrop(
+        updateCard,
+        Private.MixColor(Colors.cardSoft, Colors.accentBg, 0.14, 0.96),
+        Private.MixColor(Colors.border, Colors.accent, 0.20, 1)
+    )
     updateCard:SetBackdropColor(Private.UnpackColor(Private.MixColor(Colors.cardSoft, Colors.accentBg, 0.14, 0.96)))
-    updateCard:SetBackdropBorderColor(Private.UnpackColor(Colors.border))
+    updateCard:SetBackdropBorderColor(Private.UnpackColor(Private.MixColor(Colors.border, Colors.accent, 0.20, 1)))
 
     local updateTitle = UI.CreateText(updateCard, 14, "OUTLINE")
     updateTitle:SetPoint("TOPLEFT", 14, -14)
@@ -286,16 +312,82 @@ function Options:RenderLanding(parent, option, top)
     updateTitle:SetText(Private.ResolveText(option.newsTitle, "本次更新"))
     updateTitle:SetTextColor(Private.UnpackColor(Colors.accent))
 
-    local newsTop = -42
-    for index, item in ipairs(option.newsItems or {}) do
+    local updateBadge = UI.CreateText(updateCard, 10)
+    updateBadge:SetPoint("TOPRIGHT", -14, -17)
+    updateBadge:SetText("最近整理")
+    updateBadge:SetTextColor(Private.UnpackColor(Colors.muted))
+
+    local newsTop = -46
+    for index, item in ipairs(newsItems) do
+        local dot = updateCard:CreateTexture(nil, "ARTWORK")
+        dot:SetPoint("TOPLEFT", 16, newsTop - (index - 1) * 32)
+        dot:SetSize(6, 6)
+        dot:SetColorTexture(Private.UnpackColor(Colors.accent))
+
+        if index < #newsItems then
+            local line = updateCard:CreateTexture(nil, "ARTWORK")
+            line:SetPoint("TOPLEFT", 18, newsTop - 9 - (index - 1) * 32)
+            line:SetSize(2, 22)
+            line:SetColorTexture(Private.UnpackColor(Private.MixColor(Colors.border, Colors.accent, 0.25, 0.90)))
+        end
+
         local bullet = UI.CreateText(updateCard, 11)
-        bullet:SetPoint("TOPLEFT", 14, newsTop - (index - 1) * 24)
-        bullet:SetPoint("TOPRIGHT", -14, newsTop - (index - 1) * 24)
-        bullet:SetText("• " .. tostring(item))
+        bullet:SetPoint("TOPLEFT", 30, newsTop + 4 - (index - 1) * 32)
+        bullet:SetWidth(lowerWidth - 44)
+        bullet:SetText(tostring(item))
         bullet:SetTextColor(Private.UnpackColor(Colors.text))
     end
 
-    return top - (yOffset - 156)
+    local helpWidth = width - lowerWidth - lowerGap
+    local helpCard = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    helpCard:SetPoint("TOPLEFT", lowerWidth + lowerGap, yOffset)
+    helpCard:SetSize(helpWidth, lowerHeight)
+    UI.CreateBackdrop(
+        helpCard,
+        Private.MixColor(Colors.cardSoft, Colors.panel, 0.18, 0.96),
+        Private.MixColor(Colors.border, Colors.accent, 0.12, 1)
+    )
+
+    local helpTitle = UI.CreateText(helpCard, 14, "OUTLINE")
+    helpTitle:SetPoint("TOPLEFT", 14, -14)
+    helpTitle:SetPoint("TOPRIGHT", -14, -14)
+    helpTitle:SetText("常用命令")
+    helpTitle:SetTextColor(Private.UnpackColor(Colors.accent))
+
+    local helpLines = {
+        "/yxs 打开设置窗口",
+        "/yxs log 打开更新记录",
+        "轻量功能建议可以直接到群里反馈",
+    }
+
+    for index, lineText in ipairs(helpLines) do
+        local line = UI.CreateText(helpCard, 11)
+        line:SetPoint("TOPLEFT", 16, -42 - (index - 1) * 24)
+        line:SetPoint("TOPRIGHT", -16, -42 - (index - 1) * 24)
+        line:SetText(lineText)
+        line:SetTextColor(Private.UnpackColor(index == 3 and Colors.muted or Colors.text))
+    end
+
+    local qqIcon = helpCard:CreateTexture(nil, "ARTWORK")
+    qqIcon:SetPoint("BOTTOMLEFT", 16, 50)
+    qqIcon:SetSize(20, 20)
+    qqIcon:SetTexture((Assets and Assets.qqIcon) or "Interface\\Buttons\\WHITE8x8")
+
+    local qqLabel = UI.CreateText(helpCard, 11)
+    qqLabel:SetPoint("LEFT", qqIcon, "RIGHT", 8, 0)
+    qqLabel:SetWidth(math.max(68, helpWidth - 54))
+    qqLabel:SetJustifyV("MIDDLE")
+    qqLabel:SetText("QQ 群 " .. tostring(Meta and Meta.qqGroup or ""))
+    qqLabel:SetTextColor(Private.UnpackColor(Colors.text))
+
+    local copyButton = UI.CreateButton(helpCard, "复制群号", math.min(110, math.max(92, helpWidth - 32)), 28, "accent")
+    copyButton:SetPoint("BOTTOMLEFT", 16, 14)
+    copyButton:SetScript("OnClick", function()
+        self:ShowCopyPopup("复制 QQ 群号", tostring(Meta and Meta.qqGroup or ""))
+    end)
+
+    yOffset = yOffset - lowerHeight - 8
+    return startTop - yOffset
 end
 
 function Options:RenderToggle(parent, option, top)
