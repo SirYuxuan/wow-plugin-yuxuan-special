@@ -2,7 +2,7 @@
 ## Title: 雨轩工具箱
 ## Notes: 提供地图辅助、界面增强、战斗辅助与法师冰霜相关功能
 ## Author: Sir丶雨轩
-## Version: 1.1.6
+## Version: 1.1.6-fix0.0.1
 ## SavedVariables: YuXuanSpecialDB
 
 Libs\LibStub\LibStub.lua
@@ -15,7 +15,6 @@ Core\Database.lua
 Core\Layout.lua
 Core\Media.lua
 Core\MemoryAudit.lua
-Core\MemoryManager.lua
 Core\Commands.lua
 
 Modules\MapAssist\MapIDDisplay.lua
