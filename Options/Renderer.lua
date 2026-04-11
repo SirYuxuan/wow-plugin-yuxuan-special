@@ -1888,7 +1888,6 @@ function Options:RenderInlineOption(parent, option, width, refreshInlineStates)
         sliderHolder:SetPoint("RIGHT", 0, 0)
 
         local slider = sliderHolder.slider
-        local minValue = tonumber(option.min) or 0
         local minValue = tonumber(Private.Evaluate(option.min)) or 0
         local maxValue = tonumber(Private.Evaluate(option.max)) or 100
         local step = tonumber(Private.Evaluate(option.step)) or 1
