@@ -255,14 +255,14 @@ end
 local function BuildCombatAndClassOptions()
     local combatAssist = NS.BuildCombatAssistOptions()
     local classAssist = NS.BuildClassAssistOptions()
+    local graphicMonitor = NS.BuildGraphicMonitorOptions()
     local quickFocus = combatAssist.args.quickFocus
     local trinketMonitor = combatAssist.args.trinketMonitor
-    local utilityAnnouncer = classAssist.args.utilityAnnouncer
     local mage = classAssist.args.mage
 
     quickFocus.order = 10
     trinketMonitor.order = 20
-    utilityAnnouncer.order = 30
+    graphicMonitor.order = 30
     mage.order = 40
 
     return {
@@ -272,7 +272,7 @@ local function BuildCombatAndClassOptions()
         args = {
             quickFocus = quickFocus,
             trinketMonitor = trinketMonitor,
-            utilityAnnouncer = utilityAnnouncer,
+            graphicMonitor = graphicMonitor,
             mage = mage,
         },
     }

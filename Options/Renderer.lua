@@ -245,7 +245,8 @@ function Options:RenderLanding(parent, option, top)
         stripe:SetPoint("TOPRIGHT", 0, 0)
         stripe:SetHeight(3)
         stripe:SetColorTexture(
-            Private.UnpackColor(index % 2 == 0 and Private.MixColor(Colors.accent, Colors.text, 0.24, 1) or Colors.accent)
+            Private.UnpackColor(index % 2 == 0 and Private.MixColor(Colors.accent, Colors.text, 0.24, 1) or Colors
+                .accent)
         )
 
         local number = UI.CreateText(card, 20, "OUTLINE")
@@ -501,9 +502,13 @@ function Options:RenderRange(parent, option, top)
     sliderHolder:SetPoint("BOTTOMRIGHT", -12, 12)
 
     local slider = sliderHolder.slider
-    local minValue = tonumber(option.min) or 0
-    local maxValue = tonumber(option.max) or 100
-    local step = tonumber(option.step) or 1
+    local minValue = tonumber(Private.Evaluate(option.min)) or 0
+    local maxValue = tonumber(Private.Evaluate(option.max)) or 100
+    local step = tonumber(Private.Evaluate(option.step)) or 1
+    minValue = tonumber(Private.Evaluate(option.min)) or 0
+    maxValue = tonumber(Private.Evaluate(option.max)) or 100
+    step = tonumber(Private.Evaluate(option.step)) or 1
+
     local disabled = Private.IsDisabled(option)
     local settingValue = tonumber(Private.GetOptionValue(option)) or minValue
 
@@ -589,7 +594,7 @@ local function GetInlineOptionMinWidth(option)
         return 170
     end
     if option.type == "range" then
-        return 200
+        return 180
     end
 
     return 180
@@ -600,6 +605,21 @@ local function GetInlineOptionContentHeight(option)
         return 28
     end
     return 28
+end
+
+local function ResolveDropdownLabel(values, currentValue)
+    local fallbackLabel = nil
+
+    for index, entry in ipairs(values or {}) do
+        if index == 1 then
+            fallbackLabel = entry.label
+        end
+        if entry.value == currentValue or tostring(entry.value) == tostring(currentValue) then
+            return entry.label
+        end
+    end
+
+    return fallbackLabel or tostring(currentValue or "")
 end
 
 function Options:BindSelectDropdown(button, option, values)
@@ -673,14 +693,7 @@ function Options:RenderSelect(parent, option, top)
     local disabled = Private.IsDisabled(option)
     local currentValue = Private.GetOptionValue(option)
     local values = Private.NormalizeDropdownValues(option.values)
-    local currentLabel = tostring(currentValue or "")
-
-    for _, entry in ipairs(values) do
-        if entry.value == currentValue then
-            currentLabel = entry.label
-            break
-        end
-    end
+    local currentLabel = ResolveDropdownLabel(values, currentValue)
 
     local button = UI.CreateDropdownButton(row, 176, 28)
     button:SetPoint("RIGHT", -12, 0)
@@ -1064,6 +1077,550 @@ function Options:RenderInput(parent, option, top)
     return height + Sizes.rowGap
 end
 
+local function GetMonitorItemBorderColor(item)
+    local monitorBlue = { 0.29, 0.57, 0.98, 1.00 }
+    local monitorGreen = { 0.24, 0.84, 0.46, 1.00 }
+    if item and item.state == "enabled" then
+        return monitorGreen
+    end
+    return monitorBlue
+end
+
+local function ApplyMonitorTileBorder(lines, color)
+    local r, g, b, a = Private.UnpackColor(color or { 0, 0, 0, 0 })
+    for _, line in ipairs(lines or {}) do
+        line:SetColorTexture(r, g, b, a)
+    end
+end
+
+local function CreateMonitorIconTile(parent, size, iconTexture, borderColor)
+    local holder = CreateFrame("Frame", nil, parent)
+    holder:SetSize(size, size)
+
+    local icon = holder:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    icon:SetTexture(iconTexture or 134400)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    holder.icon = icon
+
+    local overlay = holder:CreateTexture(nil, "OVERLAY")
+    overlay:SetAllPoints()
+    overlay:SetColorTexture(1, 1, 1, 0.08)
+    holder.overlay = overlay
+
+    local topLine = holder:CreateTexture(nil, "OVERLAY")
+    local bottomLine = holder:CreateTexture(nil, "OVERLAY")
+    local leftLine = holder:CreateTexture(nil, "OVERLAY")
+    local rightLine = holder:CreateTexture(nil, "OVERLAY")
+    topLine:SetPoint("TOPLEFT", 0, 0)
+    topLine:SetPoint("TOPRIGHT", 0, 0)
+    topLine:SetHeight(1)
+    bottomLine:SetPoint("BOTTOMLEFT", 0, 0)
+    bottomLine:SetPoint("BOTTOMRIGHT", 0, 0)
+    bottomLine:SetHeight(1)
+    leftLine:SetPoint("TOPLEFT", 0, 0)
+    leftLine:SetPoint("BOTTOMLEFT", 0, 0)
+    leftLine:SetWidth(1)
+    rightLine:SetPoint("TOPRIGHT", 0, 0)
+    rightLine:SetPoint("BOTTOMRIGHT", 0, 0)
+    rightLine:SetWidth(1)
+
+    holder.borderLines = { topLine, bottomLine, leftLine, rightLine }
+    ApplyMonitorTileBorder(holder.borderLines, borderColor)
+
+    return holder
+end
+
+local function ShowMonitorItemTooltip(owner, item)
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:ClearLines()
+
+    if type(item and item.tooltip) == "function" then
+        local ok = pcall(item.tooltip, GameTooltip)
+        if ok and GameTooltip:NumLines() > 0 then
+            GameTooltip:Show()
+            return
+        end
+        GameTooltip:ClearLines()
+    end
+
+    GameTooltip:AddLine(tostring(item and item.label or ""), 1, 0.82, 0.18)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine("ID: " .. tostring(item and item.spellID or ""), 0.75, 0.78, 0.84)
+    GameTooltip:AddLine(tostring(item and item.meta or ""), 0.55, 0.85, 0.55)
+    GameTooltip:Show()
+end
+
+local function AttachWorkbenchScrollBar(scrollFrame, parent, anchorTarget)
+    local target = anchorTarget or scrollFrame
+    local slider = CreateFrame("Slider", nil, parent)
+    slider:SetOrientation("VERTICAL")
+    slider:SetWidth(10)
+    slider:SetPoint("TOPRIGHT", target, "TOPRIGHT", 0, 0)
+    slider:SetPoint("BOTTOMRIGHT", target, "BOTTOMRIGHT", 0, 0)
+    slider:SetFrameLevel((parent:GetFrameLevel() or 1) + 20)
+    slider:SetMinMaxValues(0, 0)
+    slider:SetValue(0)
+    slider:SetValueStep(1)
+
+    local track = slider:CreateTexture(nil, "BACKGROUND")
+    track:SetPoint("TOP", 0, 0)
+    track:SetPoint("BOTTOM", 0, 0)
+    track:SetWidth(2)
+    track:SetColorTexture(Private.UnpackColor(Private.MixColor(Colors.border, Colors.bg, 0.45, 0.95)))
+
+    slider:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
+    local thumb = slider:GetThumbTexture()
+    thumb:SetWidth(6)
+    thumb:SetHeight(42)
+    thumb:SetVertexColor(Private.UnpackColor(Colors.borderActive))
+
+    local syncing = false
+
+    local function UpdateScrollBar()
+        local range = scrollFrame:GetVerticalScrollRange() or 0
+        slider:SetMinMaxValues(0, range)
+
+        local value = math.min(scrollFrame:GetVerticalScroll() or 0, range)
+        syncing = true
+        slider:SetValue(value)
+        syncing = false
+
+        local viewHeight = scrollFrame:GetHeight() or 0
+        local child = scrollFrame:GetScrollChild()
+        local childHeight = child and child:GetHeight() or 0
+        local ratio = 1
+        if childHeight > 0 and viewHeight > 0 then
+            ratio = math.max(0.16, math.min(1, viewHeight / childHeight))
+        end
+        thumb:SetHeight(math.max(28, (slider:GetHeight() or 0) * ratio))
+        slider:SetShown(range > 0.5)
+    end
+
+    slider:SetScript("OnValueChanged", function(_, value)
+        if syncing then
+            return
+        end
+        scrollFrame:SetVerticalScroll(value)
+    end)
+    slider:SetScript("OnEnter", function()
+        thumb:SetVertexColor(Private.UnpackColor(Private.MixColor(Colors.borderActive, { 1, 1, 1, 1 }, 0.15, 1)))
+    end)
+    slider:SetScript("OnLeave", function()
+        thumb:SetVertexColor(Private.UnpackColor(Colors.borderActive))
+    end)
+
+    scrollFrame:EnableMouseWheel(true)
+    scrollFrame:SetScript("OnMouseWheel", function(self, delta)
+        local range = self:GetVerticalScrollRange() or 0
+        if range <= 0 then
+            return
+        end
+        local step = math.max(range / 12, 24)
+        local nextValue = (self:GetVerticalScroll() or 0) - delta * step
+        nextValue = math.max(0, math.min(nextValue, range))
+        syncing = true
+        self:SetVerticalScroll(nextValue)
+        slider:SetValue(nextValue)
+        syncing = false
+    end)
+    scrollFrame:SetScript("OnVerticalScroll", function(_, offset)
+        if syncing then
+            return
+        end
+        syncing = true
+        slider:SetValue(offset)
+        syncing = false
+    end)
+    scrollFrame:HookScript("OnShow", UpdateScrollBar)
+    scrollFrame:HookScript("OnSizeChanged", UpdateScrollBar)
+    scrollFrame:HookScript("OnScrollRangeChanged", UpdateScrollBar)
+    slider.UpdateScrollBar = UpdateScrollBar
+    return slider
+end
+
+function Options:RenderMonitorWorkbench(parent, option, top)
+    local tileIdle = { 0.18, 0.20, 0.24, 0.85 }
+    local width = GetParentContentWidth(self, parent)
+    local gap = 10
+    local viewportHeight = (self.frame and self.frame.scrollFrame and self.frame.scrollFrame:GetHeight()) or 560
+    local workbenchHeight = math.max(384, viewportHeight - 76)
+    local section = self:CreateSection(parent, top, 10)
+    local columns = math.max(1, tonumber(option.columns) or 4)
+    local iconSize = 30
+    local iconGap = 10
+    local leftPad = 12
+    local scrollBarWidth = 12
+    local totalGridWidth = columns * iconSize + math.max(0, columns - 1) * iconGap
+    local leftWidth = leftPad * 2 + totalGridWidth + scrollBarWidth
+    local rightWidth = math.max(280, width - leftWidth - gap - 2)
+    local usableWidth = leftWidth - leftPad * 2
+    local gridInsetX = 0
+
+    local leftCard = CreateFrame("Frame", nil, section, "BackdropTemplate")
+    leftCard:SetPoint("TOPLEFT", 0, 0)
+    leftCard:SetSize(leftWidth, workbenchHeight)
+    UI.CreateBackdrop(leftCard, Private.MixColor(Colors.cardSoft, Colors.bg, 0.10, 0.98),
+        Colors.borderSoft or Colors.border)
+
+    -- Legend badges (vertically centered)
+    local badgeRow = CreateFrame("Frame", nil, leftCard)
+    badgeRow:SetPoint("TOPLEFT", leftPad, -11)
+    badgeRow:SetPoint("TOPRIGHT", -leftPad, -11)
+    badgeRow:SetHeight(14)
+
+    local badgeX = 0
+    for _, badgeInfo in ipairs(option.legendItems or {}) do
+        local badgeColor = badgeInfo.color == "success"
+            and GetMonitorItemBorderColor({ state = "enabled" })
+            or GetMonitorItemBorderColor({ state = "configured" })
+        local square = CreateFrame("Frame", nil, badgeRow, "BackdropTemplate")
+        square:SetSize(10, 10)
+        square:SetPoint("LEFT", badgeRow, "LEFT", badgeX, 0)
+
+        local text = UI.CreateText(badgeRow, 11)
+        text:SetPoint("LEFT", badgeRow, "LEFT", badgeX + 16, 0)
+        text:SetJustifyH("LEFT")
+        text:SetJustifyV("MIDDLE")
+        text:SetText(tostring(badgeInfo.text or ""))
+        text:SetTextColor(Private.UnpackColor(Colors.text))
+
+        UI.CreateBackdrop(square, badgeColor, badgeColor)
+        badgeX = badgeX + 16 + text:GetStringWidth() + 14
+    end
+
+    -- Grid area
+    local gridTop = -32
+    local gridPane = CreateFrame("Frame", nil, leftCard)
+    gridPane:SetPoint("TOPLEFT", leftPad, gridTop)
+    gridPane:SetPoint("BOTTOMRIGHT", -leftPad, 58)
+
+    local gridScroll = CreateFrame("ScrollFrame", nil, gridPane)
+    gridScroll:SetPoint("TOPLEFT", 0, 0)
+    gridScroll:SetPoint("BOTTOMRIGHT", -scrollBarWidth, 0)
+
+    local gridChild = CreateFrame("Frame", nil, gridScroll)
+    gridChild:SetWidth(totalGridWidth)
+    gridChild:SetHeight(10)
+    gridScroll:SetScrollChild(gridChild)
+
+    local leftScrollBar = AttachWorkbenchScrollBar(gridScroll, leftCard, gridScroll)
+    local items = Private.Evaluate(option.items) or {}
+    if #items == 0 and option.autoScan then
+        option.autoScan()
+        items = Private.Evaluate(option.items) or {}
+    end
+
+    local gridHeight = 24
+
+    if #items == 0 then
+        local empty = UI.CreateText(gridChild, 12)
+        empty:SetPoint("TOPLEFT", gridInsetX, 0)
+        empty:SetWidth(totalGridWidth)
+        empty:SetText(Private.ResolveText(option.emptyText, "当前没有可用条目。"))
+        empty:SetTextColor(Private.UnpackColor(Colors.muted))
+        gridHeight = math.max(60, empty:GetStringHeight() + 8)
+    else
+        local cellHeight = iconSize
+        local lastRow = 0
+
+        for index, item in ipairs(items) do
+            local row = math.floor((index - 1) / columns)
+            local col = (index - 1) % columns
+            local button = CreateFrame("Button", nil, gridChild, "BackdropTemplate")
+            button:SetSize(iconSize, iconSize)
+            local cellX = gridInsetX + col * (iconSize + iconGap)
+            local cellY = -row * (cellHeight + 8)
+            button:SetPoint("TOPLEFT", cellX, cellY)
+
+            local icon = button:CreateTexture(nil, "ARTWORK")
+            icon:SetPoint("TOPLEFT", 0, 0)
+            icon:SetPoint("BOTTOMRIGHT", 0, 0)
+            icon:SetTexture(item.icon or 134400)
+            icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+            local overlay = button:CreateTexture(nil, "OVERLAY")
+            overlay:SetAllPoints()
+            overlay:SetColorTexture(1, 1, 1, 0)
+
+            local topLine = button:CreateTexture(nil, "OVERLAY")
+            local bottomLine = button:CreateTexture(nil, "OVERLAY")
+            local leftLine = button:CreateTexture(nil, "OVERLAY")
+            local rightLine = button:CreateTexture(nil, "OVERLAY")
+            topLine:SetPoint("TOPLEFT", 0, 0)
+            topLine:SetPoint("TOPRIGHT", 0, 0)
+            topLine:SetHeight(1)
+            bottomLine:SetPoint("BOTTOMLEFT", 0, 0)
+            bottomLine:SetPoint("BOTTOMRIGHT", 0, 0)
+            bottomLine:SetHeight(1)
+            leftLine:SetPoint("TOPLEFT", 0, 0)
+            leftLine:SetPoint("BOTTOMLEFT", 0, 0)
+            leftLine:SetWidth(1)
+            rightLine:SetPoint("TOPRIGHT", 0, 0)
+            rightLine:SetPoint("BOTTOMRIGHT", 0, 0)
+            rightLine:SetWidth(1)
+
+            local function applyBorder(color)
+                local r, g, b, a = Private.UnpackColor(color or { 0, 0, 0, 0 })
+                topLine:SetColorTexture(r, g, b, a)
+                bottomLine:SetColorTexture(r, g, b, a)
+                leftLine:SetColorTexture(r, g, b, a)
+                rightLine:SetColorTexture(r, g, b, a)
+            end
+
+            local function resolveStateBorder()
+                if item.selected then
+                    return GetMonitorItemBorderColor({ state = "configured" })
+                end
+                if item.state == "enabled" then
+                    return GetMonitorItemBorderColor(item)
+                end
+                return tileIdle
+            end
+
+            applyBorder(resolveStateBorder())
+
+            button:SetScript("OnClick", function()
+                if item.func then
+                    item.func()
+                end
+                self:NotifyChanged()
+            end)
+            button:SetScript("OnEnter", function(selfButton)
+                applyBorder(GetMonitorItemBorderColor({ state = "configured" }))
+                overlay:SetColorTexture(1, 1, 1, 0.18)
+                ShowMonitorItemTooltip(selfButton, item)
+            end)
+            button:SetScript("OnLeave", function()
+                applyBorder(resolveStateBorder())
+                overlay:SetColorTexture(1, 1, 1, 0)
+                GameTooltip:Hide()
+            end)
+
+            lastRow = row
+        end
+
+        gridHeight = ((lastRow + 1) * (cellHeight + 8)) - 8
+    end
+
+    gridChild:SetHeight(math.max(gridHeight, gridScroll:GetHeight() or 10))
+    if leftScrollBar and leftScrollBar.UpdateScrollBar then
+        leftScrollBar:UpdateScrollBar()
+    end
+
+    -- Manual input
+    local manualLabel = UI.CreateText(leftCard, 11)
+    manualLabel:SetPoint("BOTTOMLEFT", leftPad, 40)
+    manualLabel:SetPoint("BOTTOMRIGHT", -leftPad, 40)
+    manualLabel:SetText(Private.ResolveText(option.manualLabel, "手动输入技能ID"))
+    manualLabel:SetTextColor(Private.UnpackColor(Colors.muted))
+
+    local manualInput = UI.CreateEditBox(leftCard, false)
+    manualInput:SetPoint("BOTTOMLEFT", leftPad, 10)
+    manualInput:SetSize(math.max(80, leftWidth - leftPad * 2 - 66), 26)
+    manualInput:SetText(tostring(Private.Evaluate(option.manualValue) or ""))
+    manualInput:SetScript("OnTextChanged", function(selfBox, userInput)
+        if not userInput then
+            return
+        end
+        if option.setManualValue then
+            option.setManualValue(selfBox:GetText())
+        end
+    end)
+    manualInput:SetScript("OnEnterPressed", function(selfBox)
+        if option.setManualValue then
+            option.setManualValue(selfBox:GetText())
+        end
+        if option.addManual then
+            option.addManual()
+        end
+        self:NotifyChanged()
+        selfBox:ClearFocus()
+    end)
+
+    local addButton = UI.CreateButton(leftCard, Private.ResolveText(option.addButtonLabel, "添加"), 56, 26, "accent")
+    addButton:SetPoint("LEFT", manualInput, "RIGHT", 8, 0)
+    addButton:SetScript("OnClick", function()
+        if option.setManualValue then
+            option.setManualValue(manualInput:GetText())
+        end
+        if option.addManual then
+            option.addManual()
+        end
+        self:NotifyChanged()
+    end)
+
+    -- ========== Right card ==========
+    local rightCard = CreateFrame("Frame", nil, section, "BackdropTemplate")
+    rightCard:SetPoint("TOPLEFT", leftCard, "TOPRIGHT", gap, 0)
+    rightCard:SetSize(rightWidth, workbenchHeight)
+    UI.CreateBackdrop(rightCard, Private.MixColor(Colors.cardSoft, Colors.bg, 0.10, 0.98),
+        Colors.borderSoft or Colors.border)
+
+    local info = Private.Evaluate(option.info)
+    local actionRow = Private.Evaluate(option.actionRow)
+    local infoHasActions = actionRow and type(actionRow.actions) == "table" and #actionRow.actions > 0
+
+    -- Info card with border — contains icon, spell info, and action buttons on the right
+    local infoCardHeight = info and 74 or 56
+    local infoCard = CreateFrame("Frame", nil, rightCard, "BackdropTemplate")
+    infoCard:SetPoint("TOPLEFT", 10, -10)
+    infoCard:SetPoint("TOPRIGHT", -10, -10)
+    infoCard:SetHeight(infoCardHeight)
+    infoCard:SetFrameLevel((rightCard:GetFrameLevel() or 1) + 6)
+    UI.CreateBackdrop(infoCard, Colors.cardSoft, Colors.borderSoft or Colors.border)
+
+    local infoTitle = UI.CreateText(infoCard, 13, "OUTLINE")
+    infoTitle:SetPoint("TOPLEFT", 12, -10)
+    infoTitle:SetText("当前目标")
+    infoTitle:SetTextColor(Private.UnpackColor(Colors.accent))
+
+    if info then
+        local iconState = info.enabled and "enabled" or (info.configured and "configured" or "tracked")
+        local iconHolder = CreateMonitorIconTile(
+            infoCard,
+            30,
+            info.icon or 134400,
+            iconState == "tracked" and tileIdle or GetMonitorItemBorderColor({ state = iconState })
+        )
+        iconHolder:SetPoint("TOPLEFT", 12, -30)
+
+        local name = UI.CreateText(infoCard, 12)
+        name:SetPoint("TOPLEFT", iconHolder, "TOPRIGHT", 10, -1)
+        name:SetText(string.format("%s  |  SpellID: %d", tostring(info.name or ""), tonumber(info.spellID) or 0))
+
+        local meta = UI.CreateText(infoCard, 11)
+        meta:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
+        meta:SetText(string.format("%s  /  %s", tostring(info.statusText or ""), tostring(info.trackedText or "")))
+        meta:SetTextColor(Private.UnpackColor(Colors.muted))
+
+        -- Action buttons anchored to right side of info card
+        if infoHasActions then
+            local actionRightX = -12
+            local actions = actionRow.actions or {}
+            for i = #actions, 1, -1 do
+                local action = actions[i]
+                local button = UI.CreateButton(infoCard, tostring(action.label or ""), action.width or 56, 24,
+                    action.variant)
+                button:SetPoint("RIGHT", actionRightX, -8)
+                button:SetFrameLevel((infoCard:GetFrameLevel() or 1) + 2)
+                button:EnableMouse(true)
+                local disabled = Private.Evaluate(action.disabled)
+                button:SetEnabled(not disabled)
+                if disabled then
+                    button:SetAlpha(0.45)
+                end
+                button:SetScript("OnClick", function()
+                    local isDisabled = Private.Evaluate(action.disabled)
+                    if isDisabled then
+                        return
+                    end
+                    local run = function()
+                        if action.func then
+                            action.func()
+                        end
+                        self:NotifyChanged()
+                    end
+                    if action.confirm then
+                        self:ShowConfirm(Private.ResolveText(action.confirmText, "确认执行这个操作吗？"), run)
+                    else
+                        run()
+                    end
+                end)
+                actionRightX = actionRightX - (button:GetWidth() + 8)
+            end
+        end
+    else
+        local placeholder = UI.CreateText(infoCard, 12)
+        placeholder:SetPoint("TOPLEFT", 12, -34)
+        placeholder:SetPoint("TOPRIGHT", -12, -34)
+        placeholder:SetText("左侧选择一个技能或 BUFF 后，就可以在这里直接调整设置。")
+        placeholder:SetTextColor(Private.UnpackColor(Colors.muted))
+    end
+
+    -- ========== Sections: tab bar + scroll content ==========
+    local visibleSections = {}
+    for index, group in ipairs(option.sections or {}) do
+        if not Private.IsHidden(group) then
+            visibleSections[#visibleSections + 1] = {
+                index = index,
+                group = group,
+            }
+        end
+    end
+
+    if #visibleSections > 0 then
+        self.monitorWorkbenchTabs = self.monitorWorkbenchTabs or {}
+        local tabStateKey = tostring(option.tabKey or "default")
+        local selectedTab = self.monitorWorkbenchTabs[tabStateKey] or visibleSections[1].index
+        local selectedSectionIndex = visibleSections[1].index
+        local selectedSectionGroup = visibleSections[1].group
+
+        for _, entry in ipairs(visibleSections) do
+            if entry.index == selectedTab then
+                selectedSectionIndex = entry.index
+                selectedSectionGroup = entry.group
+                break
+            end
+        end
+        self.monitorWorkbenchTabs[tabStateKey] = selectedSectionIndex
+
+        -- Tab bar (no border, directly on right card)
+        local tabBar = CreateFrame("Frame", nil, rightCard)
+        tabBar:SetPoint("TOPLEFT", infoCard, "BOTTOMLEFT", 0, -10)
+        tabBar:SetPoint("TOPRIGHT", infoCard, "BOTTOMRIGHT", 0, -10)
+        tabBar:SetHeight(28)
+        local tabX = 4
+        for _, entry in ipairs(visibleSections) do
+            local label = Private.ResolveText(entry.group.name, tostring(entry.index))
+            local button = UI.CreateTabButton(tabBar)
+            UI.SetButtonLabel(button, label)
+            button:SetWidth(math.max(92, button.text:GetStringWidth() + 24))
+            button:SetPoint("TOPLEFT", tabX, 0)
+            button:SetSelected(entry.index == selectedSectionIndex)
+            button:SetScript("OnClick", function()
+                self.monitorWorkbenchTabs[tabStateKey] = entry.index
+                self:Render(true)
+            end)
+            tabX = tabX + button:GetWidth() + 6
+        end
+
+        -- Scroll content (no border wrapper)
+        local rightScroll = CreateFrame("ScrollFrame", nil, rightCard)
+        rightScroll:SetPoint("TOPLEFT", tabBar, "BOTTOMLEFT", 4, -6)
+        rightScroll:SetPoint("BOTTOMRIGHT", rightCard, "BOTTOMRIGHT", -22, 10)
+
+        local contentWidth = rightWidth - 52
+        local rightColumn = CreateFrame("Frame", nil, rightScroll)
+        rightColumn:SetWidth(contentWidth)
+        rightColumn:SetHeight(10)
+        rightScroll:SetScrollChild(rightColumn)
+
+        local rightScrollBar = AttachWorkbenchScrollBar(rightScroll, rightCard, rightScroll)
+
+        local yOffset = 0
+        local rightHeight = 0
+        local used = self:RenderGroupSection(
+            rightColumn,
+            selectedSectionGroup,
+            { "monitorWorkbench", tabStateKey, tostring(selectedSectionIndex) },
+            yOffset,
+            true
+        )
+        yOffset = yOffset - used
+        rightHeight = rightHeight + used
+
+        rightColumn:SetHeight(math.max(rightHeight, rightScroll:GetHeight() or 10))
+        if rightScrollBar and rightScrollBar.UpdateScrollBar then
+            rightScrollBar:UpdateScrollBar()
+        end
+    end
+
+    section:SetHeight(workbenchHeight)
+
+    return workbenchHeight + 2
+end
+
 function Options:RenderOption(parent, option, top)
     if Private.IsHidden(option) then
         return 0
@@ -1101,6 +1658,9 @@ function Options:RenderOption(parent, option, top)
     end
     if option.type == "input" then
         return self:RenderInput(parent, option, top)
+    end
+    if option.type == "monitorWorkbench" then
+        return self:RenderMonitorWorkbench(parent, option, top)
     end
 
     return 0
@@ -1191,14 +1751,7 @@ function Options:RenderInlineOption(parent, option, width, refreshInlineStates)
     if optionType == "select" then
         local currentValue = Private.GetOptionValue(option)
         local values = Private.NormalizeDropdownValues(option.values)
-        local currentLabel = tostring(currentValue or "")
-
-        for _, entry in ipairs(values) do
-            if entry.value == currentValue then
-                currentLabel = entry.label
-                break
-            end
-        end
+        local currentLabel = ResolveDropdownLabel(values, currentValue)
 
         local button = UI.CreateDropdownButton(parent, math.max(80, width - controlLeft), 28)
         button:SetPoint("LEFT", controlLeft, 0)
@@ -1336,10 +1889,14 @@ function Options:RenderInlineOption(parent, option, width, refreshInlineStates)
 
         local slider = sliderHolder.slider
         local minValue = tonumber(option.min) or 0
-        local maxValue = tonumber(option.max) or 100
-        local step = tonumber(option.step) or 1
+        local minValue = tonumber(Private.Evaluate(option.min)) or 0
+        local maxValue = tonumber(Private.Evaluate(option.max)) or 100
+        local step = tonumber(Private.Evaluate(option.step)) or 1
 
         local function refreshState()
+            minValue = tonumber(Private.Evaluate(option.min)) or 0
+            maxValue = tonumber(Private.Evaluate(option.max)) or 100
+            step = tonumber(Private.Evaluate(option.step)) or 1
             local disabled = Private.IsDisabled(option)
             local settingValue = tonumber(Private.GetOptionValue(option)) or minValue
             slider:SetMinMaxValues(minValue, maxValue)
@@ -1600,7 +2157,8 @@ function Options:RenderGroupBody(parent, group, path, top)
                 nextButton:SetPoint("TOPLEFT", tabX, 0)
                 nextButton:SetEnabled(tabOffset + tabPageSize <= #tabEntries)
                 nextButton:SetScript("OnClick", function()
-                    self.tabOffsets[tabPath] = math.min(math.max(1, #tabEntries - tabPageSize + 1), tabOffset + tabPageSize)
+                    self.tabOffsets[tabPath] = math.min(math.max(1, #tabEntries - tabPageSize + 1),
+                        tabOffset + tabPageSize)
                     self:Render()
                 end)
             end

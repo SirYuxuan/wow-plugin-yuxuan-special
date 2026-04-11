@@ -67,7 +67,7 @@ function NS.BuildHuntAssistOptions()
                 type = "description",
                 order = 15,
                 fontSize = "medium",
-                name = "用于狩猎玩法的两个增强：小地图附近的夹子/猎物监控，以及自动追踪并在聊天框提示。",
+                name = "用于怪物狩猎的两个增强：小地图附近夹子/猎物监控，以及自动追踪并在聊天框提示。",
             },
             minimapGroup = {
                 type = "group",
@@ -129,21 +129,9 @@ function NS.BuildHuntAssistOptions()
                             Refresh(false)
                         end,
                     },
-                    showBorder = {
-                        type = "toggle",
-                        order = 5,
-                        width = 1.0,
-                        name = "显示边框",
-                        disabled = function() return not GetConfig().enabled or not GetConfig().minimap.enabled end,
-                        get = function() return GetConfig().showBorder ~= false end,
-                        set = function(_, value)
-                            GetConfig().showBorder = value and true or false
-                            Refresh(false)
-                        end,
-                    },
                     monitorTrap = {
                         type = "toggle",
-                        order = 6,
+                        order = 5,
                         width = 1.0,
                         name = "显示夹子图标统计",
                         disabled = function() return not GetConfig().enabled or not GetConfig().minimap.enabled end,
@@ -155,7 +143,7 @@ function NS.BuildHuntAssistOptions()
                     },
                     monitorPrey = {
                         type = "toggle",
-                        order = 7,
+                        order = 6,
                         width = 1.0,
                         name = "显示猎物图标统计",
                         disabled = function() return not GetConfig().enabled or not GetConfig().minimap.enabled end,

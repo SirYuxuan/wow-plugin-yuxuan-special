@@ -1,0 +1,117 @@
+﻿-- =========================================================
+-- SECTION 1: 模块入口
+-- SkillScanner — 冷却管理器技能扫描
+-- =========================================================
+
+local _, NS = ...
+local VFlow = NS.GraphicMonitorSystem
+if not VFlow then return end
+
+local Profiler = VFlow.Profiler
+
+-- =========================================================
+-- SECTION 2: SpellID 解析
+-- =========================================================
+
+local function ResolveSpellID(info)
+    if not info then return nil end
+
+    -- 优先级1：如果暴雪在 CDM info 里明确给了 overrideSpellID，优先使用
+    if info.overrideSpellID and info.overrideSpellID > 0 then
+        return info.overrideSpellID
+    end
+
+    -- 优先级2：获取实际生效的覆盖技能（解决天赋强化版技能ID与基础ID不一致的问题）
+    local baseID = info.spellID
+    if baseID and baseID > 0 then
+        local overrideID = C_Spell.GetOverrideSpell(baseID)
+        if overrideID and overrideID > 0 and overrideID ~= baseID then
+            return overrideID
+        end
+    end
+
+    -- 优先级3：如果技能有 linkedSpellIDs（通常是光环变体），取第一个
+    if info.linkedSpellIDs and info.linkedSpellIDs[1] and info.linkedSpellIDs[1] > 0 then
+        return info.linkedSpellIDs[1]
+    end
+
+    return baseID
+end
+
+-- =========================================================
+-- SECTION 3: 扫描调度
+-- =========================================================
+
+-- viewer：冷却管理器技能条；into：spellID -> { spellID, name, icon, cooldownID }
+local function CollectSpellsFromViewer(viewer, into)
+    if not viewer or not viewer.itemFramePool then
+        return
+    end
+    for frame in viewer.itemFramePool:EnumerateActive() do
+        local cooldownID = frame.cooldownID
+        if cooldownID then
+            local info = C_CooldownViewer.GetCooldownViewerCooldownInfo(cooldownID)
+            if info then
+                local spellID = ResolveSpellID(info)
+                if spellID and spellID > 0 then
+                    local spellInfo = C_Spell.GetSpellInfo(spellID)
+                    if spellInfo and spellInfo.name and spellInfo.iconID then
+                        into[spellID] = {
+                            spellID = spellID,
+                            name = spellInfo.name,
+                            icon = spellInfo.iconID,
+                            cooldownID = cooldownID,
+                        }
+                    end
+                end
+            end
+        end
+    end
+end
+
+--- 扫描冷却管理器技能条并写入 State。
+--- trackedSkills：仅「重要技能」条（供自定义技能组等只认重要条的逻辑使用，语义不变）。
+--- trackedUtilitySkills：仅「效能技能」条（播报/高亮等可再合并展示）。
+local ScanSkillViewers
+
+ScanSkillViewers = function()
+    if InCombatLockdown() then return end
+    local important = {}
+    CollectSpellsFromViewer(_G.EssentialCooldownViewer, important)
+    VFlow.State.update("trackedSkills", important)
+
+    local utility = {}
+    CollectSpellsFromViewer(_G.UtilityCooldownViewer, utility)
+    VFlow.State.update("trackedUtilitySkills", utility)
+end
+
+local function ScheduleScan()
+    C_Timer.After(0.5, ScanSkillViewers)
+    C_Timer.After(2.0, ScanSkillViewers)
+end
+
+-- =========================================================
+-- SECTION 4: 事件监听
+-- =========================================================
+
+VFlow.on("PLAYER_ENTERING_WORLD", "SkillScanner", ScheduleScan)
+VFlow.on("PLAYER_SPECIALIZATION_CHANGED", "SkillScanner", ScheduleScan)
+VFlow.on("TRAIT_CONFIG_UPDATED", "SkillScanner", ScheduleScan)
+
+-- =========================================================
+-- SECTION 5: 公共接口
+-- =========================================================
+
+VFlow.SkillScanner = {
+    scan = ScanSkillViewers,
+}
+
+if Profiler and Profiler.registerScope then
+    Profiler.registerScope("SS:ScanSkillViewers", function()
+        return ScanSkillViewers
+    end, function(fn)
+        ScanSkillViewers = fn
+        VFlow.SkillScanner.scan = fn
+    end)
+end
+

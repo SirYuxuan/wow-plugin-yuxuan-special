@@ -2,13 +2,12 @@ local ADDON_NAME, NS = ...
 
 NS.ADDON_NAME = ADDON_NAME
 NS.DISPLAY_NAME = "雨轩工具箱"
-NS.VERSION = "1.1.6"
+NS.VERSION = "1.1.6-fix0.0.1"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
 NS.Modules.CombatAssist = NS.Modules.CombatAssist or {}
 NS.Modules.ClassAssist = NS.Modules.ClassAssist or {}
-NS.Modules.ClassAssist.UtilityAnnouncer = NS.Modules.ClassAssist.UtilityAnnouncer or {}
 NS.Modules.ClassAssist.Mage = NS.Modules.ClassAssist.Mage or {}
 NS.Options = NS.Options or {}
 
@@ -220,9 +219,6 @@ function Core:OnPlayerLogin()
     if NS.MemoryAudit and NS.MemoryAudit.Initialize then
         NS.MemoryAudit:Initialize()
     end
-    if NS.MemoryManager and NS.MemoryManager.Initialize then
-        NS.MemoryManager:Initialize()
-    end
 
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
     if quickWaypoint and quickWaypoint.OnPlayerLogin then
@@ -327,11 +323,6 @@ function Core:OnPlayerLogin()
     local trinketMonitor = NS.Modules.CombatAssist and NS.Modules.CombatAssist.TrinketMonitor
     if trinketMonitor and trinketMonitor.OnPlayerLogin then
         trinketMonitor:OnPlayerLogin()
-    end
-
-    local utilityAnnouncer = NS.Modules.ClassAssist and NS.Modules.ClassAssist.UtilityAnnouncer
-    if utilityAnnouncer and utilityAnnouncer.OnPlayerLogin then
-        utilityAnnouncer:OnPlayerLogin()
     end
 
     local shatterIndicator = NS.Modules.ClassAssist

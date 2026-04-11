@@ -343,7 +343,6 @@ NS.DEFAULTS = {
             locked = true,
             fontPreset = "CHAT",
             fontSize = 12,
-            showBorder = true,
             minimap = {
                 enabled = true,
                 hideWhenEmpty = true,
@@ -526,18 +525,6 @@ NS.DEFAULTS = {
         },
     },
     classAssist = {
-        utilityAnnouncer = {
-            enabled = false,
-            channel = "AUTO",
-            prefix = "【团队提示】",
-            throttleSeconds = 3,
-            spells = {
-                conjureRefreshment = true,
-                ritualOfSouls = true,
-                demonicGateway = true,
-                ritualOfSummoning = true,
-            },
-        },
         mage = {
             shatterIndicator = {
                 enabled = false,
@@ -1320,12 +1307,6 @@ function Core:ResetQuickFocusConfig()
     self.db.combatAssist = self.db.combatAssist or {}
     self.db.combatAssist.quickFocus = CloneTable(NS.DEFAULTS.combatAssist.quickFocus)
     return self.db.combatAssist.quickFocus
-end
-
-function Core:ResetClassUtilityAnnouncerConfig()
-    self.db.classAssist = self.db.classAssist or {}
-    self.db.classAssist.utilityAnnouncer = CloneTable(NS.DEFAULTS.classAssist.utilityAnnouncer)
-    return self.db.classAssist.utilityAnnouncer
 end
 
 function Core:ResetMageShatterIndicatorConfig()

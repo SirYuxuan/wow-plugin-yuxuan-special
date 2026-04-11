@@ -2,7 +2,7 @@
 ## Title: 雨轩工具箱
 ## Notes: 提供地图辅助、界面增强、战斗辅助与法师冰霜相关功能
 ## Author: Sir丶雨轩
-## Version: 1.1.6
+## Version: 1.1.6-fix0.0.1
 ## SavedVariables: YuXuanSpecialDB
 
 Libs\LibStub\LibStub.lua
@@ -15,7 +15,6 @@ Core\Database.lua
 Core\Layout.lua
 Core\Media.lua
 Core\MemoryAudit.lua
-Core\MemoryManager.lua
 Core\Commands.lua
 
 Modules\MapAssist\MapIDDisplay.lua
@@ -39,20 +38,30 @@ Modules\InterfaceEnhance\HuntAssist.lua
 Modules\InterfaceEnhance\QuestTools.lua
 Modules\InterfaceEnhance\RaidMarkers.lua
 Modules\InterfaceEnhance\SpecTalentBar.lua
+Modules\InterfaceEnhance\GraphicMonitor\System.lua
+Modules\InterfaceEnhance\GraphicMonitor\Utils.lua
+Modules\InterfaceEnhance\GraphicMonitor\PixelPerfect.lua
+Modules\InterfaceEnhance\GraphicMonitor\BarFrameKit.lua
+Modules\InterfaceEnhance\GraphicMonitor\ContainerAnchor.lua
+Modules\InterfaceEnhance\GraphicMonitor\CooldownHider.lua
+Modules\InterfaceEnhance\GraphicMonitor\DragFrame.lua
+Modules\InterfaceEnhance\GraphicMonitor\CustomMonitorRuntime.lua
+Modules\InterfaceEnhance\GraphicMonitor\CustomMonitorGroups.lua
+Modules\InterfaceEnhance\GraphicMonitor\SkillScanner.lua
+Modules\InterfaceEnhance\GraphicMonitor\BuffScanner.lua
 Modules\CombatAssist\QuickFocus.lua
 Modules\CombatAssist\TrinketMonitor.lua
-Modules\ClassAssist\UtilityAnnouncer.lua
 Modules\ClassAssist\Mage\ShatterIndicator.lua
 
 Options\CombatAssist.lua
 Options\AttributeDisplay.lua
-Options\ClassUtilityAnnouncer.lua
 Options\ClassAssist.lua
 Options\CurrencyDisplay.lua
 Options\DistanceMonitor.lua
 Options\EventTracker.lua
 Options\GameBar.lua
 Options\General.lua
+Options\GraphicMonitor.lua
 Options\HuntAssist.lua
 Options\ItemLevelPlanner.lua
 Options\BagItemOverlay.lua
