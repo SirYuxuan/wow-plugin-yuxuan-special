@@ -257,11 +257,13 @@ local function BuildCombatAndClassOptions()
     local classAssist = NS.BuildClassAssistOptions()
     local quickFocus = combatAssist.args.quickFocus
     local trinketMonitor = combatAssist.args.trinketMonitor
+    local utilityAnnouncer = classAssist.args.utilityAnnouncer
     local mage = classAssist.args.mage
 
     quickFocus.order = 10
     trinketMonitor.order = 20
-    mage.order = 30
+    utilityAnnouncer.order = 30
+    mage.order = 40
 
     return {
         type = "group",
@@ -270,6 +272,7 @@ local function BuildCombatAndClassOptions()
         args = {
             quickFocus = quickFocus,
             trinketMonitor = trinketMonitor,
+            utilityAnnouncer = utilityAnnouncer,
             mage = mage,
         },
     }

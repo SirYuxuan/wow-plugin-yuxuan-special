@@ -93,6 +93,20 @@ local function SetSimpleOutlineColor(border, r, g, b, a)
     end
 end
 
+local function SetSimpleOutlineShown(border, shown)
+    if type(border) ~= "table" then
+        return
+    end
+
+    for _, edge in pairs(border) do
+        if shown then
+            edge:Show()
+        else
+            edge:Hide()
+        end
+    end
+end
+
 local function QuestHasMapIcon(questID, mapID)
     if not (questID and mapID and C_QuestLog and C_QuestLog.GetNextWaypointForMap) then
         return false
@@ -240,6 +254,7 @@ function HuntAssist:ApplyMonitorLayout()
     frame:SetMovable(not config.locked)
 
     ApplyConfiguredFont(frame.text, config.fontSize or 12)
+    SetSimpleOutlineShown(frame.border, config.showBorder ~= false)
 
     local width = math.max(96, math.ceil((frame.text:GetStringWidth() or 0) + 20))
     frame:SetSize(width, MONITOR_HEIGHT)

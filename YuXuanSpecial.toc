@@ -41,10 +41,12 @@ Modules\InterfaceEnhance\RaidMarkers.lua
 Modules\InterfaceEnhance\SpecTalentBar.lua
 Modules\CombatAssist\QuickFocus.lua
 Modules\CombatAssist\TrinketMonitor.lua
+Modules\ClassAssist\UtilityAnnouncer.lua
 Modules\ClassAssist\Mage\ShatterIndicator.lua
 
 Options\CombatAssist.lua
 Options\AttributeDisplay.lua
+Options\ClassUtilityAnnouncer.lua
 Options\ClassAssist.lua
 Options\CurrencyDisplay.lua
 Options\DistanceMonitor.lua

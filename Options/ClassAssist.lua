@@ -16,6 +16,7 @@ function NS.BuildClassAssistOptions()
         name = "职业辅助",
         order = 20,
         args = {
+            utilityAnnouncer = NS.BuildClassUtilityAnnouncerOptions(),
             mage = (function()
                 local group = NS.BuildMageAssistOptions()
                 group.disabled = function()
