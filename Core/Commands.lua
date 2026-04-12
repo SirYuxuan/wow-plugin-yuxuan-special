@@ -133,14 +133,6 @@ local function OpenSettingsByCommand(message)
         if NS.Options:OpenTrinketMonitor() then
             return
         end
-    elseif input == "mage" then
-        if NS.Options:OpenMageAssist() then
-            return
-        end
-    elseif input == "frost" then
-        if NS.Options:OpenMageFrostAssist() then
-            return
-        end
     elseif input == "log" or input == "update" or input == "changelog" then
         local updateLog = NS.Modules
             and NS.Modules.InterfaceEnhance

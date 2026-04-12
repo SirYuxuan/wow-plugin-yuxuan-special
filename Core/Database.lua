@@ -45,45 +45,6 @@ NS.DEFAULTS = {
     },
     mapAssist = {
         quickWaypoint = {
-            enabled = true,
-            anchorPreset = "MAP_TOP",
-            offsetX = 0,
-            offsetY = 0,
-            fontSize = 12,
-            bgAlpha = 35,
-        },
-        mapIDDisplay = {
-            enabled = false,
-            anchorPreset = "MAP_TOP",
-            offsetX = 260,
-            offsetY = 0,
-            fontPreset = "CHAT",
-            fontSize = 12,
-            scale = 1.0,
-            bgAlpha = 30,
-            textColor = {
-                r = 1.00,
-                g = 0.82,
-                b = 0.20,
-                a = 1.00,
-            },
-        },
-    },
-    interfaceEnhance = {
-        quickChat = {
-            enabled = false,
-            unlocked = false,
-            worldChannelName = "大脚世界频道",
-            autoJoinWorldChannel = false,
-            spacing = 10,
-            fontSize = 14,
-            fontPreset = "CHAT",
-            buttonOrder = {
-                "SAY",
-                "YELL",
-                "PARTY",
-                "INSTANCE_CHAT",
-                "RAID",
                 "GUILD",
                 "WORLD",
                 "DICE",
@@ -549,42 +510,6 @@ NS.DEFAULTS = {
             readyOffsetY = 180,
             alertDuration = 1.5,
             blockedItemIDs = "",
-        },
-    },
-    classAssist = {
-        mage = {
-            shatterIndicator = {
-                enabled = false,
-                unlocked = false,
-                showIcon = true,
-                showBorders = true,
-                showOutOfCombat = false,
-                width = 14,
-                height = 18,
-                spacing = 2,
-                scale = 1.0,
-                texture = "纯色",
-                defaultColor = {
-                    r = 0.25,
-                    g = 0.75,
-                    b = 1.00,
-                    a = 1.00,
-                },
-                monitorList = {
-                    {
-                        count = 6,
-                        color = { r = 0.30, g = 0.85, b = 1.00, a = 1.00 },
-                    },
-                    {
-                        count = 12,
-                        color = { r = 1.00, g = 0.82, b = 0.20, a = 1.00 },
-                    },
-                    {
-                        count = 18,
-                        color = { r = 1.00, g = 0.30, b = 0.30, a = 1.00 },
-                    },
-                },
-            },
         },
     },
 }
@@ -1349,9 +1274,3 @@ function Core:ResetQuickFocusConfig()
     return self.db.combatAssist.quickFocus
 end
 
-function Core:ResetMageShatterIndicatorConfig()
-    self.db.classAssist = self.db.classAssist or {}
-    self.db.classAssist.mage = self.db.classAssist.mage or {}
-    self.db.classAssist.mage.shatterIndicator = CloneTable(NS.DEFAULTS.classAssist.mage.shatterIndicator)
-    return self.db.classAssist.mage.shatterIndicator
-end

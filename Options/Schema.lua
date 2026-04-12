@@ -39,7 +39,7 @@ local function BuildHomeOptions()
                     },
                     {
                         title = "战斗与职业",
-                        desc = "快速焦点、饰品监控、技能监控和法师模块入口现在更容易找到。",
+                        desc = "快速焦点、饰品监控和技能监控入口现在更容易找到。",
                         buttonText = "进入战斗与职业",
                         meta = "战斗期常用",
                         path = { "combatAndClass" },
@@ -257,16 +257,13 @@ end
 
 local function BuildCombatAndClassOptions()
     local combatAssist = NS.BuildCombatAssistOptions()
-    local classAssist = NS.BuildClassAssistOptions()
     local graphicMonitor = NS.BuildGraphicMonitorOptions()
     local quickFocus = combatAssist.args.quickFocus
     local trinketMonitor = combatAssist.args.trinketMonitor
-    local mage = classAssist.args.mage
 
     quickFocus.order = 10
     trinketMonitor.order = 20
     graphicMonitor.order = 30
-    mage.order = 40
 
     return {
         type = "group",
@@ -276,7 +273,6 @@ local function BuildCombatAndClassOptions()
             quickFocus = quickFocus,
             trinketMonitor = trinketMonitor,
             graphicMonitor = graphicMonitor,
-            mage = mage,
         },
     }
 end
