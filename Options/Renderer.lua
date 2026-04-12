@@ -888,14 +888,22 @@ function Options:OpenColorPicker(option)
 
     local function applyColor(nr, ng, nb, na)
         nr, ng, nb, na = NormalizeColorPayload(nr, ng, nb, na)
+        nr = nr or r
+        ng = ng or g
+        nb = nb or b
+        na = option.hasAlpha and (na or a) or 1
+
         Private.SetOptionValue(
             option,
-            nr or r,
-            ng or g,
-            nb or b,
-            option.hasAlpha and (na or a) or 1
+            nr,
+            ng,
+            nb,
+            na
         )
-        self:NotifyChanged()
+
+        if type(option.onColorChanged) == "function" then
+            option.onColorChanged(nr, ng, nb, na)
+        end
     end
 
     local function readPickerColor()
@@ -940,13 +948,10 @@ function Options:OpenColorPicker(option)
     ColorPickerFrame.hasOpacity = option.hasAlpha and true or false
     ColorPickerFrame.opacity = 1 - a
     ColorPickerFrame.func = function()
-        local nr, ng, nb = ColorPickerFrame:GetColorRGB()
-        applyColor(nr, ng, nb, option.hasAlpha and a or 1)
+        applyColor(readPickerColor())
     end
     ColorPickerFrame.opacityFunc = function()
-        local nr, ng, nb = ColorPickerFrame:GetColorRGB()
-        local na = option.hasAlpha and (1 - OpacitySliderFrame:GetValue()) or 1
-        applyColor(nr, ng, nb, na)
+        applyColor(readPickerColor())
     end
     ColorPickerFrame.cancelFunc = function(previousValues)
         local nr, ng, nb, na = NormalizeColorPayload(previousValues)
@@ -974,7 +979,6 @@ function Options:RenderColor(parent, option, top)
         desc:SetTextColor(Private.UnpackColor(Colors.muted))
     end
 
-    local r, g, b, a = Private.SafeCall(option.get)
     local swatch = CreateFrame("Button", nil, row, "BackdropTemplate")
     swatch:SetPoint("RIGHT", -12, 0)
     swatch:SetSize(138, 28)
@@ -984,13 +988,21 @@ function Options:RenderColor(parent, option, top)
     preview:SetPoint("LEFT", 5, 5)
     preview:SetPoint("BOTTOMLEFT", 5, 5)
     preview:SetSize(18, 18)
-    preview:SetColorTexture(tonumber(r) or 1, tonumber(g) or 1, tonumber(b) or 1, tonumber(a) or 1)
 
     local label = UI.CreateText(swatch, 12)
     label:SetPoint("LEFT", preview, "RIGHT", 10, 0)
     label:SetPoint("RIGHT", -10, 0)
     label:SetJustifyV("MIDDLE")
-    label:SetText(Private.FormatHexColor(r, g, b))
+
+    local function updateColorDisplay(nr, ng, nb, na)
+        preview:SetColorTexture(tonumber(nr) or 1, tonumber(ng) or 1, tonumber(nb) or 1, tonumber(na) or 1)
+        label:SetText(Private.FormatHexColor(nr, ng, nb))
+    end
+
+    do
+        local r, g, b, a = Private.SafeCall(option.get)
+        updateColorDisplay(r, g, b, a)
+    end
 
     local disabled = Private.IsDisabled(option)
     if disabled then
@@ -1002,7 +1014,14 @@ function Options:RenderColor(parent, option, top)
         if Private.IsDisabled(option) then
             return
         end
-        self:OpenColorPicker(option)
+
+        local pickerOption = {}
+        for key, value in pairs(option) do
+            pickerOption[key] = value
+        end
+        pickerOption.onColorChanged = updateColorDisplay
+
+        self:OpenColorPicker(pickerOption)
     end)
     swatch:SetScript("OnEnter", function(selfButton)
         selfButton:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
@@ -1816,7 +1835,17 @@ function Options:RenderInlineOption(parent, option, width, refreshInlineStates)
             if Private.IsDisabled(option) then
                 return
             end
-            self:OpenColorPicker(option)
+
+            local pickerOption = {}
+            for key, value in pairs(option) do
+                pickerOption[key] = value
+            end
+            pickerOption.onColorChanged = function()
+                updateColorDisplay()
+                refreshState()
+            end
+
+            self:OpenColorPicker(pickerOption)
         end)
         swatch:SetScript("OnEnter", function(selfButton)
             selfButton:SetBackdropBorderColor(Private.UnpackColor(Colors.borderActive))
