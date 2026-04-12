@@ -35,6 +35,7 @@ Modules\InterfaceEnhance\PerformanceMonitor.lua
 Modules\InterfaceEnhance\QuickChat.lua
 Modules\InterfaceEnhance\ChatInputBeautify.lua
 Modules\InterfaceEnhance\HuntAssist.lua
+Modules\InterfaceEnhance\EnhanceQoLIntegration.lua
 Modules\InterfaceEnhance\QuestTools.lua
 Modules\InterfaceEnhance\UtilityAnnouncer.lua
 Modules\InterfaceEnhance\RaidMarkers.lua
@@ -52,19 +53,23 @@ Modules\InterfaceEnhance\GraphicMonitor\SkillScanner.lua
 Modules\InterfaceEnhance\GraphicMonitor\BuffScanner.lua
 Modules\CombatAssist\QuickFocus.lua
 Modules\CombatAssist\TrinketMonitor.lua
+Modules\ClassAssist\Mage\ShatterIndicator.lua
 
 Options\CombatAssist.lua
 Options\AttributeDisplay.lua
+Options\ClassAssist.lua
 Options\CurrencyDisplay.lua
 Options\DistanceMonitor.lua
 Options\EventTracker.lua
 Options\GameBar.lua
 Options\General.lua
+Options\EnhanceQoLIntegration.lua
 Options\GraphicMonitor.lua
 Options\HuntAssist.lua
 Options\ItemLevelPlanner.lua
 Options\BagItemOverlay.lua
 Options\InterfaceEnhance.lua
+Options\Mage.lua
 Options\MapAssist.lua
 Options\PerformanceMonitor.lua
 Options\QuestTools.lua

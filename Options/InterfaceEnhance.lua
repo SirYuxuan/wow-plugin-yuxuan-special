@@ -1475,6 +1475,7 @@ function NS.BuildInterfaceEnhanceOptions()
                 order = 4,
                 args = BuildInterfaceBeautifyArgs(),
             },
+            enhanceQoLIntegration = NS.BuildEnhanceQoLIntegrationOptions(),
             mouseCursor = {
                 type = "group",
                 name = "鼠标指针",

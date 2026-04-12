@@ -117,6 +117,14 @@ function Options:OpenQuickWaypoint()
     return self:Open("commonFeatures", "quickWaypoint")
 end
 
+function Options:OpenMageAssist()
+    return self:Open("combatAndClass", "mage")
+end
+
+function Options:OpenMageFrostAssist()
+    return self:Open("combatAndClass", "mage", "frost")
+end
+
 function Options:OpenCombatAssist()
     return self:Open("combatAndClass")
 end

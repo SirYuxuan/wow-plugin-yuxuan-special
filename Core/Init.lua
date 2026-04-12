@@ -7,6 +7,8 @@ NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
 NS.Modules.CombatAssist = NS.Modules.CombatAssist or {}
+NS.Modules.ClassAssist = NS.Modules.ClassAssist or {}
+NS.Modules.ClassAssist.Mage = NS.Modules.ClassAssist.Mage or {}
 NS.Options = NS.Options or {}
 
 local Core = {}
@@ -238,6 +240,11 @@ function Core:OnPlayerLogin()
         interfaceBeautify:OnPlayerLogin()
     end
 
+    local enhanceQoLIntegration = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EnhanceQoLIntegration
+    if enhanceQoLIntegration and enhanceQoLIntegration.OnPlayerLogin then
+        enhanceQoLIntegration:OnPlayerLogin()
+    end
+
     local distanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.DistanceMonitor
     if distanceMonitor and distanceMonitor.OnPlayerLogin then
         distanceMonitor:OnPlayerLogin()
@@ -331,6 +338,13 @@ function Core:OnPlayerLogin()
     local trinketMonitor = NS.Modules.CombatAssist and NS.Modules.CombatAssist.TrinketMonitor
     if trinketMonitor and trinketMonitor.OnPlayerLogin then
         trinketMonitor:OnPlayerLogin()
+    end
+
+    local shatterIndicator = NS.Modules.ClassAssist
+        and NS.Modules.ClassAssist.Mage
+        and NS.Modules.ClassAssist.Mage.ShatterIndicator
+    if shatterIndicator and shatterIndicator.OnPlayerLogin then
+        shatterIndicator:OnPlayerLogin()
     end
 
     self:RefreshMinimapButton()
