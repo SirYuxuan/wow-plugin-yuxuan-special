@@ -560,12 +560,27 @@ function BagItemOverlay:UpdateBaganatorButton(button)
 
     if button and not button._yxsBagOverlayRefreshPending then
         button._yxsBagOverlayRefreshPending = true
-        C_Timer.After(0, function()
-            button._yxsBagOverlayRefreshPending = nil
-            if button.IsShown and button:IsShown() then
-                UpdateButtonWithItemLink(button, GetBaganatorItemLink(button))
-            end
-        end)
+        self._baganatorDirtyButtons = self._baganatorDirtyButtons or {}
+        self._baganatorDirtyButtons[button] = true
+        if not self._baganatorDirtyPending then
+            self._baganatorDirtyPending = true
+            C_Timer.After(0, function()
+                self._baganatorDirtyPending = false
+                local dirtyButtons = self._baganatorDirtyButtons
+                if not dirtyButtons then
+                    return
+                end
+                for dirtyButton in pairs(dirtyButtons) do
+                    dirtyButton._yxsBagOverlayRefreshPending = nil
+                    if dirtyButton.IsShown and dirtyButton:IsShown() then
+                        UpdateButtonWithItemLink(dirtyButton, GetBaganatorItemLink(dirtyButton))
+                    end
+                end
+                for dirtyButton in pairs(dirtyButtons) do
+                    dirtyButtons[dirtyButton] = nil
+                end
+            end)
+        end
     end
 end
 

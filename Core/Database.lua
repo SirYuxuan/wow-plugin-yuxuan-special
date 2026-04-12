@@ -338,6 +338,33 @@ NS.DEFAULTS = {
                 y = -110,
             },
         },
+        utilityAnnouncer = {
+            enabled = false,
+            channel = "AUTO",
+            minInterval = 2,
+            announceInSolo = false,
+            template = "【雨轩工具箱】{text}",
+            rules = {
+                mageRefreshment = true,
+                magePortal = true,
+                mageIntellect = true,
+                warlockSoulwell = true,
+                warlockGateway = true,
+                warlockSummoning = true,
+                priestFortitude = true,
+                druidMark = true,
+            },
+            messages = {
+                mageRefreshment = "面包已放好，请自取。",
+                magePortal = "传送门已开启：{spell}。",
+                mageIntellect = "已补智力。",
+                warlockSoulwell = "糖已放好，请自取。",
+                warlockGateway = "恶魔门已放好。",
+                warlockSummoning = "已开始拉人，请点门。",
+                priestFortitude = "已补耐力。",
+                druidMark = "已上爪子。",
+            },
+        },
         huntAssist = {
             enabled = false,
             locked = true,
@@ -1272,6 +1299,12 @@ function Core:ResetQuestToolsConfig()
     self.db.interfaceEnhance = self.db.interfaceEnhance or {}
     self.db.interfaceEnhance.questTools = CloneTable(NS.DEFAULTS.interfaceEnhance.questTools)
     return self.db.interfaceEnhance.questTools
+end
+
+function Core:ResetUtilityAnnouncerConfig()
+    self.db.interfaceEnhance = self.db.interfaceEnhance or {}
+    self.db.interfaceEnhance.utilityAnnouncer = CloneTable(NS.DEFAULTS.interfaceEnhance.utilityAnnouncer)
+    return self.db.interfaceEnhance.utilityAnnouncer
 end
 
 function Core:ResetHuntAssistConfig()

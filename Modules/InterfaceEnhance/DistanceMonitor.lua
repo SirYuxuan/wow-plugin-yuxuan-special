@@ -200,7 +200,12 @@ function DistanceMonitor:Refresh()
         self.frame.text:SetTextColor(0.90, 0.90, 0.90, 1)
     end
 
-    self:ApplyLayout()
+    local width = math.max(160, math.ceil((self.frame.text:GetStringWidth() or 0) + 24))
+    if self.frame._lastWidth ~= width then
+        self.frame._lastWidth = width
+        self.frame:SetSize(width, ROW_HEIGHT)
+    end
+
     self:RefreshVisibility()
 end
 
@@ -273,12 +278,20 @@ function DistanceMonitor:CreateFrame()
 
     frame:SetScript("OnUpdate", function(selfFrame, elapsed)
         selfFrame._elapsed = (selfFrame._elapsed or 0) + elapsed
-        local interval = math.max(0.05, math.min(1, tonumber(GetConfig().updateInterval) or DEFAULT_UPDATE_INTERVAL))
+        local interval = selfFrame._cachedInterval or DEFAULT_UPDATE_INTERVAL
         if selfFrame._elapsed >= interval then
             selfFrame._elapsed = 0
             DistanceMonitor:Refresh()
         end
     end)
+
+    self._intervalRefresher = self._intervalRefresher or C_Timer.NewTicker(2, function()
+        if frame then
+            frame._cachedInterval = math.max(0.05,
+                math.min(1, tonumber(GetConfig().updateInterval) or DEFAULT_UPDATE_INTERVAL))
+        end
+    end)
+    frame._cachedInterval = math.max(0.05, math.min(1, tonumber(GetConfig().updateInterval) or DEFAULT_UPDATE_INTERVAL))
 
     self.frame = frame
     self:Refresh()
@@ -308,6 +321,7 @@ function DistanceMonitor:RefreshFromSettings()
     local pos = config.point or {}
     self.frame:ClearAllPoints()
     self.frame:SetPoint(pos.point or "CENTER", UIParent, pos.relativePoint or "CENTER", pos.x or -220, pos.y or -20)
+    self:ApplyLayout()
     self:Refresh()
 end
 

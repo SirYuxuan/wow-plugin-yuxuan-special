@@ -2,7 +2,7 @@ local ADDON_NAME, NS = ...
 
 NS.ADDON_NAME = ADDON_NAME
 NS.DISPLAY_NAME = "雨轩工具箱"
-NS.VERSION = "1.1.6-fix0.0.1"
+NS.VERSION = "1.1.7"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
@@ -278,6 +278,11 @@ function Core:OnPlayerLogin()
     local questTools = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuestTools
     if questTools and questTools.OnPlayerLogin then
         questTools:OnPlayerLogin()
+    end
+
+    local utilityAnnouncer = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.UtilityAnnouncer
+    if utilityAnnouncer and utilityAnnouncer.OnPlayerLogin then
+        utilityAnnouncer:OnPlayerLogin()
     end
 
     local huntAssist = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.HuntAssist

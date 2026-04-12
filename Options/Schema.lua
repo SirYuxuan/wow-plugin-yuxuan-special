@@ -32,14 +32,14 @@ local function BuildHomeOptions()
                     },
                     {
                         title = "探索与团队",
-                        desc = "地图信息、狩猎助手、事件追踪和团队标记放在同一组。",
+                        desc = "地图信息、狩猎助手、团队工具通报、事件追踪和团队标记放在同一组。",
                         buttonText = "进入探索与团队",
                         meta = "野外 / 小队",
                         path = { "explorationTeam" },
                     },
                     {
                         title = "战斗与职业",
-                        desc = "快速焦点、饰品监控和法师模块入口现在更容易找到。",
+                        desc = "快速焦点、饰品监控、技能监控和法师模块入口现在更容易找到。",
                         buttonText = "进入战斗与职业",
                         meta = "战斗期常用",
                         path = { "combatAndClass" },
@@ -53,7 +53,7 @@ local function BuildHomeOptions()
                     },
                     {
                         title = "更新记录",
-                        desc = "查看 1.1.6 的变更说明，也可以随时回顾最近版本更新。",
+                        desc = "查看 1.1.7 的变更说明，也可以随时回顾最近版本更新。",
                         buttonText = "打开更新记录",
                         meta = "本次更新",
                         action = function()
@@ -66,11 +66,11 @@ local function BuildHomeOptions()
                         end,
                     },
                 },
-                newsTitle = "1.1.6 更新摘要",
+                newsTitle = "1.1.7 更新摘要",
                 newsItems = {
-                    "新增首页，把高频入口、配置管理和更新记录集中展示。",
-                    "设置窗口重新按用户视角分组，角色信息整体并入“界面美化”。",
-                    "修正背包文字颜色选择的设置回写链路，并优化配置编辑区布局。",
+                    "新增技能监控工作台，并把技能监控配置改成独立存档。",
+                    "新增团队工具通报，支持常见职业团队工具技能自动喊话。",
+                    "修复全局颜色设置不稳定和技能监控重载后像未保存的问题。",
                 },
             },
         },
@@ -230,14 +230,16 @@ local function BuildExplorationTeamOptions(interfaceEnhance)
     local mapAssist = NS.BuildMapAssistOptions()
     local mapIDDisplay = mapAssist.args.mapIDDisplay
     local huntAssist = interfaceEnhance.args.huntAssist
+    local utilityAnnouncer = interfaceEnhance.args.utilityAnnouncer
     local eventTracker = interfaceEnhance.args.eventTracker
     local raidMarkers = interfaceEnhance.args.raidMarkers
 
     mapIDDisplay.name = "地图信息"
     mapIDDisplay.order = 10
     huntAssist.order = 20
-    eventTracker.order = 30
-    raidMarkers.order = 40
+    utilityAnnouncer.order = 30
+    eventTracker.order = 40
+    raidMarkers.order = 50
 
     return {
         type = "group",
@@ -246,6 +248,7 @@ local function BuildExplorationTeamOptions(interfaceEnhance)
         args = {
             mapIDDisplay = mapIDDisplay,
             huntAssist = huntAssist,
+            utilityAnnouncer = utilityAnnouncer,
             eventTracker = eventTracker,
             raidMarkers = raidMarkers,
         },

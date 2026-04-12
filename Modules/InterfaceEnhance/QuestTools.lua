@@ -1,5 +1,7 @@
 local _, NS = ...
 local Core = NS.Core
+local C_ChatInfo = rawget(_G, "C_ChatInfo")
+local SendChatMessage = _G.SendChatMessage
 
 local QuestTools = {}
 NS.Modules.InterfaceEnhance.QuestTools = QuestTools
@@ -9,6 +11,24 @@ local PADDING_Y = 8
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "questTools")
+end
+
+local function SendGroupChatMessage(message, channel)
+    if not message or message == "" or not channel or channel == "" then
+        return false
+    end
+
+    if C_ChatInfo and C_ChatInfo.SendChatMessage then
+        C_ChatInfo.SendChatMessage(message, channel)
+        return true
+    end
+
+    if SendChatMessage then
+        SendChatMessage(message, channel)
+        return true
+    end
+
+    return false
 end
 
 local function ApplyFont(fontString, size, outline, preset)
@@ -153,10 +173,15 @@ function QuestTools:AnnounceQuest(actionText, questID)
 
     local message = self:FormatQuestAnnounce(actionText, questText)
     local channel = self:GetQuestAnnounceChannel()
+    local sanitized = self:SanitizeChatMessage(message)
+    if channel and SendGroupChatMessage(sanitized, channel) then
+        return
+    end
+
     if channel then
-        SendChatMessage(self:SanitizeChatMessage(message), channel)
+        print(sanitized)
     else
-        print(message)
+        print(sanitized)
     end
 end
 
@@ -307,8 +332,10 @@ function QuestTools:UpdateLayout()
     local height = math.max(26, math.ceil(self.frame.announceButton.text:GetStringHeight() + PADDING_Y * 2))
     local horizontalPadding = config.orientation == "HORIZONTAL" and 12 or (PADDING_X * 2)
     local minButtonWidth = config.orientation == "HORIZONTAL" and 68 or 118
-    local announceWidth = math.max(minButtonWidth, math.ceil(self.frame.announceButton.text:GetStringWidth() + horizontalPadding))
-    local turnInWidth = math.max(minButtonWidth, math.ceil(self.frame.turnInButton.text:GetStringWidth() + horizontalPadding))
+    local announceWidth = math.max(minButtonWidth,
+        math.ceil(self.frame.announceButton.text:GetStringWidth() + horizontalPadding))
+    local turnInWidth = math.max(minButtonWidth,
+        math.ceil(self.frame.turnInButton.text:GetStringWidth() + horizontalPadding))
 
     self.frame.announceButton:SetSize(announceWidth, height)
     self.frame.turnInButton:SetSize(turnInWidth, height)

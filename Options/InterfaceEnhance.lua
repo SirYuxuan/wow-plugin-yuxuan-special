@@ -1489,6 +1489,7 @@ function NS.BuildInterfaceEnhanceOptions()
             bagItemOverlay = NS.BuildBagItemOverlayOptions(),
             specTalentBar = NS.BuildSpecTalentBarOptions(),
             questTools = NS.BuildQuestToolsOptions(),
+            utilityAnnouncer = NS.BuildUtilityAnnouncerOptions(),
             huntAssist = NS.BuildHuntAssistOptions(),
             attributeDisplay = NS.BuildAttributeDisplayOptions(),
             currencyDisplay = NS.BuildCurrencyDisplayOptions(),
