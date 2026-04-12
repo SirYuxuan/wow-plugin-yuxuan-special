@@ -2,6 +2,7 @@ local _, NS = ...
 local Core = NS.Core
 
 local MODULE_KEY = "YuXuanSpecial.GraphicMonitor"
+local PROFILE_ROOT_KEY = "graphicMonitorProfiles"
 
 local System = {}
 NS.GraphicMonitorSystem = System
@@ -22,6 +23,7 @@ local moduleRegistry = {}
 local moduleProxies = {}
 local moduleDefaults = {}
 local storeWatchers = {}
+local Store = {}
 
 local function GetGraphicMonitorCharacterKey()
     local characterKey = Core.GetCurrentCharacterKey and Core:GetCurrentCharacterKey()
@@ -59,6 +61,96 @@ local function ApplyDefaults(target, defaults)
     end
 end
 
+local function TrimText(value)
+    local text = tostring(value or "")
+    text = text:gsub("^%s+", "")
+    text = text:gsub("%s+$", "")
+    return text
+end
+
+local function NormalizeProfileName(profileName)
+    local trimmed = TrimText(profileName)
+    if trimmed == "" then
+        return nil, "配置名称不能为空。"
+    end
+
+    return trimmed
+end
+
+local function CreateProfileData(seed)
+    local profile = type(seed) == "table" and DeepCopy(seed) or {}
+    profile.skills = type(profile.skills) == "table" and profile.skills or {}
+    profile.buffs = type(profile.buffs) == "table" and profile.buffs or {}
+    return profile
+end
+
+local function GetProfilesRoot()
+    YuXuanSpecialDB = YuXuanSpecialDB or {}
+    local root = YuXuanSpecialDB[PROFILE_ROOT_KEY]
+    if type(root) ~= "table" then
+        root = {}
+        YuXuanSpecialDB[PROFILE_ROOT_KEY] = root
+    end
+
+    root.profiles = type(root.profiles) == "table" and root.profiles or {}
+    root.characterAssignments = type(root.characterAssignments) == "table" and root.characterAssignments or {}
+    return root
+end
+
+local function GetLegacyProfileSeed(characterKey)
+    local coreConfig = Core and Core.GetConfig and Core:GetConfig("interfaceEnhance", "graphicMonitor")
+    if type(coreConfig) ~= "table" then
+        return nil
+    end
+
+    if type(coreConfig.characters) == "table" and type(coreConfig.characters[characterKey]) == "table" then
+        return CreateProfileData(coreConfig.characters[characterKey])
+    end
+
+    if type(coreConfig.skills) == "table" or type(coreConfig.buffs) == "table" then
+        return CreateProfileData({
+            skills = coreConfig.skills,
+            buffs = coreConfig.buffs,
+        })
+    end
+
+    return nil
+end
+
+local function FindAvailableProfileName(root, baseName)
+    local normalized = NormalizeProfileName(baseName or "技能监控配置")
+    local seed = normalized or "技能监控配置"
+    local candidate = seed
+    local suffix = 2
+
+    while type(root.profiles[candidate]) == "table" do
+        candidate = string.format("%s-%d", seed, suffix)
+        suffix = suffix + 1
+    end
+
+    return candidate
+end
+
+local function EnsureCharacterAssignment(root, characterKey)
+    local assigned = root.characterAssignments[characterKey]
+    if type(assigned) == "string" and assigned ~= "" and type(root.profiles[assigned]) == "table" then
+        return assigned
+    end
+
+    local preferred = TrimText(characterKey)
+    if preferred == "" then
+        preferred = "Unknown"
+    end
+
+    if type(root.profiles[preferred]) ~= "table" then
+        local seed = next(root.profiles) == nil and GetLegacyProfileSeed(characterKey) or nil
+        root.profiles[preferred] = CreateProfileData(seed)
+    end
+
+    root.characterAssignments[characterKey] = preferred
+    return preferred
+end
+
 local function ParsePath(path)
     local keys = {}
     for key in tostring(path or ""):gmatch("[^%.]+") do
@@ -88,29 +180,10 @@ local function SetNestedValue(target, path, value)
 end
 
 local function EnsureGraphicMonitorRoot()
-    Core.db = Core.db or {}
-    Core.db.interfaceEnhance = Core.db.interfaceEnhance or {}
-    if type(Core.db.interfaceEnhance.graphicMonitor) ~= "table" then
-        Core.db.interfaceEnhance.graphicMonitor = {}
-    end
-
-    local container = Core.db.interfaceEnhance.graphicMonitor
-    container.characters = type(container.characters) == "table" and container.characters or {}
-
+    local container = GetProfilesRoot()
     local characterKey = GetGraphicMonitorCharacterKey()
-    if type(container.characters[characterKey]) ~= "table" then
-        local migratedSkills = type(container.skills) == "table" and DeepCopy(container.skills) or {}
-        local migratedBuffs = type(container.buffs) == "table" and DeepCopy(container.buffs) or {}
-        container.characters[characterKey] = {
-            skills = migratedSkills,
-            buffs = migratedBuffs,
-        }
-    end
-
-    local root = container.characters[characterKey]
-    root.skills = type(root.skills) == "table" and root.skills or {}
-    root.buffs = type(root.buffs) == "table" and root.buffs or {}
-    return root
+    local profileKey = EnsureCharacterAssignment(container, characterKey)
+    return container.profiles[profileKey]
 end
 
 local function RebindModuleProxy(moduleKey, defaults)
@@ -118,6 +191,16 @@ local function RebindModuleProxy(moduleKey, defaults)
     ApplyDefaults(root, defaults or moduleDefaults[moduleKey] or {})
     moduleProxies[moduleKey] = root
     return root
+end
+
+local function NotifyProfileSwitched(moduleKey)
+    local proxy = moduleProxies[moduleKey]
+    if not proxy then
+        return
+    end
+
+    Store.notifyChange(moduleKey, "skills", proxy.skills or {})
+    Store.notifyChange(moduleKey, "buffs", proxy.buffs or {})
 end
 
 function System.registerModule(moduleKey, config)
@@ -340,7 +423,6 @@ playerStateFrame:SetScript("OnEvent", function(_, event, unit)
     State.update("isSkyriding", IsSkyriding())
 end)
 
-local Store = {}
 System.Store = Store
 
 function Store.initModule(moduleKey, defaults)
@@ -566,6 +648,128 @@ function GraphicMonitor:GetDatabase()
     return System.getDB(MODULE_KEY, self.DEFAULTS)
 end
 
+function GraphicMonitor:GetProfilesRoot()
+    return GetProfilesRoot()
+end
+
+function GraphicMonitor:GetCurrentProfileKey()
+    local root = self:GetProfilesRoot()
+    return EnsureCharacterAssignment(root, GetGraphicMonitorCharacterKey())
+end
+
+function GraphicMonitor:GetProfileChoices()
+    local root = self:GetProfilesRoot()
+    local names = {}
+    for profileKey in pairs(root.profiles) do
+        names[#names + 1] = tostring(profileKey)
+    end
+
+    table.sort(names)
+
+    local values = {}
+    for _, profileKey in ipairs(names) do
+        values[profileKey] = profileKey
+    end
+    return values
+end
+
+function GraphicMonitor:SetCurrentProfileKey(profileKey)
+    local root = self:GetProfilesRoot()
+    if type(root.profiles[profileKey]) ~= "table" then
+        return false, "技能监控配置不存在。"
+    end
+
+    root.characterAssignments[GetGraphicMonitorCharacterKey()] = profileKey
+    self:OnProfileChanged()
+    return true
+end
+
+function GraphicMonitor:CreateProfile(profileName, sourceProfileKey)
+    local root = self:GetProfilesRoot()
+    local normalized, errorMessage = NormalizeProfileName(profileName)
+    if not normalized then
+        return nil, errorMessage
+    end
+
+    if type(root.profiles[normalized]) == "table" then
+        return nil, "技能监控配置名称已存在。"
+    end
+
+    local sourceKey = sourceProfileKey or self:GetCurrentProfileKey()
+    local source = root.profiles[sourceKey]
+    root.profiles[normalized] = CreateProfileData(source)
+    return normalized
+end
+
+function GraphicMonitor:RenameProfile(oldName, newName)
+    local root = self:GetProfilesRoot()
+    if type(root.profiles[oldName]) ~= "table" then
+        return nil, "技能监控配置不存在。"
+    end
+
+    local normalized, errorMessage = NormalizeProfileName(newName)
+    if not normalized then
+        return nil, errorMessage
+    end
+
+    if normalized ~= oldName and type(root.profiles[normalized]) == "table" then
+        return nil, "技能监控配置名称已存在。"
+    end
+
+    if normalized == oldName then
+        return oldName
+    end
+
+    root.profiles[normalized] = root.profiles[oldName]
+    root.profiles[oldName] = nil
+
+    for characterKey, profileKey in pairs(root.characterAssignments) do
+        if profileKey == oldName then
+            root.characterAssignments[characterKey] = normalized
+        end
+    end
+
+    if self:GetCurrentProfileKey() == normalized then
+        self:OnProfileChanged()
+    end
+
+    return normalized
+end
+
+function GraphicMonitor:DeleteProfile(profileKey)
+    local root = self:GetProfilesRoot()
+    local profile = root.profiles[profileKey]
+    if type(profile) ~= "table" then
+        return nil, "技能监控配置不存在。"
+    end
+
+    local profileCount = 0
+    for _ in pairs(root.profiles) do
+        profileCount = profileCount + 1
+    end
+    if profileCount <= 1 then
+        return nil, "至少要保留一个技能监控配置。"
+    end
+
+    root.profiles[profileKey] = nil
+
+    for characterKey, assignedKey in pairs(root.characterAssignments) do
+        if assignedKey == profileKey then
+            local fallbackKey = TrimText(characterKey)
+            if fallbackKey == "" then
+                fallbackKey = FindAvailableProfileName(root, "Unknown")
+            end
+            if type(root.profiles[fallbackKey]) ~= "table" then
+                root.profiles[fallbackKey] = CreateProfileData(profile)
+            end
+            root.characterAssignments[characterKey] = fallbackKey
+        end
+    end
+
+    self:OnProfileChanged()
+    return true
+end
+
 function GraphicMonitor:GetStore(storeKey)
     local db = self:GetDatabase()
     db[storeKey] = type(db[storeKey]) == "table" and db[storeKey] or {}
@@ -651,7 +855,9 @@ function GraphicMonitor:OnPlayerLogin()
 end
 
 function GraphicMonitor:OnProfileChanged()
-    return RebindModuleProxy(MODULE_KEY, self.DEFAULTS)
+    local root = RebindModuleProxy(MODULE_KEY, self.DEFAULTS)
+    NotifyProfileSwitched(MODULE_KEY)
+    return root
 end
 
 System.registerModule(MODULE_KEY, {

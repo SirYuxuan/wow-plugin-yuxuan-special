@@ -11,6 +11,9 @@ local pendingIDs = {
     buffs = "",
 }
 
+local createProfileName = ""
+local renameProfileName = ""
+
 local VIEW_DEFAULTS = {
     shape = "bar",
     barLength = 200,
@@ -29,6 +32,50 @@ local VIEW_DEFAULTS = {
 
 local function GetModule()
     return NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.GraphicMonitor
+end
+
+local function TrimOptionText(value)
+    local text = tostring(value or "")
+    text = text:gsub("^%s+", "")
+    text = text:gsub("%s+$", "")
+    return text
+end
+
+local function NotifyGraphicMonitorChanged()
+    if NS.Options and NS.Options.NotifyChanged then
+        NS.Options:NotifyChanged()
+    end
+end
+
+local function GetProfileChoices()
+    local module = GetModule()
+    return module and module.GetProfileChoices and module:GetProfileChoices() or {}
+end
+
+local function GetCurrentProfileKey()
+    local module = GetModule()
+    return module and module.GetCurrentProfileKey and module:GetCurrentProfileKey() or ""
+end
+
+local function SyncProfileEditorState()
+    local currentKey = GetCurrentProfileKey()
+    if createProfileName == "" then
+        createProfileName = ""
+    end
+    renameProfileName = currentKey or ""
+end
+
+local function GetProfileStatusText()
+    local currentKey = GetCurrentProfileKey()
+    if currentKey == "" then
+        return "当前角色还没有技能监控配置。"
+    end
+
+    return string.format(
+        "当前角色：%s\n当前技能监控配置：%s\n技能监控配置已独立存储，不再跟随全局主配置档切换。",
+        tostring(Core:GetCurrentCharacterKey() or "Unknown"),
+        tostring(currentKey)
+    )
 end
 
 local function GetSystem()
@@ -1012,6 +1059,8 @@ local function BuildWorkbenchOption(storeKey)
 end
 
 function NS.BuildGraphicMonitorOptions()
+    SyncProfileEditorState()
+
     return {
         type = "group",
         name = "技能监控",
@@ -1023,14 +1072,166 @@ function NS.BuildGraphicMonitorOptions()
                 name = "基本信息",
                 order = 1,
                 args = {
+                    profileStatus = {
+                        type = "description",
+                        order = 0,
+                        fontSize = "medium",
+                        name = function()
+                            return GetProfileStatusText()
+                        end,
+                    },
+                    currentProfile = {
+                        type = "select",
+                        order = 1,
+                        name = "当前角色技能监控配置",
+                        values = function()
+                            return GetProfileChoices()
+                        end,
+                        get = function()
+                            return GetCurrentProfileKey()
+                        end,
+                        set = function(_, value)
+                            local module = GetModule()
+                            if not module or not module.SetCurrentProfileKey then
+                                return
+                            end
+
+                            local ok, errorMessage = module:SetCurrentProfileKey(value)
+                            if not ok then
+                                Core:Print(errorMessage or "技能监控配置切换失败。")
+                                return
+                            end
+
+                            renameProfileName = value or ""
+                            NotifyGraphicMonitorChanged()
+                        end,
+                    },
                     rescanSkills = {
                         type = "execute",
-                        order = 1,
+                        order = 5,
                         name = "重新扫描技能",
                         func = function()
                             ScanStore("skills")
                             ScanStore("buffs")
                         end,
+                    },
+                    createGroup = {
+                        type = "group",
+                        order = 10,
+                        name = "新建技能监控配置",
+                        layout = "row",
+                        args = {
+                            createName = {
+                                type = "input",
+                                order = 1,
+                                width = 1.4,
+                                name = "配置名称",
+                                get = function()
+                                    return createProfileName
+                                end,
+                                set = function(_, value)
+                                    createProfileName = value or ""
+                                end,
+                            },
+                            createAction = {
+                                type = "execute",
+                                order = 2,
+                                width = 0.8,
+                                name = "新建",
+                                disabled = function()
+                                    return TrimOptionText(createProfileName) == ""
+                                end,
+                                func = function()
+                                    local module = GetModule()
+                                    if not module or not module.CreateProfile then
+                                        return
+                                    end
+
+                                    local created, errorMessage = module:CreateProfile(createProfileName,
+                                        GetCurrentProfileKey())
+                                    if not created then
+                                        Core:Print(errorMessage or "技能监控配置创建失败。")
+                                        return
+                                    end
+
+                                    createProfileName = ""
+                                    renameProfileName = created
+                                    Core:Print("已创建技能监控配置：" .. tostring(created))
+                                    NotifyGraphicMonitorChanged()
+                                end,
+                            },
+                        },
+                    },
+                    editGroup = {
+                        type = "group",
+                        order = 20,
+                        name = "编辑当前技能监控配置",
+                        layout = "row",
+                        args = {
+                            renameInput = {
+                                type = "input",
+                                order = 1,
+                                width = 1.4,
+                                name = "重命名为",
+                                get = function()
+                                    return renameProfileName
+                                end,
+                                set = function(_, value)
+                                    renameProfileName = value or ""
+                                end,
+                            },
+                            renameAction = {
+                                type = "execute",
+                                order = 2,
+                                width = 0.8,
+                                name = "重命名",
+                                disabled = function()
+                                    return TrimOptionText(renameProfileName) == ""
+                                end,
+                                func = function()
+                                    local module = GetModule()
+                                    if not module or not module.RenameProfile then
+                                        return
+                                    end
+
+                                    local renamed, errorMessage = module:RenameProfile(GetCurrentProfileKey(),
+                                        renameProfileName)
+                                    if not renamed then
+                                        Core:Print(errorMessage or "技能监控配置重命名失败。")
+                                        return
+                                    end
+
+                                    renameProfileName = renamed
+                                    Core:Print("已重命名技能监控配置：" .. tostring(renamed))
+                                    NotifyGraphicMonitorChanged()
+                                end,
+                            },
+                            deleteAction = {
+                                type = "execute",
+                                order = 3,
+                                width = 0.8,
+                                name = "删除当前配置",
+                                confirm = true,
+                                confirmText = "确认删除当前技能监控配置吗？使用这份配置的角色会切回各自默认配置。",
+                                func = function()
+                                    local module = GetModule()
+                                    if not module or not module.DeleteProfile then
+                                        return
+                                    end
+
+                                    local currentKey = GetCurrentProfileKey()
+                                    local ok, errorMessage = module:DeleteProfile(currentKey)
+                                    if not ok then
+                                        Core:Print(errorMessage or "技能监控配置删除失败。")
+                                        return
+                                    end
+
+                                    renameProfileName = GetCurrentProfileKey()
+                                    Core:Print("已删除技能监控配置：" .. tostring(currentKey))
+                                    NotifyGraphicMonitorChanged()
+                                end,
+                            },
+                        },
                     },
                 },
             },
