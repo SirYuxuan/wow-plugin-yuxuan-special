@@ -113,6 +113,13 @@ local function EnsureGraphicMonitorRoot()
     return root
 end
 
+local function RebindModuleProxy(moduleKey, defaults)
+    local root = EnsureGraphicMonitorRoot()
+    ApplyDefaults(root, defaults or moduleDefaults[moduleKey] or {})
+    moduleProxies[moduleKey] = root
+    return root
+end
+
 function System.registerModule(moduleKey, config)
     moduleRegistry[moduleKey] = config or {}
 end
@@ -338,10 +345,7 @@ System.Store = Store
 
 function Store.initModule(moduleKey, defaults)
     moduleDefaults[moduleKey] = defaults or {}
-    local root = EnsureGraphicMonitorRoot()
-    ApplyDefaults(root, defaults or {})
-    moduleProxies[moduleKey] = root
-    return root
+    return RebindModuleProxy(moduleKey, defaults)
 end
 
 function Store.watch(moduleKey, owner, callback)
@@ -399,9 +403,20 @@ function System.getDB(moduleKey, defaults)
     if not moduleRegistry[moduleKey] then
         System.registerModule(moduleKey, {})
     end
+
+    if defaults ~= nil then
+        moduleDefaults[moduleKey] = defaults
+    end
+
+    local root = EnsureGraphicMonitorRoot()
+    if moduleProxies[moduleKey] ~= root then
+        return RebindModuleProxy(moduleKey, moduleDefaults[moduleKey] or defaults or {})
+    end
+
     if not moduleProxies[moduleKey] then
         return Store.initModule(moduleKey, defaults or {})
     end
+
     return moduleProxies[moduleKey]
 end
 
@@ -633,6 +648,10 @@ end
 
 function GraphicMonitor:OnPlayerLogin()
     self:GetDatabase()
+end
+
+function GraphicMonitor:OnProfileChanged()
+    return RebindModuleProxy(MODULE_KEY, self.DEFAULTS)
 end
 
 System.registerModule(MODULE_KEY, {

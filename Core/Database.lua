@@ -1023,6 +1023,13 @@ end
 
 function Core:RefreshActiveDatabase()
     self.db = self:ResolveProfile(self:GetCurrentCharacterProfileKey())
+
+    local graphicMonitor = NS.Modules
+        and NS.Modules.InterfaceEnhance
+        and NS.Modules.InterfaceEnhance.GraphicMonitor
+    if graphicMonitor and graphicMonitor.OnProfileChanged then
+        graphicMonitor:OnProfileChanged()
+    end
 end
 
 function Core:CreateNamedProfile(profileName, sourceProfileKey)

@@ -300,6 +300,11 @@ function Core:OnPlayerLogin()
         performanceMonitor:OnPlayerLogin()
     end
 
+    local graphicMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.GraphicMonitor
+    if graphicMonitor and graphicMonitor.OnPlayerLogin then
+        graphicMonitor:OnPlayerLogin()
+    end
+
     local bagItemOverlay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.BagItemOverlay
     if bagItemOverlay and bagItemOverlay.OnPlayerLogin then
         bagItemOverlay:OnPlayerLogin()
