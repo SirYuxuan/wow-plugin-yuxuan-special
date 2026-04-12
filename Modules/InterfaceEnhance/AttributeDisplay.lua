@@ -671,7 +671,8 @@ local function RefreshSpeedAttributeData(config, force)
 
     local nextSpeed = GetPlayerSpeed()
     local changed = force
-        or RoundToPlaces(attributeDataCache.speed or 0, config.decimalPlaces) ~= RoundToPlaces(nextSpeed, config.decimalPlaces)
+        or RoundToPlaces(attributeDataCache.speed or 0, config.decimalPlaces) ~=
+        RoundToPlaces(nextSpeed, config.decimalPlaces)
     attributeDataCache.speed = nextSpeed
     attributeDataCache.speedDirty = false
     attributeDataCache.nextSpeedRefreshAt = now + ATTRIBUTE_FAST_UPDATE_INTERVAL
@@ -900,7 +901,8 @@ function Core:UpdateAttributeDisplay()
     WipeDictionary(usedKeys)
 
     local displayCount = BuildAttributeDisplayList(displayList, sortable, config)
-    local needsLayout = attributeRenderState.forceLayout or lineStyleDirty or HasOrderedKeysChanged(displayList, displayCount)
+    local needsLayout = attributeRenderState.forceLayout or lineStyleDirty or
+    HasOrderedKeysChanged(displayList, displayCount)
 
     if needsLayout then
         LayoutDisplayEntries(self, frame, displayList, displayCount, usedKeys, config)
