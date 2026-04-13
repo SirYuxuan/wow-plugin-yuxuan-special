@@ -220,12 +220,43 @@ function Core:ConfigureLuaGC()
         return
     end
 
-    pcall(collectgarbage, "setpause", 110)
-    pcall(collectgarbage, "setstepmul", 200)
+    pcall(collectgarbage, "setpause", 100)
+    pcall(collectgarbage, "setstepmul", 300)
+    self.luaGCLastCount = collectgarbage("count")
+end
+
+function Core:StartLuaGCTicker()
+    if self.luaGCTicker then
+        self.luaGCTicker:Cancel()
+        self.luaGCTicker = nil
+    end
+
+    if not (C_Timer and C_Timer.NewTicker and type(collectgarbage) == "function") then
+        return
+    end
+
+    self.luaGCTicker = C_Timer.NewTicker(2, function()
+        local currentCount = collectgarbage("count")
+        local lastCount = self.luaGCLastCount or currentCount
+        local delta = currentCount - lastCount
+        self.luaGCLastCount = currentCount
+
+        local stepBudget = 120
+        if delta >= 1024 then
+            stepBudget = 420
+        elseif delta >= 512 then
+            stepBudget = 280
+        elseif delta >= 256 then
+            stepBudget = 180
+        end
+
+        pcall(collectgarbage, "step", stepBudget)
+    end)
 end
 
 function Core:OnPlayerLogin()
     self:ConfigureLuaGC()
+    self:StartLuaGCTicker()
 
     if NS.MemoryAudit and NS.MemoryAudit.Initialize then
         NS.MemoryAudit:Initialize()
