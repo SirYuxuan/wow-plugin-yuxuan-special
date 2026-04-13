@@ -129,6 +129,10 @@ local function OpenSettingsByCommand(message)
         if NS.Options:OpenCombatAssist() then
             return
         end
+    elseif input == "db" or input == "vault" then
+        if NS.Options:OpenGreatVault() then
+            return
+        end
     elseif input == "trinket" then
         if NS.Options:OpenTrinketMonitor() then
             return

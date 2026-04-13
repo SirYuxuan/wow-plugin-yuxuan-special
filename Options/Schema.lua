@@ -125,6 +125,12 @@ local function BuildAboutOptions()
                 fontSize = "medium",
                 name = "|cFFFFFF00/yxs log|r - 打开更新记录",
             },
+            cmd3 = {
+                type = "description",
+                order = 13,
+                fontSize = "medium",
+                name = "|cFFFFFF00/yxs db|r - 打开低保查询",
+            },
             changelogHeader = {
                 type = "header",
                 order = 15,
@@ -164,12 +170,15 @@ local function BuildCommonFeaturesOptions(interfaceEnhance)
     local quickChat = interfaceEnhance.args.quickChat
     local gameBar = interfaceEnhance.args.gameBar
     local questTools = interfaceEnhance.args.questTools
+    local greatVault = NS.BuildGreatVaultOptions()
 
     quickWaypoint.order = 10
     quickChat.name = "快捷频道"
     quickChat.order = 20
     gameBar.order = 30
     questTools.order = 40
+    greatVault.name = "低保查询"
+    greatVault.order = 50
 
     return {
         type = "group",
@@ -180,6 +189,7 @@ local function BuildCommonFeaturesOptions(interfaceEnhance)
             quickChat = quickChat,
             gameBar = gameBar,
             questTools = questTools,
+            greatVault = greatVault,
         },
     }
 end

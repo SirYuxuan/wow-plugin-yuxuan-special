@@ -73,6 +73,7 @@ Options\Mage.lua
 Options\MapAssist.lua
 Options\PerformanceMonitor.lua
 Options\QuestTools.lua
+Options\GreatVault.lua
 Options\RaidMarkers.lua
 Options\SpecTalentBar.lua
 Options\UtilityAnnouncer.lua

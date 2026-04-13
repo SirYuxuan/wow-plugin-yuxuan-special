@@ -358,6 +358,7 @@ function Options:RenderLanding(parent, option, top)
     local helpLines = {
         "/yxs 打开设置窗口",
         "/yxs log 打开更新记录",
+        "/yxs db 打开低保查询",
         "轻量功能建议可以直接到群里反馈",
     }
 
@@ -366,7 +367,7 @@ function Options:RenderLanding(parent, option, top)
         line:SetPoint("TOPLEFT", 16, -42 - (index - 1) * 24)
         line:SetPoint("TOPRIGHT", -16, -42 - (index - 1) * 24)
         line:SetText(lineText)
-        line:SetTextColor(Private.UnpackColor(index == 3 and Colors.muted or Colors.text))
+        line:SetTextColor(Private.UnpackColor(index == 4 and Colors.muted or Colors.text))
     end
 
     local qqIcon = helpCard:CreateTexture(nil, "ARTWORK")

@@ -254,11 +254,21 @@ local function GetItemUpgradeTrackInfo(itemLink)
         return nil
     end
 
+    local function ExtractItemLevel(...)
+        for index = 1, select("#", ...) do
+            local value = select(index, ...)
+            if type(value) == "number" and value > 0 then
+                return value
+            end
+        end
+        return nil
+    end
+
     local currentLevel
     if C_Item and C_Item.GetDetailedItemLevelInfo then
-        currentLevel = C_Item.GetDetailedItemLevelInfo(itemLink)
+        currentLevel = ExtractItemLevel(C_Item.GetDetailedItemLevelInfo(itemLink))
     elseif GetDetailedItemLevelInfo then
-        currentLevel = GetDetailedItemLevelInfo(itemLink)
+        currentLevel = ExtractItemLevel(GetDetailedItemLevelInfo(itemLink))
     end
     currentLevel = tonumber(currentLevel)
     if not currentLevel or currentLevel <= 0 then

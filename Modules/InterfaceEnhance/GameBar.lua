@@ -29,6 +29,7 @@ local ICONS = {
     Guild            = ICON_PATH .. "Guild",
     GroupFinder      = ICON_PATH .. "GroupFinder",
     EncounterJournal = ICON_PATH .. "EncounterJournal",
+    GreatVault       = ICON_PATH .. "GreatVault",
     GameMenu         = ICON_PATH .. "GameMenu",
     ScreenShot       = ICON_PATH .. "ScreenShot",
     Volume           = ICON_PATH .. "Volume",
@@ -1028,6 +1029,28 @@ local function GetMissionReportCount()
     return total
 end
 
+local function ShowGreatVaultTooltip(btn)
+    local lines = NS.GetGreatVaultProgressLines and NS.GetGreatVaultProgressLines() or { "本周低保信息暂不可用" }
+
+    GameTooltip:SetOwner(btn, "ANCHOR_BOTTOM", 0, -8)
+    GameTooltip:ClearLines()
+
+    for index, line in ipairs(lines) do
+        if line == " " then
+            GameTooltip:AddLine(" ")
+        elseif index == 1 then
+            GameTooltip:AddLine(line, 1, 0.82, 0)
+        else
+            GameTooltip:AddLine(line, 1, 1, 1)
+        end
+    end
+
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(L_BTN .. " 打开宏伟宝库", 1, 1, 1)
+    GameTooltip:AddLine(R_BTN .. " 打开低保查询", 1, 1, 1)
+    GameTooltip:Show()
+end
+
 local function OpenMissionReport()
     local garrisonButton = rawget(_G, "GarrisonLandingPageMinimapButton")
     if garrisonButton and garrisonButton:IsShown() then
@@ -1256,6 +1279,24 @@ local BUTTON_DEFS = {
             end,
         },
         tooltips = { "地下城手册", "\n", L_BTN .. " 打开地下城手册", R_BTN .. " 打开宝库" },
+    },
+    GREATVAULT = {
+        id = "GREATVAULT",
+        label = DELVES_GREAT_VAULT_LABEL or "宏伟宝库",
+        icon = ICONS.GreatVault,
+        click = {
+            LeftButton = function()
+                if WeeklyRewards_ShowUI then
+                    WeeklyRewards_ShowUI()
+                end
+            end,
+            RightButton = function()
+                if NS.Options and NS.Options.OpenGreatVault then
+                    NS.Options:OpenGreatVault()
+                end
+            end,
+        },
+        tooltips = ShowGreatVaultTooltip,
     },
     BAGS = {
         id = "BAGS",
