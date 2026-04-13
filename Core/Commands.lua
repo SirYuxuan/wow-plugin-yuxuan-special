@@ -128,7 +128,10 @@ local function OpenSettingsByCommand(message)
         trinket = function() return NS.Options:OpenTrinketMonitor() end,
         mage    = function() return NS.Options:OpenMageAssist() end,
         frost   = function() return NS.Options:OpenMageFrostAssist() end,
-        close   = function() NS.Options:Close() return true end,
+        close   = function()
+            NS.Options:Close()
+            return true
+        end,
     }
 
     if subCommand == "log" or subCommand == "update" or subCommand == "changelog" then

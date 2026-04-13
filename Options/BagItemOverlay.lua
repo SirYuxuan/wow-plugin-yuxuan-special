@@ -174,7 +174,8 @@ local function CreateLineStyleGroup(name, prefix, order, offsetXDefault, offsetY
                         name = "固定颜色",
                         hasAlpha = true,
                         disabled = function()
-                            return not GetConfig().enabled or (GetConfig()[colorModeKey] or GetConfig().colorMode) == "ITEM_LEVEL"
+                            return not GetConfig().enabled or
+                            (GetConfig()[colorModeKey] or GetConfig().colorMode) == "ITEM_LEVEL"
                         end,
                         get = function()
                             local color = GetConfig()[fixedColorKey] or GetConfig().fixedColor or {}

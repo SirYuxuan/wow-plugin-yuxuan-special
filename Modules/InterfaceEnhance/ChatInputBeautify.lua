@@ -105,7 +105,7 @@ end
 GetConfig = function()
     local config = NS.Core:GetConfig("interfaceEnhance", "interfaceBeautify")
     local defaults = NS.DEFAULTS and NS.DEFAULTS.interfaceEnhance and NS.DEFAULTS.interfaceEnhance.interfaceBeautify or
-    {}
+        {}
 
     for key, value in pairs(defaults) do
         if config[key] == nil then

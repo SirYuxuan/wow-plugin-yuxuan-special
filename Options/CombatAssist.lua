@@ -157,7 +157,8 @@ function NS.BuildCombatAssistOptions()
                                 end,
                                 values = function()
                                     local quickFocus = GetQuickFocus()
-                                    return quickFocus and quickFocus.GetModifierChoices and quickFocus:GetModifierChoices() or {}
+                                    return quickFocus and quickFocus.GetModifierChoices and
+                                    quickFocus:GetModifierChoices() or {}
                                 end,
                                 get = function()
                                     return GetQuickFocusConfig().modifier
@@ -179,7 +180,8 @@ function NS.BuildCombatAssistOptions()
                                 end,
                                 values = function()
                                     local quickFocus = GetQuickFocus()
-                                    return quickFocus and quickFocus.GetButtonChoices and quickFocus:GetButtonChoices() or {}
+                                    return quickFocus and quickFocus.GetButtonChoices and quickFocus:GetButtonChoices() or
+                                    {}
                                 end,
                                 get = function()
                                     return GetQuickFocusConfig().mouseButton
@@ -228,7 +230,8 @@ function NS.BuildCombatAssistOptions()
                                 end,
                                 values = function()
                                     local quickFocus = GetQuickFocus()
-                                    return quickFocus and quickFocus.GetMarkerChoices and quickFocus:GetMarkerChoices() or {}
+                                    return quickFocus and quickFocus.GetMarkerChoices and quickFocus:GetMarkerChoices() or
+                                    {}
                                 end,
                                 get = function()
                                     return GetQuickFocusConfig().selectedMarker
@@ -487,7 +490,8 @@ function NS.BuildCombatAssistOptions()
                                     disabled = IsDisabled,
                                     values = function()
                                         local monitor = GetMonitor()
-                                        return monitor and monitor.GetTextPositionChoices and monitor:GetTextPositionChoices() or {}
+                                        return monitor and monitor.GetTextPositionChoices and
+                                        monitor:GetTextPositionChoices() or {}
                                     end,
                                     get = function()
                                         return GetConfig().textPosition
