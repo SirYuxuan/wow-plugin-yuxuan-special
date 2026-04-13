@@ -379,6 +379,8 @@ NS.DEFAULTS = {
             minimap = {
                 enabled = true,
                 hideWhenEmpty = true,
+                showBackground = true,
+                showBorder = true,
                 monitorTrap = true,
                 monitorPrey = true,
             },
@@ -394,6 +396,22 @@ NS.DEFAULTS = {
                 relativePoint = "BOTTOM",
                 x = 0,
                 y = -8,
+            },
+            bar = {
+                enabled = false,
+                locked = true,
+                onlyShowInPreyZone = false,
+                hideDefaultPreyIcon = false,
+                width = 160,
+                height = 29,
+                fontSize = 12,
+                point = {
+                    point = "CENTER",
+                    relativeTo = "UIParent",
+                    relativePoint = "CENTER",
+                    x = 0,
+                    y = 472,
+                },
             },
         },
         eventTracker = {
