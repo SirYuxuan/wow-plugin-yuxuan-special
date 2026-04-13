@@ -37,10 +37,6 @@ local function ReloadInterface()
     return false
 end
 
-local function ScheduleReloadAfterLayoutActivation()
-    ReloadInterface()
-end
-
 local function ActivateImportedLayoutByName(layoutName, remainingAttempts)
     if InCombatLockdown and InCombatLockdown() then
         return
@@ -52,7 +48,7 @@ local function ActivateImportedLayoutByName(layoutName, remainingAttempts)
             if C_EditMode and C_EditMode.SetActiveLayout then
                 C_EditMode.SetActiveLayout(idx + 2)
             end
-            ScheduleReloadAfterLayoutActivation()
+            ReloadInterface()
             return
         end
     end
@@ -64,7 +60,7 @@ local function ActivateImportedLayoutByName(layoutName, remainingAttempts)
         return
     end
 
-    ScheduleReloadAfterLayoutActivation()
+    ReloadInterface()
 end
 
 function Core:ImportEditModeLayout(layoutString, layoutName)

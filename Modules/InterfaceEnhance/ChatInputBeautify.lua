@@ -347,8 +347,8 @@ function InterfaceBeautify:OnPlayerLogin()
 
     self.eventFrame = eventFrame
 
-    if C_Timer and C_Timer.NewTicker then
-        self.chatHookTicker = self.chatHookTicker or C_Timer.NewTicker(2, function()
+    if C_Timer and C_Timer.After then
+        C_Timer.After(2, function()
             InterfaceBeautify:HookChatFrames()
         end)
     end

@@ -1233,14 +1233,6 @@ function Core:CopyCurrentProfileToGlobal()
     return self.dbRoot.profiles.global
 end
 
-function Core:ExportGlobalProfile()
-    return self:ExportProfile(PROFILE_KEY_GLOBAL)
-end
-
-function Core:ImportGlobalProfile(text)
-    return self:ImportProfile(PROFILE_KEY_GLOBAL, text)
-end
-
 function Core:ResetQuickWaypointConfig()
     self.db.mapAssist = self.db.mapAssist or {}
     self.db.mapAssist.quickWaypoint = CloneTable(NS.DEFAULTS.mapAssist.quickWaypoint)

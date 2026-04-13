@@ -14,15 +14,6 @@ Media.StatusBars = Media.StatusBars or {
     ["Gradient-Circle"] = ADDON_PREFIX .. "Assets\\Tga\\Gradient-Circle.tga",
 }
 
-local function SortKeys(source)
-    local keys = {}
-    for key in pairs(source) do
-        keys[#keys + 1] = key
-    end
-    table.sort(keys)
-    return keys
-end
-
 local function GetLSM()
     return LibStub and LibStub("LibSharedMedia-3.0", true)
 end
@@ -62,11 +53,7 @@ function Media:GetStatusBarDropdownValues()
         end
     end
 
-    local sortedValues = {}
-    for _, name in ipairs(SortKeys(values)) do
-        sortedValues[name] = values[name]
-    end
-    return sortedValues
+    return values
 end
 
 function Media:FetchStatusBar(name, silent)

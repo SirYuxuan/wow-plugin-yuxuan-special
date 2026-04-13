@@ -35,10 +35,11 @@ local function GetModule()
 end
 
 local function TrimOptionText(value)
-    local text = tostring(value or "")
-    text = text:gsub("^%s+", "")
-    text = text:gsub("%s+$", "")
-    return text
+    local Private = NS.Options and NS.Options.Private
+    if Private and Private.TrimText then
+        return Private.TrimText(value)
+    end
+    return tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
 local function NotifyGraphicMonitorChanged()
@@ -207,10 +208,7 @@ local function EnableSelected(storeKey, enabled)
 end
 
 local function TrimText(value)
-    local text = tostring(value or "")
-    text = text:gsub("^%s+", "")
-    text = text:gsub("%s+$", "")
-    return text
+    return TrimOptionText(value)
 end
 
 local function FillSpellTooltip(tooltip, info)

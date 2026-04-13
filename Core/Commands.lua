@@ -112,40 +112,26 @@ local function OpenSettingsByCommand(message)
         return
     end
 
-    if input == "" then
+    if not subCommand or subCommand == "" then
         if NS.Options:EnsureRegistered() then
             NS.Options:Toggle()
             return
         end
-    elseif input == "map" then
-        if NS.Options:OpenMapAssist() then
-            return
-        end
-    elseif input == "nav" then
-        if NS.Options:OpenQuickWaypoint() then
-            return
-        end
-    elseif input == "combat" then
-        if NS.Options:OpenCombatAssist() then
-            return
-        end
-    elseif input == "db" or input == "vault" then
-        if NS.Options:OpenGreatVault() then
-            return
-        end
-    elseif input == "trinket" then
-        if NS.Options:OpenTrinketMonitor() then
-            return
-        end
-    elseif input == "mage" then
-        if NS.Options:OpenMageAssist() then
-            return
-        end
-    elseif input == "frost" then
-        if NS.Options:OpenMageFrostAssist() then
-            return
-        end
-    elseif input == "log" or input == "update" or input == "changelog" then
+    end
+
+    local handlers = {
+        map     = function() return NS.Options:OpenMapAssist() end,
+        nav     = function() return NS.Options:OpenQuickWaypoint() end,
+        combat  = function() return NS.Options:OpenCombatAssist() end,
+        db      = function() return NS.Options:OpenGreatVault() end,
+        vault   = function() return NS.Options:OpenGreatVault() end,
+        trinket = function() return NS.Options:OpenTrinketMonitor() end,
+        mage    = function() return NS.Options:OpenMageAssist() end,
+        frost   = function() return NS.Options:OpenMageFrostAssist() end,
+        close   = function() NS.Options:Close() return true end,
+    }
+
+    if subCommand == "log" or subCommand == "update" or subCommand == "changelog" then
         local updateLog = NS.Modules
             and NS.Modules.InterfaceEnhance
             and NS.Modules.InterfaceEnhance.UpdateLog
@@ -153,8 +139,10 @@ local function OpenSettingsByCommand(message)
             updateLog:Open(false)
             return
         end
-    elseif input == "close" then
-        NS.Options:Close()
+    end
+
+    local handler = handlers[subCommand]
+    if handler and handler() then
         return
     end
 

@@ -220,131 +220,29 @@ function Core:OnPlayerLogin()
         NS.MemoryAudit:Initialize()
     end
 
-    local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
-    if quickWaypoint and quickWaypoint.OnPlayerLogin then
-        quickWaypoint:OnPlayerLogin()
+    local moduleGroups = {
+        NS.Modules.MapAssist,
+        NS.Modules.InterfaceEnhance,
+        NS.Modules.CombatAssist,
+    }
+
+    for _, group in ipairs(moduleGroups) do
+        if group then
+            for _, mod in pairs(group) do
+                if type(mod) == "table" and type(mod.OnPlayerLogin) == "function" then
+                    mod:OnPlayerLogin()
+                end
+            end
+        end
     end
 
-    local mapIDDisplay = NS.Modules.MapAssist and NS.Modules.MapAssist.MapIDDisplay
-    if mapIDDisplay and mapIDDisplay.OnPlayerLogin then
-        mapIDDisplay:OnPlayerLogin()
-    end
-
-    local quickChat = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuickChat
-    if quickChat and quickChat.OnPlayerLogin then
-        quickChat:OnPlayerLogin()
-    end
-
-    local interfaceBeautify = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.InterfaceBeautify
-    if interfaceBeautify and interfaceBeautify.OnPlayerLogin then
-        interfaceBeautify:OnPlayerLogin()
-    end
-
-    local enhanceQoLIntegration = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EnhanceQoLIntegration
-    if enhanceQoLIntegration and enhanceQoLIntegration.OnPlayerLogin then
-        enhanceQoLIntegration:OnPlayerLogin()
-    end
-
-    local distanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.DistanceMonitor
-    if distanceMonitor and distanceMonitor.OnPlayerLogin then
-        distanceMonitor:OnPlayerLogin()
-    end
-
-    local raidMarkers = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.RaidMarkers
-    if raidMarkers and raidMarkers.OnPlayerLogin then
-        raidMarkers:OnPlayerLogin()
-    end
-
-    local gameBar = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.GameBar
-    if gameBar and gameBar.OnPlayerLogin then
-        gameBar:OnPlayerLogin()
-    end
-
-    local mouseTooltip = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.MouseTooltip
-    if mouseTooltip and mouseTooltip.OnPlayerLogin then
-        mouseTooltip:OnPlayerLogin()
-    end
-
-    local cursorTrail = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CursorTrail
-    if cursorTrail and cursorTrail.OnPlayerLogin then
-        cursorTrail:OnPlayerLogin()
-    end
-
-    local itemLevelPlanner = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.ItemLevelPlanner
-    if itemLevelPlanner and itemLevelPlanner.OnPlayerLogin then
-        itemLevelPlanner:OnPlayerLogin()
-    end
-
-    local specTalentBar = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.SpecTalentBar
-    if specTalentBar and specTalentBar.OnPlayerLogin then
-        specTalentBar:OnPlayerLogin()
-    end
-
-    local questTools = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.QuestTools
-    if questTools and questTools.OnPlayerLogin then
-        questTools:OnPlayerLogin()
-    end
-
-    local utilityAnnouncer = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.UtilityAnnouncer
-    if utilityAnnouncer and utilityAnnouncer.OnPlayerLogin then
-        utilityAnnouncer:OnPlayerLogin()
-    end
-
-    local huntAssist = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.HuntAssist
-    if huntAssist and huntAssist.OnPlayerLogin then
-        huntAssist:OnPlayerLogin()
-    end
-
-    local attributeDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.AttributeDisplay
-    if attributeDisplay and attributeDisplay.OnPlayerLogin then
-        attributeDisplay:OnPlayerLogin()
-    end
-
-    local currencyDisplay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.CurrencyDisplay
-    if currencyDisplay and currencyDisplay.OnPlayerLogin then
-        currencyDisplay:OnPlayerLogin()
-    end
-
-    local performanceMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.PerformanceMonitor
-    if performanceMonitor and performanceMonitor.OnPlayerLogin then
-        performanceMonitor:OnPlayerLogin()
-    end
-
-    local graphicMonitor = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.GraphicMonitor
-    if graphicMonitor and graphicMonitor.OnPlayerLogin then
-        graphicMonitor:OnPlayerLogin()
-    end
-
-    local bagItemOverlay = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.BagItemOverlay
-    if bagItemOverlay and bagItemOverlay.OnPlayerLogin then
-        bagItemOverlay:OnPlayerLogin()
-    end
-
-    local eventTracker = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EventTracker
-    if eventTracker and eventTracker.OnPlayerLogin then
-        eventTracker:OnPlayerLogin()
-    end
-
-    local updateLog = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.UpdateLog
-    if updateLog and updateLog.OnPlayerLogin then
-        updateLog:OnPlayerLogin()
-    end
-
-    local quickFocus = NS.Modules.CombatAssist and NS.Modules.CombatAssist.QuickFocus
-    if quickFocus and quickFocus.OnPlayerLogin then
-        quickFocus:OnPlayerLogin()
-    end
-
-    local trinketMonitor = NS.Modules.CombatAssist and NS.Modules.CombatAssist.TrinketMonitor
-    if trinketMonitor and trinketMonitor.OnPlayerLogin then
-        trinketMonitor:OnPlayerLogin()
-    end
-
-    local shatterIndicator = NS.Modules.ClassAssist
-        and NS.Modules.ClassAssist.Mage
-        and NS.Modules.ClassAssist.Mage.ShatterIndicator
-    if shatterIndicator and shatterIndicator.OnPlayerLogin then
-        shatterIndicator:OnPlayerLogin()
+    local mageModules = NS.Modules.ClassAssist and NS.Modules.ClassAssist.Mage
+    if mageModules then
+        for _, mod in pairs(mageModules) do
+            if type(mod) == "table" and type(mod.OnPlayerLogin) == "function" then
+                mod:OnPlayerLogin()
+            end
+        end
     end
 
     self:RefreshMinimapButton()

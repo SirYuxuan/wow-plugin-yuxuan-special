@@ -330,20 +330,6 @@ function NS.BuildCombatAssistOptions()
                                 },
                             },
                         },
-                        testSound = {
-                            hidden = true,
-                            type = "execute",
-                            order = 14,
-                            width = 0.9,
-                            name = "试听音效",
-                            disabled = IsDisabled,
-                            func = function()
-                                local monitor = GetMonitor()
-                                if monitor and monitor.TestReadySound then
-                                    monitor:TestReadySound()
-                                end
-                            end,
-                        },
                         reset = {
                             type = "execute",
                             order = 90,

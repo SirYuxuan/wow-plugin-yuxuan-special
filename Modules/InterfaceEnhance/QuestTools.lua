@@ -178,11 +178,7 @@ function QuestTools:AnnounceQuest(actionText, questID)
         return
     end
 
-    if channel then
-        print(sanitized)
-    else
-        print(sanitized)
-    end
+    print(sanitized)
 end
 
 function QuestTools:ProcessAutoQuestDialogs(onlyCompleted)

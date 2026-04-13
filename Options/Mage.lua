@@ -248,14 +248,6 @@ local function BuildFrostSpecTab()
         end,
         disabledTip = "请切换到冰霜专精后查看",
         args = {
-            intro = {
-                type = "description",
-                hidden = true,
-                order = 1,
-                fontSize = "medium",
-                name = "碎冰指示会实时监控当前目标身上的冻结层数。",
-                width = "full",
-            },
             enabled = {
                 type = "toggle",
                 order = 10,

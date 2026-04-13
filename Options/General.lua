@@ -25,6 +25,10 @@ local renameProfileName = ""
 local profileTransferText = ""
 
 local function TrimText(value)
+    local Private = NS.Options and NS.Options.Private
+    if Private and Private.TrimText then
+        return Private.TrimText(value)
+    end
     return tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
