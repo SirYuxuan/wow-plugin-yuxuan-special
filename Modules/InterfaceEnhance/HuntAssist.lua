@@ -32,6 +32,7 @@ local BAR_FILL_INSET = 3
 local BAR_POLL_INTERVAL = 0.35
 local PREY_PROGRESS_FINAL = 3
 local MAX_PREY_STAGE = 4
+local DISPLAY_STAGE_TOTAL = 3
 local MONITORED_VIGNETTES = {
     7667,
     7443,
@@ -48,9 +49,9 @@ local VIGNETTE_DATA = {
 }
 
 local BAR_STAGE_PERCENTS = {
-    [1] = 25,
-    [2] = 50,
-    [3] = 75,
+    [1] = 0,
+    [2] = 33,
+    [3] = 66,
     [4] = 100,
 }
 
@@ -310,6 +311,10 @@ end
 
 local function GetStageFallbackPercent(stage)
     return BAR_STAGE_PERCENTS[stage] or 0
+end
+
+local function GetDisplayStageIndex(stage)
+    return Clamp((tonumber(stage) or 1) - 1, 0, DISPLAY_STAGE_TOTAL)
 end
 
 local function NormalizePercentCandidate(value)
@@ -606,6 +611,23 @@ local function ApplyWidgetFrameSuppression(frameRef, suppress)
             or string.find(lowered, "glow", 1, true) ~= nil
     end
 
+    local function shouldNeverSuppress(target)
+        if not target then
+            return true
+        end
+
+        local name = target.GetName and target:GetName() or ""
+        local lowered = string.lower(tostring(name or ""))
+        if lowered == "" then
+            return false
+        end
+
+        return string.find(lowered, "tooltip", 1, true) ~= nil
+            or string.find(lowered, "moneyframe", 1, true) ~= nil
+            or string.find(lowered, "lootframe", 1, true) ~= nil
+            or string.find(lowered, "merchantframe", 1, true) ~= nil
+    end
+
     local function applyHardVisibilitySuppression(target)
         if not target or not target.Hide or not shouldHardSuppress(target) then
             return
@@ -629,12 +651,51 @@ local function ApplyWidgetFrameSuppression(frameRef, suppress)
         end
     end
 
+    local function applyAnimationSuppression(target)
+        if not target or not target.GetAnimationGroups then
+            return
+        end
+
+        local okGroups, groups = pcall(function()
+            return { target:GetAnimationGroups() }
+        end)
+        if not okGroups or type(groups) ~= "table" then
+            return
+        end
+
+        for _, group in ipairs(groups) do
+            if group then
+                if suppress then
+                    local isPlaying = false
+                    if group.IsPlaying then
+                        local okPlaying, playing = pcall(group.IsPlaying, group)
+                        isPlaying = okPlaying and playing and true or false
+                    end
+                    group.__YuXuanWasPlaying = isPlaying and true or false
+                    if group.Stop then
+                        pcall(group.Stop, group)
+                    end
+                elseif group.__YuXuanWasPlaying then
+                    group.__YuXuanWasPlaying = nil
+                    if group.Play then
+                        pcall(group.Play, group)
+                    end
+                end
+            end
+        end
+    end
+
     local function applyToFrameTree(node, depth)
         if not node or visited[node] or depth > 8 then
             return
         end
 
+        if shouldNeverSuppress(node) then
+            return
+        end
+
         visited[node] = true
+        applyAnimationSuppression(node)
         applyHardVisibilitySuppression(node)
 
         if node.SetAlpha then
@@ -651,6 +712,7 @@ local function ApplyWidgetFrameSuppression(frameRef, suppress)
         if node.GetRegions then
             local regions = { node:GetRegions() }
             for _, region in ipairs(regions) do
+                applyAnimationSuppression(region)
                 applyHardVisibilitySuppression(region)
                 if region and region.SetAlpha then
                     if suppress then
@@ -677,6 +739,30 @@ local function ApplyWidgetFrameSuppression(frameRef, suppress)
 
     if frameRef.EnableMouse then
         frameRef:EnableMouse(not suppress)
+    end
+end
+
+local function ApplySuppressionToImmediateWidgetParent(frameRef, containerFrame, suppress)
+    if not frameRef or not frameRef.GetParent then
+        return
+    end
+
+    local okParent, parent = pcall(frameRef.GetParent, frameRef)
+    if not okParent or not parent or parent == UIParent then
+        return
+    end
+
+    local parentName = parent.GetName and parent:GetName() or ""
+    local containerName = containerFrame and containerFrame.GetName and containerFrame:GetName() or ""
+    local loweredParent = string.lower(tostring(parentName))
+    local loweredContainer = string.lower(tostring(containerName))
+
+    local safeParent = parent == containerFrame
+        or (loweredParent ~= "" and string.find(loweredParent, "uiwidget", 1, true) ~= nil)
+        or (loweredContainer ~= "" and loweredParent ~= "" and string.find(loweredParent, loweredContainer, 1, true) ~= nil)
+
+    if safeParent then
+        ApplyWidgetFrameSuppression(parent, suppress)
     end
 end
 
@@ -1029,6 +1115,7 @@ function HuntAssist:ApplyDefaultPreyIconVisibility()
                                 local widgetFrame = TryGetWidgetFrameByID(container, numericWidgetID)
                                 if widgetFrame then
                                     ApplyWidgetFrameSuppression(widgetFrame, true)
+                                    ApplySuppressionToImmediateWidgetParent(widgetFrame, container, true)
                                     registry[widgetFrame] = true
                                     seen[widgetFrame] = true
                                 end
@@ -1036,6 +1123,7 @@ function HuntAssist:ApplyDefaultPreyIconVisibility()
                                 local namedFrame = _G[globalName .. "Widget" .. tostring(numericWidgetID)]
                                 if namedFrame then
                                     ApplyWidgetFrameSuppression(namedFrame, true)
+                                    ApplySuppressionToImmediateWidgetParent(namedFrame, container, true)
                                     registry[namedFrame] = true
                                     seen[namedFrame] = true
                                 end
@@ -1245,7 +1333,7 @@ function HuntAssist:CreateBarFrame()
     frame.percentText:SetJustifyH("CENTER")
 
     frame.tickMarks = {}
-    for index = 1, 3 do
+    for index = 1, 2 do
         local tick = frame:CreateTexture(nil, "OVERLAY")
         tick:SetColorTexture(1, 1, 1, 0.28)
         frame.tickMarks[index] = tick
@@ -1314,7 +1402,7 @@ function HuntAssist:CreateBarFrame()
             if title and title ~= "" then
                 GameTooltip:AddLine(title, 1, 1, 1)
             end
-            GameTooltip:AddLine(string.format("阶段：%d/%d", state.stage or 1, MAX_PREY_STAGE), 0.85, 0.85, 0.85)
+            GameTooltip:AddLine(string.format("阶段：%d/%d", GetDisplayStageIndex(state.stage), DISPLAY_STAGE_TOTAL), 0.85, 0.85, 0.85)
             GameTooltip:AddLine(string.format("进度：%d%%", Round(percent)), 0.85, 0.85, 0.85)
             if state.preyZoneName then
                 GameTooltip:AddLine("区域：" .. tostring(state.preyZoneName), 0.65, 0.82, 1.00)
@@ -1363,7 +1451,7 @@ function HuntAssist:ApplyBarLayout()
     local width = Clamp(barConfig.width or 160, 120, 320)
     local height = Clamp(barConfig.height or 29, 16, 48)
     local innerHeight = max(1, height - (BAR_FILL_INSET * 2))
-    local tickPercents = { 25, 50, 75 }
+    local tickPercents = { 33, 66 }
 
     frame:ClearAllPoints()
     frame:SetPoint(
@@ -1452,7 +1540,7 @@ function HuntAssist:RefreshBarDisplay()
     state.stage = stage
     state._displayPercent = displayPercent
 
-    frame.stageText:SetText(string.format("狩猎进度 %d/%d", stage, MAX_PREY_STAGE))
+    frame.stageText:SetText(string.format("狩猎进度 %d/%d", GetDisplayStageIndex(stage), DISPLAY_STAGE_TOTAL))
     frame.percentText:SetText(string.format("%d%%", Round(displayPercent)))
 
     local fillWidth = Round(max(0, frame:GetWidth() - (BAR_FILL_INSET * 2)) * (displayPercent / 100))
