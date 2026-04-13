@@ -14,6 +14,7 @@ local VIEWERS = {
 }
 
 local hiddenFrames = setmetatable({}, { __mode = "k" })
+local refreshTicker = nil
 
 local function IsUsableSpellID(spellID)
     if type(spellID) ~= "number" then
@@ -39,6 +40,17 @@ end
 local function BuildSpellCandidates(info, storeKey)
     local candidates = {}
     local seen = {}
+    local count = 0
+
+    local function AddCandidate(spellID)
+        if not IsUsableSpellID(spellID) or seen[spellID] then
+            return
+        end
+
+        seen[spellID] = true
+        count = count + 1
+        candidates[count] = spellID
+    end
 
     if type(info) ~= "table" then
         return candidates
@@ -46,31 +58,28 @@ local function BuildSpellCandidates(info, storeKey)
 
     if storeKey == "buffs" and type(info.linkedSpellIDs) == "table" then
         for _, spellID in ipairs(info.linkedSpellIDs) do
-            AppendCandidate(candidates, seen, spellID)
+            AddCandidate(spellID)
         end
     end
 
-    AppendCandidate(candidates, seen, info.overrideSpellID)
+    AddCandidate(info.overrideSpellID)
 
     if storeKey == "skills" and C_Spell and C_Spell.GetOverrideSpell and IsUsableSpellID(info.spellID) then
-        AppendCandidate(candidates, seen, C_Spell.GetOverrideSpell(info.spellID))
+        AddCandidate(C_Spell.GetOverrideSpell(info.spellID))
     end
 
     if type(info.linkedSpellIDs) == "table" then
         for _, spellID in ipairs(info.linkedSpellIDs) do
-            AppendCandidate(candidates, seen, spellID)
+            AddCandidate(spellID)
         end
     end
 
-    AppendCandidate(candidates, seen, info.spellID)
+    AddCandidate(info.spellID)
 
     if C_Spell and C_Spell.GetBaseSpell then
-        local baseCandidates = {}
-        for _, spellID in ipairs(candidates) do
-            AppendCandidate(baseCandidates, seen, C_Spell.GetBaseSpell(spellID))
-        end
-        for _, spellID in ipairs(baseCandidates) do
-            candidates[#candidates + 1] = spellID
+        local originalCount = count
+        for index = 1, originalCount do
+            AddCandidate(C_Spell.GetBaseSpell(candidates[index]))
         end
     end
 
@@ -228,24 +237,52 @@ local function RefreshCooldownHider()
     end
 end
 
-if C_Timer and C_Timer.NewTicker then
-    C_Timer.NewTicker(0.5, RefreshCooldownHider)
+local function StopRefreshTicker()
+    if refreshTicker then
+        refreshTicker:Cancel()
+        refreshTicker = nil
+    end
 end
-RefreshCooldownHider()
+
+local function EnsureRefreshTicker()
+    if refreshTicker or not (C_Timer and C_Timer.NewTicker) then
+        return
+    end
+
+    refreshTicker = C_Timer.NewTicker(1.5, function()
+        if HasActiveHideRules() then
+            RefreshCooldownHider()
+        else
+            StopRefreshTicker()
+        end
+    end)
+end
+
+local function RefreshRuntime()
+    if HasActiveHideRules() then
+        EnsureRefreshTicker()
+        RefreshCooldownHider()
+    else
+        StopRefreshTicker()
+        RestoreAllHiddenFrames()
+    end
+end
+
+RefreshRuntime()
 
 VFlow.on("PLAYER_ENTERING_WORLD", "GraphicMonitorCooldownHider", function()
-    C_Timer.After(0.5, RefreshCooldownHider)
-    C_Timer.After(2.0, RefreshCooldownHider)
+    C_Timer.After(0.5, RefreshRuntime)
+    C_Timer.After(2.0, RefreshRuntime)
 end)
 VFlow.on("PLAYER_SPECIALIZATION_CHANGED", "GraphicMonitorCooldownHider", function()
-    C_Timer.After(0.2, RefreshCooldownHider)
+    C_Timer.After(0.2, RefreshRuntime)
 end)
 VFlow.on("TRAIT_CONFIG_UPDATED", "GraphicMonitorCooldownHider", function()
-    C_Timer.After(0.2, RefreshCooldownHider)
+    C_Timer.After(0.2, RefreshRuntime)
 end)
 
 VFlow.Store.watch(MODULE_KEY, "GraphicMonitorCooldownHider", function(key)
     if key == "skills" or key == "buffs" or key:find("%.hideInCooldownManager$") then
-        RefreshCooldownHider()
+        RefreshRuntime()
     end
 end)

@@ -2,7 +2,7 @@ local ADDON_NAME, NS = ...
 
 NS.ADDON_NAME = ADDON_NAME
 NS.DISPLAY_NAME = "雨轩工具箱"
-NS.VERSION = "1.1.7"
+NS.VERSION = "1.1.8"
 NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
@@ -215,7 +215,18 @@ function Core:OnAddonLoaded()
     self:RegisterSlashCommands()
 end
 
+function Core:ConfigureLuaGC()
+    if type(collectgarbage) ~= "function" then
+        return
+    end
+
+    pcall(collectgarbage, "setpause", 110)
+    pcall(collectgarbage, "setstepmul", 200)
+end
+
 function Core:OnPlayerLogin()
+    self:ConfigureLuaGC()
+
     if NS.MemoryAudit and NS.MemoryAudit.Initialize then
         NS.MemoryAudit:Initialize()
     end
