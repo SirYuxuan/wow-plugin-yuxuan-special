@@ -115,13 +115,6 @@ local function RefreshAllSettings(notifyOptions)
         trinketMonitor:RefreshFromSettings()
     end
 
-    local shatterIndicator = NS.Modules.ClassAssist
-        and NS.Modules.ClassAssist.Mage
-        and NS.Modules.ClassAssist.Mage.ShatterIndicator
-    if shatterIndicator and shatterIndicator.RefreshFromSettings then
-        shatterIndicator:RefreshFromSettings()
-    end
-
     if notifyOptions and NS.Options and NS.Options.NotifyChanged then
         NS.Options:NotifyChanged()
     end

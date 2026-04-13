@@ -329,6 +329,9 @@ local function NormalizePercentCandidate(value)
     return Clamp(value, 0, 100)
 end
 
+local _scanCurrentValues = {}
+local _scanMaxValues = {}
+
 local function ExtractProgressPercentFromInfoScan(info)
     if type(info) ~= "table" then
         return nil
@@ -346,8 +349,8 @@ local function ExtractProgressPercentFromInfoScan(info)
         end
     end
 
-    local currentValues = {}
-    local maxValues = {}
+    local curCount = 0
+    local maxCount = 0
     for key, value in pairs(info) do
         if type(value) == "number" and value >= 0 then
             local keyText = string.lower(tostring(key))
@@ -357,22 +360,25 @@ local function ExtractProgressPercentFromInfoScan(info)
                 or string.find(keyText, "fulfilled", 1, true)
                 or string.find(keyText, "completed", 1, true)
             then
-                currentValues[#currentValues + 1] = value
+                curCount = curCount + 1
+                _scanCurrentValues[curCount] = value
             end
 
             if string.find(keyText, "max", 1, true)
                 or string.find(keyText, "total", 1, true)
                 or string.find(keyText, "required", 1, true)
             then
-                maxValues[#maxValues + 1] = value
+                maxCount = maxCount + 1
+                _scanMaxValues[maxCount] = value
             end
         end
     end
 
-    for _, current in ipairs(currentValues) do
-        for _, maxValue in ipairs(maxValues) do
-            if maxValue > 0 and current <= maxValue then
-                return Clamp((current / maxValue) * 100, 0, 100)
+    for ci = 1, curCount do
+        for mi = 1, maxCount do
+            local maxValue = _scanMaxValues[mi]
+            if maxValue > 0 and _scanCurrentValues[ci] <= maxValue then
+                return Clamp((_scanCurrentValues[ci] / maxValue) * 100, 0, 100)
             end
         end
     end
@@ -903,7 +909,8 @@ function HuntAssist:FindPreyWidgetProgressState(activeQuestID)
                 local okID, rawWidgetID = pcall(function() return widget and widget.widgetID end)
                 local numericWidgetID = okID and tonumber(rawWidgetID) or nil
                 if okType and widgetType == preyWidgetType and numericWidgetID then
-                    local okInfo, info = pcall(C_UIWidgetManager.GetPreyHuntProgressWidgetVisualizationInfo, numericWidgetID)
+                    local okInfo, info = pcall(C_UIWidgetManager.GetPreyHuntProgressWidgetVisualizationInfo,
+                        numericWidgetID)
                     if okInfo and info and info.shownState == shownStateShown then
                         local pct = ExtractProgressPercent(info, info.tooltip)
                         if IsValidQuestID(activeQuestID) then
@@ -1106,7 +1113,8 @@ function HuntAssist:ApplyDefaultPreyIconVisibility()
                 local okID, rawWidgetID = pcall(function() return widget and widget.widgetID end)
                 local numericWidgetID = okID and tonumber(rawWidgetID) or nil
                 if okType and widgetType == preyWidgetType and numericWidgetID then
-                    local okInfo, info = pcall(C_UIWidgetManager.GetPreyHuntProgressWidgetVisualizationInfo, numericWidgetID)
+                    local okInfo, info = pcall(C_UIWidgetManager.GetPreyHuntProgressWidgetVisualizationInfo,
+                        numericWidgetID)
                     if okInfo and info and info.shownState == shownStateShown then
                         local widgetQuestID = ExtractWidgetQuestID(info)
                         if widgetQuestID == nil or widgetQuestID == state.activeQuestID then
@@ -1402,7 +1410,8 @@ function HuntAssist:CreateBarFrame()
             if title and title ~= "" then
                 GameTooltip:AddLine(title, 1, 1, 1)
             end
-            GameTooltip:AddLine(string.format("阶段：%d/%d", GetDisplayStageIndex(state.stage), DISPLAY_STAGE_TOTAL), 0.85, 0.85, 0.85)
+            GameTooltip:AddLine(string.format("阶段：%d/%d", GetDisplayStageIndex(state.stage), DISPLAY_STAGE_TOTAL), 0.85,
+                0.85, 0.85)
             GameTooltip:AddLine(string.format("进度：%d%%", Round(percent)), 0.85, 0.85, 0.85)
             if state.preyZoneName then
                 GameTooltip:AddLine("区域：" .. tostring(state.preyZoneName), 0.65, 0.82, 1.00)

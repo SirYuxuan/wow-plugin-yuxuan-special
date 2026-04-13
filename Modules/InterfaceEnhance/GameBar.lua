@@ -197,33 +197,43 @@ local function IsAddOnLoadedCompat(indexOrName)
     return false
 end
 
+local _memRows = {}
+
 local function CollectAddOnMemoryRows()
-    local rows = {}
     local total = 0
+    local count = 0
     if UpdateAddOnMemoryUsage then
         UpdateAddOnMemoryUsage()
     end
     local getNumAddOns = rawget(_G, "GetNumAddOns")
-    local count = (C_AddOns and C_AddOns.GetNumAddOns and C_AddOns.GetNumAddOns()) or (getNumAddOns and getNumAddOns()) or
+    local numAddOns = (C_AddOns and C_AddOns.GetNumAddOns and C_AddOns.GetNumAddOns()) or
+    (getNumAddOns and getNumAddOns()) or
         0
-    for i = 1, count do
+    for i = 1, numAddOns do
         local name, title = GetAddOnInfoCompat(i)
         if name and IsAddOnLoadedCompat(i) then
             local memory = (GetAddOnMemoryUsage and GetAddOnMemoryUsage(i)) or 0
             total = total + memory
-            table.insert(rows, {
-                name = title and title ~= "" and title or name,
-                memory = memory,
-            })
+            count = count + 1
+            local entry = _memRows[count]
+            if not entry then
+                entry = {}
+                _memRows[count] = entry
+            end
+            entry.name = title and title ~= "" and title or name
+            entry.memory = memory
         end
     end
-    table.sort(rows, function(a, b)
+    for i = count + 1, #_memRows do
+        _memRows[i] = nil
+    end
+    table.sort(_memRows, function(a, b)
         if a.memory == b.memory then
             return a.name < b.name
         end
         return a.memory > b.memory
     end)
-    return total, rows
+    return total, _memRows
 end
 
 local function ShowAddOnMemoryTooltip(owner, title)
@@ -389,14 +399,18 @@ local function SplitFullName(fullName)
     return name or fullName, realm or ""
 end
 
+local _wowFriendRows = {}
+local _wowFriendSeen = {}
+
 local function GetWoWFriendRows()
-    local rows = {}
-    local seen = {}
+    local count = 0
+    wipe(_wowFriendSeen)
     local getNumOnlineFriends = C_FriendList and C_FriendList.GetNumOnlineFriends
     local getFriendInfoByIndex = C_FriendList and C_FriendList.GetFriendInfoByIndex
 
     if not (getNumOnlineFriends and getFriendInfoByIndex) then
-        return rows
+        for i = 1, #_wowFriendRows do _wowFriendRows[i] = nil end
+        return _wowFriendRows
     end
 
     local totalOnline = getNumOnlineFriends() or 0
@@ -405,36 +419,49 @@ local function GetWoWFriendRows()
         if info and info.connected then
             local name, realm = SplitFullName(info.name)
             local key = (name or "") .. "-" .. (realm or "")
-            if not seen[key] then
-                seen[key] = true
-                table.insert(rows, {
-                    name = name,
-                    realm = realm,
-                    classFile = info.className,
-                    level = info.level,
-                    area = info.area,
-                    status = "好友",
-                })
+            if not _wowFriendSeen[key] then
+                _wowFriendSeen[key] = true
+                count = count + 1
+                local entry = _wowFriendRows[count]
+                if not entry then
+                    entry = {}
+                    _wowFriendRows[count] = entry
+                end
+                entry.name = name
+                entry.realm = realm
+                entry.classFile = info.className
+                entry.level = info.level
+                entry.area = info.area
+                entry.status = "好友"
+                entry.accountName = nil
             end
         end
     end
 
-    table.sort(rows, function(a, b)
+    for i = count + 1, #_wowFriendRows do
+        _wowFriendRows[i] = nil
+    end
+
+    table.sort(_wowFriendRows, function(a, b)
         if (a.level or 0) == (b.level or 0) then
             return (a.name or "") < (b.name or "")
         end
         return (a.level or 0) > (b.level or 0)
     end)
 
-    return rows
+    return _wowFriendRows
 end
 
+local _bnFriendRows = {}
+local _bnFriendSeen = {}
+
 local function GetBattleNetFriendRows()
-    local rows = {}
-    local seen = {}
+    local count = 0
+    wipe(_bnFriendSeen)
 
     if not (BNGetNumFriends and C_BattleNet and C_BattleNet.GetFriendAccountInfo) then
-        return rows
+        for i = 1, #_bnFriendRows do _bnFriendRows[i] = nil end
+        return _bnFriendRows
     end
 
     for friendIndex = 1, BNGetNumFriends() do
@@ -450,7 +477,7 @@ local function GetBattleNetFriendRows()
                     for gameIndex = 1, numGameAccounts do
                         local gameAccountInfo = C_BattleNet.GetFriendGameAccountInfo(friendIndex, gameIndex)
                         if gameAccountInfo then
-                            table.insert(gameAccounts, gameAccountInfo)
+                            gameAccounts[#gameAccounts + 1] = gameAccountInfo
                         end
                     end
                 end
@@ -461,37 +488,48 @@ local function GetBattleNetFriendRows()
                     local characterName = gameAccountInfo.characterName or accountName
                     local realmName = gameAccountInfo.realmName or ""
                     local key = characterName .. "-" .. realmName
-                    if not seen[key] then
-                        seen[key] = true
-                        table.insert(rows, {
-                            name = characterName,
-                            realm = realmName,
-                            classFile = gameAccountInfo.className,
-                            level = gameAccountInfo.characterLevel,
-                            area = gameAccountInfo.areaName,
-                            accountName = accountName,
-                            status = "战网",
-                        })
+                    if not _bnFriendSeen[key] then
+                        _bnFriendSeen[key] = true
+                        count = count + 1
+                        local entry = _bnFriendRows[count]
+                        if not entry then
+                            entry = {}
+                            _bnFriendRows[count] = entry
+                        end
+                        entry.name = characterName
+                        entry.realm = realmName
+                        entry.classFile = gameAccountInfo.className
+                        entry.level = gameAccountInfo.characterLevel
+                        entry.area = gameAccountInfo.areaName
+                        entry.accountName = accountName
+                        entry.status = "战网"
                     end
                 end
             end
         end
     end
 
-    table.sort(rows, function(a, b)
+    for i = count + 1, #_bnFriendRows do
+        _bnFriendRows[i] = nil
+    end
+
+    table.sort(_bnFriendRows, function(a, b)
         if (a.level or 0) == (b.level or 0) then
             return (a.name or "") < (b.name or "")
         end
         return (a.level or 0) > (b.level or 0)
     end)
 
-    return rows
+    return _bnFriendRows
 end
 
+local _guildRows = {}
+
 local function GetGuildMemberRows()
-    local rows = {}
+    local count = 0
     if not (IsInGuild and IsInGuild() and GetNumGuildMembers and GetGuildRosterInfo) then
-        return rows
+        for i = 1, #_guildRows do _guildRows[i] = nil end
+        return _guildRows
     end
 
     if GuildRoster then
@@ -503,17 +541,27 @@ local function GetGuildMemberRows()
         local fullName, _, _, level, _, zone, _, _, online, _, classFile = GetGuildRosterInfo(index)
         if online then
             local name, realm = SplitFullName(fullName)
-            table.insert(rows, {
-                name = name,
-                realm = realm,
-                classFile = classFile,
-                level = level,
-                area = zone,
-            })
+            count = count + 1
+            local entry = _guildRows[count]
+            if not entry then
+                entry = {}
+                _guildRows[count] = entry
+            end
+            entry.name = name
+            entry.realm = realm
+            entry.classFile = classFile
+            entry.level = level
+            entry.area = zone
+            entry.accountName = nil
+            entry.status = nil
         end
     end
 
-    table.sort(rows, function(a, b)
+    for i = count + 1, #_guildRows do
+        _guildRows[i] = nil
+    end
+
+    table.sort(_guildRows, function(a, b)
         local areaA = a.area or ""
         local areaB = b.area or ""
         if areaA == areaB then
@@ -522,7 +570,7 @@ local function GetGuildMemberRows()
         return areaA < areaB
     end)
 
-    return rows
+    return _guildRows
 end
 
 local function AddContactRowsToTooltip(tooltip, rows, opts)

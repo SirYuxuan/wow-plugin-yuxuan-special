@@ -281,7 +281,7 @@ local function GetCachedBindingStatusText(itemLink)
     if cached == nil then
         bindingStatusCacheSize = bindingStatusCacheSize + 1
         if bindingStatusCacheSize > BINDING_CACHE_MAX_SIZE then
-            bindingStatusCache = {}
+            wipe(bindingStatusCache)
             bindingStatusCacheSize = 1
         end
     end
@@ -449,7 +449,7 @@ local function UpdateButtonWithItemLink(button, itemLink)
     overlay.middleText:SetText(showBinding and GetCachedBindingStatusText(itemLink) or "")
     overlay.bottomText:SetText(config.showEquipSlot and GetEquipSlotText(itemLink) or "")
     overlay:SetShown(overlay.topText:GetText() ~= "" or overlay.middleText:GetText() ~= "" or
-    overlay.bottomText:GetText() ~= "")
+        overlay.bottomText:GetText() ~= "")
 end
 
 local function GetButtonBagAndSlot(button)

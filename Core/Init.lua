@@ -7,8 +7,6 @@ NS.Modules = NS.Modules or {}
 NS.Modules.MapAssist = NS.Modules.MapAssist or {}
 NS.Modules.InterfaceEnhance = NS.Modules.InterfaceEnhance or {}
 NS.Modules.CombatAssist = NS.Modules.CombatAssist or {}
-NS.Modules.ClassAssist = NS.Modules.ClassAssist or {}
-NS.Modules.ClassAssist.Mage = NS.Modules.ClassAssist.Mage or {}
 NS.Options = NS.Options or {}
 
 local Core = {}
@@ -274,15 +272,6 @@ function Core:OnPlayerLogin()
                 if type(mod) == "table" and type(mod.OnPlayerLogin) == "function" then
                     mod:OnPlayerLogin()
                 end
-            end
-        end
-    end
-
-    local mageModules = NS.Modules.ClassAssist and NS.Modules.ClassAssist.Mage
-    if mageModules then
-        for _, mod in pairs(mageModules) do
-            if type(mod) == "table" and type(mod.OnPlayerLogin) == "function" then
-                mod:OnPlayerLogin()
             end
         end
     end

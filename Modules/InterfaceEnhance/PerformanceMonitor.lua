@@ -95,9 +95,11 @@ local function FormatMemoryUsage(kb)
     return string.format("%.0f KB", kb)
 end
 
+local _memRows = {}
+
 local function CollectAddOnMemoryRows()
     local total = 0
-    local rows = {}
+    local count = 0
 
     if UpdateAddOnMemoryUsage then
         UpdateAddOnMemoryUsage()
@@ -108,21 +110,29 @@ local function CollectAddOnMemoryRows()
         if name and IsAddOnLoadedCompat(index) then
             local memory = GetAddOnMemoryUsage and GetAddOnMemoryUsage(index) or 0
             total = total + memory
-            table.insert(rows, {
-                name = title and title ~= "" and title or name,
-                memory = memory,
-            })
+            count = count + 1
+            local entry = _memRows[count]
+            if not entry then
+                entry = {}
+                _memRows[count] = entry
+            end
+            entry.name = title and title ~= "" and title or name
+            entry.memory = memory
         end
     end
 
-    table.sort(rows, function(left, right)
+    for i = count + 1, #_memRows do
+        _memRows[i] = nil
+    end
+
+    table.sort(_memRows, function(left, right)
         if left.memory == right.memory then
             return left.name < right.name
         end
         return left.memory > right.memory
     end)
 
-    return total, rows
+    return total, _memRows
 end
 
 local function GetMetricColorHex(value, metric)
@@ -340,7 +350,8 @@ function Core:CreatePerformanceMonitorFrame()
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetSize(110, 20)
-    frame:SetPoint(position.point or "CENTER", UIParent, position.relativePoint or "CENTER", position.x or 220, position.y or -20)
+    frame:SetPoint(position.point or "CENTER", UIParent, position.relativePoint or "CENTER", position.x or 220,
+    position.y or -20)
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame)
