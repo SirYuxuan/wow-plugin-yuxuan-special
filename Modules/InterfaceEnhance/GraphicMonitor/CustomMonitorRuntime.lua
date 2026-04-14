@@ -147,21 +147,68 @@ _cdmFlushFrame:Hide()
 -- =========================================================
 
 --- 先尝试一位小数；含 secret 等对 format 有限制时回退为原值（引擎默认约三位小数）
+--- 使用预定义辅助函数避免 pcall(function()…end) 每次创建新闭包。
+local _srt_text, _srt_remaining
+local function _srt_getRemainingDuration(durObj)
+    _srt_remaining = durObj:GetRemainingDuration()
+end
+local function _srt_setFormatted()
+    _srt_text:SetFormattedText("%.1f", _srt_remaining)
+end
+local function _srt_setRaw()
+    _srt_text:SetText(_srt_remaining)
+end
+
 local function SetRemainingText(text, durObj)
-    local remaining
-    pcall(function() remaining = durObj:GetRemainingDuration() end)
-    if remaining == nil then
+    _srt_remaining = nil
+    pcall(_srt_getRemainingDuration, durObj)
+    if _srt_remaining == nil then
         text:SetText("")
         return
     end
-    local ok1 = pcall(function()
-        text:SetFormattedText("%.1f", remaining)
-    end)
-    if ok1 then return end
-    local ok2 = pcall(function()
-        text:SetText(remaining)
-    end)
-    if not ok2 then text:SetText("") end
+    _srt_text = text
+    if pcall(_srt_setFormatted) then return end
+    if not pcall(_srt_setRaw) then text:SetText("") end
+end
+
+--- 预定义 pcall 辅助函数：避免 UpdateRegularCooldownBar / UpdateChargeBar 等
+--- 高频函数中 pcall(function() ... end) 每次创建匿名闭包产生大量垃圾。
+local _spell_result -- 共享的临时结果变量
+local _spell_arg1, _spell_arg2
+
+local function _pcall_GetSpellCooldown(spellID)
+    _spell_result = C_Spell.GetSpellCooldown(spellID)
+end
+local function _pcall_GetSpellCooldownDuration(spellID)
+    _spell_result = C_Spell.GetSpellCooldownDuration(spellID)
+end
+local function _pcall_GetSpellChargeDuration(spellID)
+    _spell_result = C_Spell.GetSpellChargeDuration(spellID)
+end
+local function _pcall_SetCooldownFromDurationObject()
+    _spell_arg1:SetCooldownFromDurationObject(_spell_arg2, true)
+end
+local function _pcall_GetRemainingDuration()
+    _spell_result = _spell_arg1:GetRemainingDuration() > 0
+end
+local function _pcall_SetCooldownFromDurObj_ring()
+    _spell_arg1:SetCooldownFromDurationObject(_spell_arg2)
+end
+local function _pcall_SetTimerDuration()
+    _spell_arg1:SetTimerDuration(
+        _spell_arg2,
+        Enum.StatusBarInterpolation.Immediate or 0,
+        Enum.StatusBarTimerDirection.ElapsedTime or 0
+    )
+end
+local function _pcall_CompareSpellId()
+    _spell_result = (_spell_arg1.spellId == _spell_arg2)
+end
+local function _pcall_SafeEquals()
+    _spell_result = (_spell_arg1 == _spell_arg2)
+end
+local function _pcall_GetAuraDuration()
+    _spell_result = C_UnitAuras.GetAuraDuration(_spell_arg1, _spell_arg2)
 end
 
 local function FillDirection(fillMode)
@@ -273,8 +320,11 @@ local function IsUsableNonSecretSpellId(id)
 end
 
 local function SafeSpellIdEquals(a, b)
-    local ok, eq = pcall(function() return a == b end)
-    return ok and eq
+    _spell_arg1 = a
+    _spell_arg2 = b
+    _spell_result = false
+    local ok = pcall(_pcall_SafeEquals)
+    return ok and _spell_result
 end
 
 local function ResolveSpellID(info)
@@ -1010,10 +1060,9 @@ local function UpdateRegularCooldownBar(barFrame, spellID)
     local cfg = barFrame._cfg
     local showGraphics = ShouldRenderGraphics(cfg)
     local showText = ShouldRenderText(cfg)
-    local cdInfo
-    pcall(function()
-        cdInfo = C_Spell.GetSpellCooldown(spellID)
-    end)
+    _spell_result = nil
+    pcall(_pcall_GetSpellCooldown, spellID)
+    local cdInfo = _spell_result
     local isOnGCD = cdInfo and cdInfo.isOnGCD == true
     local spellCdActive = true
     if cdInfo and cdInfo.isActive ~= nil then
@@ -1023,14 +1072,17 @@ local function UpdateRegularCooldownBar(barFrame, spellID)
     local durObj
     local shadowCD = showGraphics and GetOrCreateShadowCooldown(barFrame) or nil
     if not isOnGCD then
-        pcall(function() durObj = C_Spell.GetSpellCooldownDuration(spellID) end)
+        _spell_result = nil
+        pcall(_pcall_GetSpellCooldownDuration, spellID)
+        durObj = _spell_result
     end
     if showGraphics then
         if isOnGCD then
             shadowCD:Clear()
         elseif durObj and spellCdActive then
             shadowCD:Clear()
-            pcall(function() shadowCD:SetCooldownFromDurationObject(durObj, true) end)
+            _spell_arg1, _spell_arg2 = shadowCD, durObj
+            pcall(_pcall_SetCooldownFromDurationObject)
         else
             shadowCD:Clear()
         end
@@ -1040,9 +1092,10 @@ local function UpdateRegularCooldownBar(barFrame, spellID)
     if showGraphics then
         isOnCooldown = shadowCD:IsShown()
     elseif durObj and spellCdActive then
-        pcall(function()
-            isOnCooldown = durObj:GetRemainingDuration() > 0
-        end)
+        _spell_arg1 = durObj
+        _spell_result = false
+        pcall(_pcall_GetRemainingDuration)
+        isOnCooldown = _spell_result
     end
 
     if not showGraphics then
@@ -1120,18 +1173,17 @@ local function UpdateChargeBar(barFrame, spellID)
     if issecretvalue and issecretvalue(maxCharges) then return end
     if not maxCharges or maxCharges < 1 then return end
 
-    local chargeDurObj = nil
-    pcall(function() chargeDurObj = C_Spell.GetSpellChargeDuration(spellID) end)
+    _spell_result = nil
+    pcall(_pcall_GetSpellChargeDuration, spellID)
+    local chargeDurObj = _spell_result
 
     local activeChargeDurObj = chargeDurObj
     local recharging = true
-    pcall(function()
-        if type(currentCharges) == "number" and type(maxCharges) == "number" then
-            if not (issecretvalue and (issecretvalue(currentCharges) or issecretvalue(maxCharges))) then
-                recharging = currentCharges < maxCharges
-            end
+    if type(currentCharges) == "number" and type(maxCharges) == "number" then
+        if not (issecretvalue and (issecretvalue(currentCharges) or issecretvalue(maxCharges))) then
+            recharging = currentCharges < maxCharges
         end
-    end)
+    end
 
     local shouldShowRecharge = recharging and (chargeDurObj ~= nil) and (activeChargeDurObj ~= nil)
     if not showGraphics then
@@ -1282,13 +1334,9 @@ local function UpdateChargeBar(barFrame, spellID)
     end
 
     -- 使用SetTimerDuration设置充能进度动画
-    pcall(function()
-        barFrame._refreshCharge:SetTimerDuration(
-            chargeDurObj,
-            Enum.StatusBarInterpolation.Immediate or 0,
-            Enum.StatusBarTimerDirection.ElapsedTime or 0
-        )
-    end)
+    _spell_arg1 = barFrame._refreshCharge
+    _spell_arg2 = chargeDurObj
+    pcall(_pcall_SetTimerDuration)
 
     activeChargeDurObj = nil
     if barFrame._refreshCharge.GetTimerDuration then
@@ -1467,8 +1515,12 @@ UpdateDurationBar = function(barFrame, spellID, barKey)
                     local data = C_UnitAuras.GetAuraDataByIndex(scanUnit, index)
                     if not data then break end
                     local matched = false
-                    local ok = pcall(function() matched = (data.spellId == spellID) end)
+                    _spell_arg1 = data
+                    _spell_arg2 = spellID
+                    _spell_result = false
+                    local ok = pcall(_pcall_CompareSpellId)
                     if not ok then break end -- secret value，战斗中放弃
+                    matched = _spell_result
                     if matched then
                         auraData = data; break
                     end
@@ -1536,9 +1588,9 @@ UpdateDurationBar = function(barFrame, spellID, barKey)
             -- 环形模式：每帧更新，与条形的SetTimerDuration行为一致
             local durObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
             if durObj and seg.SetCooldownFromDurationObject then
-                pcall(function()
-                    seg:SetCooldownFromDurationObject(durObj)
-                end)
+                _spell_arg1 = seg
+                _spell_arg2 = durObj
+                pcall(_pcall_SetCooldownFromDurObj_ring)
                 local rc = cfg.ringColor or { r = 0.2, g = 0.6, b = 1, a = 1 }
                 seg:SetSwipeColor(rc.r, rc.g, rc.b, rc.a)
                 seg._needsRefresh = false
@@ -1552,14 +1604,16 @@ UpdateDurationBar = function(barFrame, spellID, barKey)
             end
         else
             -- 条形模式：使用StatusBar
-            local timerOK = pcall(function()
-                local durObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
-                if not durObj then return end
+            _spell_arg1 = unit
+            _spell_arg2 = auraInstanceID
+            _spell_result = nil
+            local timerOK = pcall(_pcall_GetAuraDuration)
+            local durObj = _spell_result
+            if timerOK and durObj then
                 ApplyTimerDuration(seg, durObj, INTERP_EASE_OUT, FillDirection(cfg.barFillMode))
                 barFrame._lastFillMode = cfg.barFillMode
                 if barFrame._text then SetRemainingText(barFrame._text, durObj) end
-            end)
-            if not timerOK then
+            else
                 seg:SetMinMaxValues(0, 1); seg:SetValue(1)
                 if barFrame._text then barFrame._text:SetText("") end
             end

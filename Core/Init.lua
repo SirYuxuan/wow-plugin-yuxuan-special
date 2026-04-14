@@ -233,19 +233,19 @@ function Core:StartLuaGCTicker()
         return
     end
 
-    self.luaGCTicker = C_Timer.NewTicker(2, function()
+    self.luaGCTicker = C_Timer.NewTicker(1, function()
         local currentCount = collectgarbage("count")
         local lastCount = self.luaGCLastCount or currentCount
         local delta = currentCount - lastCount
         self.luaGCLastCount = currentCount
 
-        local stepBudget = 120
+        local stepBudget = 200
         if delta >= 1024 then
-            stepBudget = 420
+            stepBudget = 800
         elseif delta >= 512 then
-            stepBudget = 280
+            stepBudget = 500
         elseif delta >= 256 then
-            stepBudget = 180
+            stepBudget = 350
         end
 
         pcall(collectgarbage, "step", stepBudget)

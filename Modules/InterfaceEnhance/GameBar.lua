@@ -207,7 +207,7 @@ local function CollectAddOnMemoryRows()
     end
     local getNumAddOns = rawget(_G, "GetNumAddOns")
     local numAddOns = (C_AddOns and C_AddOns.GetNumAddOns and C_AddOns.GetNumAddOns()) or
-    (getNumAddOns and getNumAddOns()) or
+        (getNumAddOns and getNumAddOns()) or
         0
     for i = 1, numAddOns do
         local name, title = GetAddOnInfoCompat(i)
@@ -370,12 +370,42 @@ local function GetBattleNetOnlineCounts()
     return total, wowOnly
 end
 
+-- 构建本地化职业名 → 英文 token 的反向查找表
+local _localizedClassToToken = {}
+do
+    local src = LOCALIZED_CLASS_NAMES_MALE
+    if src then
+        for token, localized in pairs(src) do
+            _localizedClassToToken[localized] = token
+        end
+    end
+    src = LOCALIZED_CLASS_NAMES_FEMALE
+    if src then
+        for token, localized in pairs(src) do
+            if not _localizedClassToToken[localized] then
+                _localizedClassToToken[localized] = token
+            end
+        end
+    end
+end
+
+local function ResolveClassToken(classFileOrName)
+    if not classFileOrName then return nil end
+    -- 已经是英文 token（RAID_CLASS_COLORS 有键）
+    if RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFileOrName] then
+        return classFileOrName
+    end
+    -- 尝试反向查找
+    return _localizedClassToToken[classFileOrName]
+end
+
 local function GetClassColoredName(name, classFile)
     if not name or name == "" then
         return "未知"
     end
 
-    local color = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+    local token = ResolveClassToken(classFile)
+    local color = token and RAID_CLASS_COLORS and RAID_CLASS_COLORS[token]
     if color then
         if color.colorStr then
             return "|c" .. color.colorStr .. name .. "|r"

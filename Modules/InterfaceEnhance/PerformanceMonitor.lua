@@ -67,11 +67,12 @@ end
 
 local function GetAddOnInfoCompat(index)
     if C_AddOns and C_AddOns.GetAddOnInfo then
-        local info = C_AddOns.GetAddOnInfo(index)
-        if type(info) == "table" then
-            return info.name or info.Name, info.title or info.Title
+        local a, b = C_AddOns.GetAddOnInfo(index)
+        if type(a) == "table" then
+            return a.name or a.Name, a.title or a.Title
         end
-        return info
+        -- Multi-return: a=name, b=title
+        return a, b
     end
 
     if GetAddOnInfo then
@@ -274,6 +275,8 @@ function Core:UpdatePerformanceMonitorLayout()
     end
 end
 
+local _lastFps, _lastLatency
+
 function Core:RefreshPerformanceMonitor()
     if not self.performanceMonitorFrame then
         return
@@ -283,7 +286,12 @@ function Core:RefreshPerformanceMonitor()
     local _, _, _, world = GetNetStats()
     local latency = tonumber(world) or 0
 
-    self.performanceMonitorFrame.text:SetText(BuildPerformanceText(fps, latency))
+    -- Only rebuild the display string when the values actually change.
+    if fps ~= _lastFps or latency ~= _lastLatency then
+        _lastFps = fps
+        _lastLatency = latency
+        self.performanceMonitorFrame.text:SetText(BuildPerformanceText(fps, latency))
+    end
 end
 
 function Core:RefreshPerformanceMonitorTooltip()
@@ -351,7 +359,7 @@ function Core:CreatePerformanceMonitorFrame()
     frame:RegisterForDrag("LeftButton")
     frame:SetSize(110, 20)
     frame:SetPoint(position.point or "CENTER", UIParent, position.relativePoint or "CENTER", position.x or 220,
-    position.y or -20)
+        position.y or -20)
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame)

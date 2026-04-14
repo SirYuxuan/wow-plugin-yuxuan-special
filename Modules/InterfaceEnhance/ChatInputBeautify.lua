@@ -250,6 +250,9 @@ function InterfaceBeautify:HookChatFrame(frame)
     end
 
     if not frame.__YuXuanInterfaceBeautifyAddMessageWrapper then
+        -- First time hooking: save the pristine original and create the wrapper.
+        frame.__YuXuanOriginalAddMessage = frame.AddMessage
+
         frame.__YuXuanInterfaceBeautifyAddMessageWrapper = function(chatFrame, text, ...)
             local config = GetConfig()
             local originalAddMessage = chatFrame.__YuXuanOriginalAddMessage
@@ -263,13 +266,16 @@ function InterfaceBeautify:HookChatFrame(frame)
 
             return originalAddMessage(chatFrame, text, ...)
         end
+
+        frame.AddMessage = frame.__YuXuanInterfaceBeautifyAddMessageWrapper
+        return
     end
 
-    local currentAddMessage = frame.AddMessage
-    local wrapper = frame.__YuXuanInterfaceBeautifyAddMessageWrapper
-    if type(currentAddMessage) == "function" and currentAddMessage ~= wrapper then
-        frame.__YuXuanOriginalAddMessage = currentAddMessage
-        frame.AddMessage = wrapper
+    -- Wrapper already exists – verify it is still the active AddMessage.
+    -- Do NOT update __YuXuanOriginalAddMessage to avoid circular call chains
+    -- when another addon also wraps AddMessage after us.
+    if frame.AddMessage ~= frame.__YuXuanInterfaceBeautifyAddMessageWrapper then
+        frame.AddMessage = frame.__YuXuanInterfaceBeautifyAddMessageWrapper
     end
 end
 
@@ -341,14 +347,29 @@ function InterfaceBeautify:OnPlayerLogin()
     eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     eventFrame:RegisterEvent("UPDATE_CHAT_WINDOWS")
     eventFrame:RegisterEvent("UPDATE_FLOATING_CHAT_WINDOWS")
-    eventFrame:SetScript("OnEvent", function()
-        InterfaceBeautify:Refresh()
+    eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    eventFrame:SetScript("OnEvent", function(_, event)
+        if event == "PLAYER_REGEN_ENABLED" or event == "GROUP_ROSTER_UPDATE" then
+            InterfaceBeautify:HookChatFrames()
+        else
+            InterfaceBeautify:Refresh()
+        end
     end)
 
     self.eventFrame = eventFrame
 
     if C_Timer and C_Timer.After then
         C_Timer.After(2, function()
+            InterfaceBeautify:HookChatFrames()
+        end)
+    end
+
+    -- Periodically verify AddMessage hooks are still in place.  Other addons
+    -- or Blizzard UI code may silently overwrite them during combat or when
+    -- chat windows are reorganised.
+    if C_Timer and C_Timer.NewTicker then
+        self.hookVerifyTicker = C_Timer.NewTicker(5, function()
             InterfaceBeautify:HookChatFrames()
         end)
     end
