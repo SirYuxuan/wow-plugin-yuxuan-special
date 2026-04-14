@@ -1,5 +1,6 @@
 local addonName, NS = ...
 local Core = NS.Core
+local Utils = NS.Utils
 
 local DistanceMonitor = {}
 NS.Modules.InterfaceEnhance.DistanceMonitor = DistanceMonitor
@@ -12,62 +13,6 @@ local DEFAULT_UPDATE_INTERVAL = 0.2
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "distanceMonitor")
-end
-
-local function GetOptionsPrivate()
-    return NS.Options and NS.Options.Private
-end
-
-local function ApplyConfiguredFont(fontString, size)
-    if not fontString then
-        return
-    end
-
-    local optionsPrivate = GetOptionsPrivate()
-    local config = GetConfig()
-    if optionsPrivate and optionsPrivate.ApplyFont then
-        optionsPrivate.ApplyFont(fontString, size or 14, "OUTLINE", config and config.fontPreset or "CHAT")
-        return
-    end
-
-    fontString:SetFont(STANDARD_TEXT_FONT, size or 14, "OUTLINE")
-end
-
-local function CreateSimpleOutline(parent, layer, thickness)
-    local border = {}
-    local size = thickness or 1
-
-    border.top = parent:CreateTexture(nil, layer or "BORDER")
-    border.top:SetPoint("TOPLEFT", parent, "TOPLEFT", -size, size)
-    border.top:SetPoint("TOPRIGHT", parent, "TOPRIGHT", size, size)
-    border.top:SetHeight(size)
-
-    border.bottom = parent:CreateTexture(nil, layer or "BORDER")
-    border.bottom:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", -size, -size)
-    border.bottom:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", size, -size)
-    border.bottom:SetHeight(size)
-
-    border.left = parent:CreateTexture(nil, layer or "BORDER")
-    border.left:SetPoint("TOPLEFT", parent, "TOPLEFT", -size, size)
-    border.left:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", -size, -size)
-    border.left:SetWidth(size)
-
-    border.right = parent:CreateTexture(nil, layer or "BORDER")
-    border.right:SetPoint("TOPRIGHT", parent, "TOPRIGHT", size, size)
-    border.right:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", size, -size)
-    border.right:SetWidth(size)
-
-    return border
-end
-
-local function SetSimpleOutlineColor(border, r, g, b, a)
-    if type(border) ~= "table" then
-        return
-    end
-
-    for _, edge in pairs(border) do
-        edge:SetColorTexture(r or 0, g or 0, b or 0, a or 0)
-    end
 end
 
 local function GetRangeCheckText(unit)
@@ -157,7 +102,7 @@ function DistanceMonitor:ApplyLayout()
     local frame = self.frame
 
     frame:SetMovable(not config.locked)
-    ApplyConfiguredFont(frame.text, config.fontSize or 14)
+    Utils.ApplyConfiguredFont(frame.text, config.fontSize or 14, "OUTLINE", config)
     frame.text:SetJustifyH("CENTER")
     frame.text:ClearAllPoints()
     frame.text:SetPoint("LEFT", frame, "LEFT", 10, 0)
@@ -166,19 +111,7 @@ function DistanceMonitor:ApplyLayout()
     local width = math.max(160, math.ceil((frame.text:GetStringWidth() or 0) + 24))
     frame:SetSize(width, ROW_HEIGHT)
 
-    if config.showBackground then
-        local bg = config.backgroundColor or { r = 0, g = 0, b = 0, a = 0.32 }
-        frame.bg:SetColorTexture(bg.r or 0, bg.g or 0, bg.b or 0, bg.a or 0.32)
-    else
-        frame.bg:SetColorTexture(0, 0, 0, 0)
-    end
-
-    if config.showBorder then
-        local border = config.borderColor or { r = 0, g = 0.6, b = 1, a = 0.45 }
-        SetSimpleOutlineColor(frame.border, border.r or 0, border.g or 0.6, border.b or 1, border.a or 0.45)
-    else
-        SetSimpleOutlineColor(frame.border, 0, 0, 0, 0)
-    end
+    Utils.ApplyFrameBackgroundAndBorder(frame, config)
 end
 
 function DistanceMonitor:Refresh()
@@ -224,7 +157,7 @@ function DistanceMonitor:CreateFrame()
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame)
-    frame.border = CreateSimpleOutline(frame, "BORDER", 1)
+    frame.border = Utils.CreateSimpleOutline(frame, "BORDER", 1)
 
     frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.text:SetJustifyH("CENTER")

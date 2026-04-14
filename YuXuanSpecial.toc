@@ -11,6 +11,7 @@ Libs\LibCustomGlow\LibCustomGlow-1.0.lua
 Libs\LibRangeCheck-3.0\LibRangeCheck-3.0.lua
 
 Core\Init.lua
+Core\Utils.lua
 Core\Database.lua
 Core\Layout.lua
 Core\Media.lua

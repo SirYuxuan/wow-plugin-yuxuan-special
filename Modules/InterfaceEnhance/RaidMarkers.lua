@@ -1,5 +1,6 @@
 local addonName, NS = ...
 local Core = NS.Core
+local Utils = NS.Utils
 
 local RaidMarkers = {}
 NS.Modules.InterfaceEnhance.RaidMarkers = RaidMarkers
@@ -50,62 +51,6 @@ local RAID_ACTION_BUTTONS = {
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "raidMarkers")
-end
-
-local function GetOptionsPrivate()
-    return NS.Options and NS.Options.Private
-end
-
-local function ApplyConfiguredFont(fontString, size)
-    if not fontString then
-        return
-    end
-
-    local optionsPrivate = GetOptionsPrivate()
-    local config = GetConfig()
-    if optionsPrivate and optionsPrivate.ApplyFont then
-        optionsPrivate.ApplyFont(fontString, size or 13, "OUTLINE", config and config.fontPreset or "CHAT")
-        return
-    end
-
-    fontString:SetFont(STANDARD_TEXT_FONT, size or 13, "OUTLINE")
-end
-
-local function CreateSimpleOutline(parent, layer, thickness)
-    local border = {}
-    local size = thickness or 1
-
-    border.top = parent:CreateTexture(nil, layer or "BORDER")
-    border.top:SetPoint("TOPLEFT", parent, "TOPLEFT", -size, size)
-    border.top:SetPoint("TOPRIGHT", parent, "TOPRIGHT", size, size)
-    border.top:SetHeight(size)
-
-    border.bottom = parent:CreateTexture(nil, layer or "BORDER")
-    border.bottom:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", -size, -size)
-    border.bottom:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", size, -size)
-    border.bottom:SetHeight(size)
-
-    border.left = parent:CreateTexture(nil, layer or "BORDER")
-    border.left:SetPoint("TOPLEFT", parent, "TOPLEFT", -size, size)
-    border.left:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", -size, -size)
-    border.left:SetWidth(size)
-
-    border.right = parent:CreateTexture(nil, layer or "BORDER")
-    border.right:SetPoint("TOPRIGHT", parent, "TOPRIGHT", size, size)
-    border.right:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", size, -size)
-    border.right:SetWidth(size)
-
-    return border
-end
-
-local function SetSimpleOutlineColor(border, r, g, b, a)
-    if type(border) ~= "table" then
-        return
-    end
-
-    for _, edge in pairs(border) do
-        edge:SetColorTexture(r or 0, g or 0, b or 0, a or 0)
-    end
 end
 
 local function ApplyRaidMarkerButtonScale(button, scale)
@@ -304,7 +249,7 @@ function RaidMarkers:UpdateLayout()
         end
 
         if button.label then
-            ApplyConfiguredFont(button.label, textSize)
+            Utils.ApplyConfiguredFont(button.label, textSize, "OUTLINE", config)
             button.label:SetText(button.textValue or "")
             button.label:SetTextColor(1, 1, 1, 1)
             if (not button.iconTexture) and button.textValue and button.textValue ~= "" then
@@ -349,10 +294,10 @@ function RaidMarkers:UpdateLayout()
     end
 
     if config.showBorder then
-        SetSimpleOutlineColor(frame.border, borderColor.r or 0, borderColor.g or 0.6, borderColor.b or 1,
+        Utils.SetSimpleOutlineColor(frame.border, borderColor.r or 0, borderColor.g or 0.6, borderColor.b or 1,
             borderColor.a or 0.45)
     else
-        SetSimpleOutlineColor(frame.border, 0, 0, 0, 0)
+        Utils.SetSimpleOutlineColor(frame.border, 0, 0, 0, 0)
     end
 end
 
@@ -399,7 +344,7 @@ function RaidMarkers:CreateFrame()
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame)
-    frame.border = CreateSimpleOutline(frame, "BORDER", RAID_MARKERS_BUTTON_BORDER)
+    frame.border = Utils.CreateSimpleOutline(frame, "BORDER", RAID_MARKERS_BUTTON_BORDER)
 
     local pos = config.point
     frame:SetPoint(pos.point or "CENTER", UIParent, pos.relativePoint or "CENTER", pos.x or 0, pos.y or -30)

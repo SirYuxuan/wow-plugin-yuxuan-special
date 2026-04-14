@@ -1,99 +1,12 @@
 local addonName, NS = ...
 local Core = NS.Core
+local Utils = NS.Utils
 
 local PerformanceMonitor = {}
 NS.Modules.InterfaceEnhance.PerformanceMonitor = PerformanceMonitor
 
 local function GetConfig()
     return Core:GetConfig("interfaceEnhance", "performanceMonitor")
-end
-
-local function GetOptionsPrivate()
-    return NS.Options and NS.Options.Private
-end
-
-local function CreateSimpleOutline(parent, layer, thickness)
-    local border = {}
-    local size = thickness or 1
-
-    border.top = parent:CreateTexture(nil, layer or "BORDER")
-    border.top:SetPoint("TOPLEFT", parent, "TOPLEFT", -size, size)
-    border.top:SetPoint("TOPRIGHT", parent, "TOPRIGHT", size, size)
-    border.top:SetHeight(size)
-
-    border.bottom = parent:CreateTexture(nil, layer or "BORDER")
-    border.bottom:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", -size, -size)
-    border.bottom:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", size, -size)
-    border.bottom:SetHeight(size)
-
-    border.left = parent:CreateTexture(nil, layer or "BORDER")
-    border.left:SetPoint("TOPLEFT", parent, "TOPLEFT", -size, size)
-    border.left:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", -size, -size)
-    border.left:SetWidth(size)
-
-    border.right = parent:CreateTexture(nil, layer or "BORDER")
-    border.right:SetPoint("TOPRIGHT", parent, "TOPRIGHT", size, size)
-    border.right:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", size, -size)
-    border.right:SetWidth(size)
-
-    return border
-end
-
-local function SetSimpleOutlineColor(border, r, g, b, a)
-    if type(border) ~= "table" then
-        return
-    end
-
-    for _, edge in pairs(border) do
-        edge:SetColorTexture(r or 0, g or 0, b or 0, a or 0)
-    end
-end
-
-local function GetFontPreset(config)
-    local optionsPrivate = GetOptionsPrivate()
-    if optionsPrivate and optionsPrivate.NormalizeFontPreset then
-        return optionsPrivate.NormalizeFontPreset(config, "font")
-    end
-
-    return (config and config.fontPreset) or "CHAT"
-end
-
-local function GetNumAddOnsCompat()
-    if C_AddOns and C_AddOns.GetNumAddOns then
-        return C_AddOns.GetNumAddOns()
-    end
-    return GetNumAddOns and GetNumAddOns() or 0
-end
-
-local function GetAddOnInfoCompat(index)
-    if C_AddOns and C_AddOns.GetAddOnInfo then
-        local a, b = C_AddOns.GetAddOnInfo(index)
-        if type(a) == "table" then
-            return a.name or a.Name, a.title or a.Title
-        end
-        -- Multi-return: a=name, b=title
-        return a, b
-    end
-
-    if GetAddOnInfo then
-        local name, title = GetAddOnInfo(index)
-        return name, title
-    end
-end
-
-local function IsAddOnLoadedCompat(indexOrName)
-    if C_AddOns and C_AddOns.IsAddOnLoaded then
-        return C_AddOns.IsAddOnLoaded(indexOrName)
-    end
-    return IsAddOnLoaded and IsAddOnLoaded(indexOrName) or false
-end
-
-local function FormatMemoryUsage(kb)
-    kb = tonumber(kb) or 0
-    if kb >= 1024 then
-        return string.format("%.2f MB", kb / 1024)
-    end
-    return string.format("%.0f KB", kb)
 end
 
 local _memRows = {}
@@ -106,9 +19,9 @@ local function CollectAddOnMemoryRows()
         UpdateAddOnMemoryUsage()
     end
 
-    for index = 1, GetNumAddOnsCompat() do
-        local name, title = GetAddOnInfoCompat(index)
-        if name and IsAddOnLoadedCompat(index) then
+    for index = 1, Utils.GetNumAddOns() do
+        local name, title = Utils.GetAddOnInfo(index)
+        if name and Utils.IsAddOnLoaded(index) then
             local memory = GetAddOnMemoryUsage and GetAddOnMemoryUsage(index) or 0
             total = total + memory
             count = count + 1
@@ -175,12 +88,7 @@ local function ApplyPerformanceMonitorFont(frame)
         return
     end
 
-    local optionsPrivate = GetOptionsPrivate()
-    if optionsPrivate and optionsPrivate.ApplyFont then
-        optionsPrivate.ApplyFont(frame.text, config.fontSize or 14, "OUTLINE", GetFontPreset(config))
-    elseif not frame.text:SetFont(STANDARD_TEXT_FONT, config.fontSize or 14, "OUTLINE") then
-        frame.text:SetFont(STANDARD_TEXT_FONT, config.fontSize or 14, "OUTLINE")
-    end
+    Utils.ApplyConfiguredFont(frame.text, config.fontSize or 14, "OUTLINE", config)
 
     if frame.measureText then
         local fontName, fontHeight, fontFlags = frame.text:GetFont()
@@ -260,19 +168,7 @@ function Core:UpdatePerformanceMonitorLayout()
     local width, height = GetPerformanceMonitorSize(frame)
     frame:SetSize(width, height)
 
-    if config.showBackground then
-        local background = config.backgroundColor or { r = 0, g = 0, b = 0, a = 0.32 }
-        frame.bg:SetColorTexture(background.r or 0, background.g or 0, background.b or 0, background.a or 0.32)
-    else
-        frame.bg:SetColorTexture(0, 0, 0, 0)
-    end
-
-    if config.showBorder then
-        local border = config.borderColor or { r = 0, g = 0.6, b = 1, a = 0.45 }
-        SetSimpleOutlineColor(frame.border, border.r or 0, border.g or 0.6, border.b or 1, border.a or 0.45)
-    else
-        SetSimpleOutlineColor(frame.border, 0, 0, 0, 0)
-    end
+    Utils.ApplyFrameBackgroundAndBorder(frame, config)
 end
 
 local _lastFps, _lastLatency
@@ -310,11 +206,11 @@ function Core:RefreshPerformanceMonitorTooltip()
     GameTooltip:AddDoubleLine("FPS", tostring(fps), 1, 1, 1, 0.25, 1, 0.4)
     GameTooltip:AddDoubleLine("本地延迟", string.format("%d ms", tonumber(home) or 0), 1, 1, 1, 0.35, 0.8, 1)
     GameTooltip:AddDoubleLine("世界延迟", string.format("%d ms", tonumber(world) or 0), 1, 1, 1, 0.35, 0.8, 1)
-    GameTooltip:AddDoubleLine("插件总内存", FormatMemoryUsage(totalMemory), 1, 1, 1, 1, 0.82, 0)
+    GameTooltip:AddDoubleLine("插件总内存", Utils.FormatMemoryKB(totalMemory), 1, 1, 1, 1, 0.82, 0)
     GameTooltip:AddLine(" ")
 
     for _, entry in ipairs(rows) do
-        GameTooltip:AddDoubleLine(entry.name, FormatMemoryUsage(entry.memory), 1, 1, 1, 0.75, 0.9, 1)
+        GameTooltip:AddDoubleLine(entry.name, Utils.FormatMemoryKB(entry.memory), 1, 1, 1, 0.75, 0.9, 1)
     end
 
     GameTooltip:AddLine(" ")
@@ -363,7 +259,7 @@ function Core:CreatePerformanceMonitorFrame()
 
     frame.bg = frame:CreateTexture(nil, "BACKGROUND")
     frame.bg:SetAllPoints(frame)
-    frame.border = CreateSimpleOutline(frame, "BORDER", 1)
+    frame.border = Utils.CreateSimpleOutline(frame, "BORDER", 1)
 
     frame.text = frame:CreateFontString(nil, "OVERLAY")
     frame.text:SetJustifyH("CENTER")
