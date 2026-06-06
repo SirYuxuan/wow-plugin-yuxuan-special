@@ -1,6 +1,10 @@
 local _, NS = ...
 local Core = NS.Core
 
+if Core and Core.IsModuleAllowed and not Core:IsModuleAllowed("InterfaceEnhance", "GraphicMonitor") then
+    return
+end
+
 local MODULE_KEY = "YuXuanSpecial.GraphicMonitor"
 local PROFILE_ROOT_KEY = "graphicMonitorProfiles"
 

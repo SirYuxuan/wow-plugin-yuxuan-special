@@ -12,6 +12,18 @@ NS.Options = NS.Options or {}
 local Core = {}
 NS.Core = Core
 
+-- Temporary slim mode. Set this to false to restore all modules without changing saved settings.
+local TEMPORARY_FEATURE_LIMIT_ENABLED = true
+local TEMPORARY_ALLOWED_MODULES = {
+    MapAssist = {
+        QuickWaypoint = true,
+    },
+    InterfaceEnhance = {
+        ItemLevelPlanner = true,
+    },
+    CombatAssist = {},
+}
+
 local function GetAddOnMetadataCompat(addonName, field)
     if C_AddOns and C_AddOns.GetAddOnMetadata then
         local value = C_AddOns.GetAddOnMetadata(addonName, field)
@@ -252,24 +264,35 @@ function Core:StartLuaGCTicker()
     end)
 end
 
+function Core:IsModuleAllowed(groupName, moduleName)
+    if not TEMPORARY_FEATURE_LIMIT_ENABLED then
+        return true
+    end
+
+    local allowedGroup = TEMPORARY_ALLOWED_MODULES[groupName]
+    return allowedGroup and allowedGroup[moduleName] == true
+end
+
 function Core:OnPlayerLogin()
     self:ConfigureLuaGC()
     self:StartLuaGCTicker()
 
-    if NS.MemoryAudit and NS.MemoryAudit.Initialize then
+    if not TEMPORARY_FEATURE_LIMIT_ENABLED and NS.MemoryAudit and NS.MemoryAudit.Initialize then
         NS.MemoryAudit:Initialize()
     end
 
     local moduleGroups = {
-        NS.Modules.MapAssist,
-        NS.Modules.InterfaceEnhance,
-        NS.Modules.CombatAssist,
+        { name = "MapAssist", modules = NS.Modules.MapAssist },
+        { name = "InterfaceEnhance", modules = NS.Modules.InterfaceEnhance },
+        { name = "CombatAssist", modules = NS.Modules.CombatAssist },
     }
 
     for _, group in ipairs(moduleGroups) do
-        if group then
-            for _, mod in pairs(group) do
-                if type(mod) == "table" and type(mod.OnPlayerLogin) == "function" then
+        if group.modules then
+            for moduleName, mod in pairs(group.modules) do
+                if self:IsModuleAllowed(group.name, moduleName)
+                    and type(mod) == "table"
+                    and type(mod.OnPlayerLogin) == "function" then
                     mod:OnPlayerLogin()
                 end
             end
@@ -287,17 +310,17 @@ end
 
 function Core:OnWorldMapLoaded()
     local quickWaypoint = NS.Modules.MapAssist and NS.Modules.MapAssist.QuickWaypoint
-    if quickWaypoint and quickWaypoint.OnWorldMapLoaded then
+    if self:IsModuleAllowed("MapAssist", "QuickWaypoint") and quickWaypoint and quickWaypoint.OnWorldMapLoaded then
         quickWaypoint:OnWorldMapLoaded()
     end
 
     local mapIDDisplay = NS.Modules.MapAssist and NS.Modules.MapAssist.MapIDDisplay
-    if mapIDDisplay and mapIDDisplay.OnWorldMapLoaded then
+    if self:IsModuleAllowed("MapAssist", "MapIDDisplay") and mapIDDisplay and mapIDDisplay.OnWorldMapLoaded then
         mapIDDisplay:OnWorldMapLoaded()
     end
 
     local eventTracker = NS.Modules.InterfaceEnhance and NS.Modules.InterfaceEnhance.EventTracker
-    if eventTracker and eventTracker.OnWorldMapLoaded then
+    if self:IsModuleAllowed("InterfaceEnhance", "EventTracker") and eventTracker and eventTracker.OnWorldMapLoaded then
         eventTracker:OnWorldMapLoaded()
     end
 end

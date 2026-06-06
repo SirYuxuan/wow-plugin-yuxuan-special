@@ -599,31 +599,58 @@ function BagItemOverlay:RequestBaganatorRefresh()
     end
 end
 
+function BagItemOverlay:RefreshBaganatorFrames()
+    if self.baganatorRefreshQueued then
+        return
+    end
+
+    self.baganatorRefreshQueued = true
+    C_Timer.After(0, function()
+        self.baganatorRefreshQueued = false
+        if not (Baganator and Baganator.API and Baganator.API.Skins and Baganator.API.Skins.GetAllFrames) then
+            return
+        end
+
+        local frames = Baganator.API.Skins.GetAllFrames()
+        if not frames then
+            return
+        end
+
+        local visited = {}
+        for _, entry in pairs(frames) do
+            if entry and entry.regionType == "ItemButton" then
+                VisitContainerButtons(entry.region, visited)
+            end
+        end
+    end)
+end
+
 function BagItemOverlay:TryHookBaganator()
     if self.baganatorHooksApplied then
         return
     end
 
-    local mixinNames = {
-        "BaganatorRetailCachedItemButtonMixin",
-        "BaganatorRetailLiveContainerItemButtonMixin",
-        "BaganatorClassicLiveContainerItemButtonMixin",
-        "BaganatorClassicLiveGuildItemButtonMixin",
-    }
+    local integrated = false
 
-    local hooked = false
-    for _, mixinName in ipairs(mixinNames) do
-        local mixin = _G[mixinName]
-        if mixin and type(mixin.SetItemDetails) == "function" then
-            hooksecurefunc(mixin, "SetItemDetails", function(button)
-                BagItemOverlay:UpdateBaganatorButton(button)
-            end)
-            hooked = true
-        end
+    if Baganator and Baganator.API and Baganator.API.Skins and Baganator.API.Skins.RegisterListener then
+        Baganator.API.Skins.RegisterListener(function(entry)
+            if entry and entry.regionType == "ItemButton" then
+                BagItemOverlay:UpdateBaganatorButton(entry.region)
+            end
+        end)
+        integrated = true
     end
 
-    if hooked then
+    if Baganator and Baganator.CallbackRegistry and Baganator.CallbackRegistry.RegisterCallback then
+        Baganator.CallbackRegistry:RegisterCallback("RefreshStateChange", function()
+            BagItemOverlay:RefreshBaganatorFrames()
+        end)
+        integrated = true
+    end
+
+    if integrated then
         self.baganatorHooksApplied = true
+        self:RefreshBaganatorFrames()
         self:RequestBaganatorRefresh()
     end
 end
